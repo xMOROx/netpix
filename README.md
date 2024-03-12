@@ -3,7 +3,7 @@
 ![CI](https://img.shields.io/github/actions/workflow/status/LVala/rtpeeker/ci.yml)
 ![crates.io](https://img.shields.io/crates/v/rtpeeker)
 
-RTP streams analysis and visualization tool.
+RTP/MPEG-TS streams analysis and visualization tool.
 
 _Work in progress..._
 
