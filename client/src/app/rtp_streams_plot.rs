@@ -1,6 +1,6 @@
 use self::SettingsXAxis::*;
 use super::is_stream_visible;
-use crate::streams::stream::{RtpInfo, Stream};
+use crate::streams::rtpStream::{RtpInfo, RtpStream};
 use crate::streams::{RefStreams, Streams};
 use eframe::egui;
 use eframe::egui::TextBuffer;
@@ -30,7 +30,7 @@ struct PointData {
     marker_shape: MarkerShape,
 }
 
-struct StreamSeperatorLine {
+struct StreamSeparatorLine {
     x_start: f64,
     x_end: f64,
     y: f64,
@@ -70,7 +70,7 @@ impl Display for SettingsXAxis {
 pub struct RtpStreamsPlot {
     streams: RefStreams,
     points_data: Vec<PointData>,
-    stream_separator_lines: Vec<StreamSeperatorLine>,
+    stream_separator_lines: Vec<StreamSeparatorLine>,
     stream_texts: Vec<StreamText>,
     x_axis: SettingsXAxis,
     requires_reset: bool,
@@ -309,7 +309,7 @@ impl RtpStreamsPlot {
             }
         }
         for separator in &self.stream_separator_lines {
-            let StreamSeperatorLine { x_start, x_end, y } = separator;
+            let StreamSeparatorLine { x_start, x_end, y } = separator;
             plot_ui.line(
                 Line::new(PlotPoints::new(vec![[*x_start, *y], [*x_end, *y]]))
                     .color(Color32::GRAY)
@@ -419,7 +419,7 @@ impl RtpStreamsPlot {
                     on_hover: String::from(&format!("{} ({:x})  ", stream.alias, stream.ssrc)),
                 });
                 if let Some((_, _)) = points_x_and_y_top.last() {
-                    self.stream_separator_lines.push(StreamSeperatorLine {
+                    self.stream_separator_lines.push(StreamSeparatorLine {
                         x_start: 0.0,
                         x_end: stream_separator_length,
                         y: (this_stream_y_baseline + previous_stream_max_y) / 2.0,
@@ -444,7 +444,7 @@ impl RtpStreamsPlot {
 fn get_highest_y(
     streams: &Ref<Streams>,
     points_x_and_y_top: &mut Vec<(f64, f64)>,
-    stream: &Stream,
+    stream: &RtpStream,
     settings_x_axis: SettingsXAxis,
     this_stream_y_baseline: f64,
 ) -> f64 {
@@ -493,7 +493,7 @@ fn get_highest_y(
 fn build_stream_points(
     streams: &Ref<Streams>,
     points_x_and_y_top: &mut Vec<(f64, f64)>,
-    stream: &Stream,
+    stream: &RtpStream,
     settings_x_axis: SettingsXAxis,
     points_data: &mut Vec<PointData>,
     previous_stream_max_y: &mut f64,
@@ -739,7 +739,7 @@ fn get_x_and_y(
 }
 
 fn build_on_hover_text(
-    stream: &Stream,
+    stream: &RtpStream,
     rtp: &RtpInfo,
     x: f64,
     settings_x_axis: SettingsXAxis,

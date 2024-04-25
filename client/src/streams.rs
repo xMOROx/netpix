@@ -6,17 +6,17 @@ use std::cell::RefCell;
 use std::collections::HashMap;
 use std::net::SocketAddr;
 use std::rc::Rc;
-use stream::Stream;
+use rtpStream::RtpStream;
 
 mod packets;
-pub mod stream;
+pub mod rtpStream;
 
 pub type RefStreams = Rc<RefCell<Streams>>;
 
 #[derive(Debug, Default)]
 pub struct Streams {
     pub packets: Packets,
-    pub streams: HashMap<StreamKey, Stream>,
+    pub streams: HashMap<StreamKey, RtpStream>,
 }
 
 impl Streams {
@@ -54,7 +54,7 @@ impl Streams {
 
 // this function need to take streams as an argument as opposed to methods on `Streams`
 // to make `Streams::recalculate` work, dunno if there's a better way
-fn handle_packet(streams: &mut HashMap<StreamKey, Stream>, packet: &Packet) {
+fn handle_packet(streams: &mut HashMap<StreamKey, RtpStream>, packet: &Packet) {
     match packet.contents {
         SessionPacket::Rtp(ref rtp) => {
             let stream_key = (
@@ -67,7 +67,7 @@ fn handle_packet(streams: &mut HashMap<StreamKey, Stream>, packet: &Packet) {
             if let Some(stream) = streams.get_mut(&stream_key) {
                 stream.add_rtp_packet(packet, rtp);
             } else {
-                let new_stream = Stream::new(packet, rtp, int_to_letter(streams.len()));
+                let new_stream = RtpStream::new(packet, rtp, int_to_letter(streams.len()));
                 streams.insert(stream_key, new_stream);
             }
         }
@@ -102,12 +102,12 @@ fn handle_packet(streams: &mut HashMap<StreamKey, Stream>, packet: &Packet) {
 }
 
 fn get_rtcp_stream(
-    streams: &mut HashMap<StreamKey, Stream>,
+    streams: &mut HashMap<StreamKey, RtpStream>,
     mut source_addr: SocketAddr,
     mut destination_addr: SocketAddr,
     protocol: TransportProtocol,
     ssrc: u32,
-) -> Option<&mut Stream> {
+) -> Option<&mut RtpStream> {
     let key_same_port = (source_addr, destination_addr, protocol, ssrc);
     if streams.contains_key(&key_same_port) {
         streams.get_mut(&key_same_port)

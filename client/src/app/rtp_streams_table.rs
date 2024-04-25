@@ -1,4 +1,4 @@
-use crate::streams::{stream::Stream, RefStreams};
+use crate::streams::{rtpStream::RtpStream, RefStreams};
 use egui::plot::{Line, Plot, PlotPoints};
 use egui::{TextEdit, Vec2};
 use egui_extras::{Column, TableBody, TableBuilder};
@@ -210,7 +210,7 @@ impl RtpStreamsTable {
     }
 }
 
-fn build_jitter_plot(ui: &mut egui::Ui, stream: &Stream) {
+fn build_jitter_plot(ui: &mut egui::Ui, stream: &RtpStream) {
     ui.vertical_centered_justified(|ui| {
         let points: PlotPoints = stream
             .rtp_packets
