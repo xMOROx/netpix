@@ -12,6 +12,8 @@ pub mod packet;
 pub mod rtcp;
 pub mod rtp;
 pub mod sdp;
+mod psi;
+mod descriptor;
 
 pub type StreamKey = (SocketAddr, SocketAddr, TransportProtocol, u32);
 
