@@ -1,4 +1,4 @@
-use super::{RtcpPacket, RtpPacket};
+use super::{RtcpPacket, RtpPacket, MpegtsPacket};
 use serde::{Deserialize, Serialize};
 use std::fmt;
 use std::net::SocketAddr;
@@ -12,16 +12,18 @@ use etherparse::{
     UdpHeader,
 };
 
+
 #[derive(Serialize, Deserialize, PartialEq, Debug, Copy, Clone)]
 pub enum SessionProtocol {
     Unknown,
     Rtp,
     Rtcp,
+    Mpegts,
 }
 
 impl SessionProtocol {
     pub fn all() -> Vec<Self> {
-        vec![Self::Unknown, Self::Rtp, Self::Rtcp]
+        vec![Self::Unknown, Self::Rtp, Self::Rtcp, Self::Mpegts]
     }
 }
 
@@ -31,6 +33,7 @@ impl fmt::Display for SessionProtocol {
             Self::Unknown => "Unknown",
             Self::Rtp => "RTP",
             Self::Rtcp => "RTCP",
+            Self::Mpegts => "MPEG-TS",
         };
 
         write!(f, "{}", res)
@@ -59,6 +62,7 @@ pub enum SessionPacket {
     Unknown,
     Rtp(RtpPacket),
     Rtcp(Vec<RtcpPacket>),
+    Mpegts(MpegtsPacket),
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -80,19 +84,19 @@ impl Packet {
         let Ok(packet) = PacketHeaders::from_ethernet_slice(raw_packet) else {
             return None;
         };
+        // println!("{:?}", packet);
         let PacketHeaders {
             ip: Some(ip),
             transport: Some(transport),
             ..
         } = packet
-        else {
-            return None;
-        };
+            else {
+                return None;
+            };
 
         let transport_protocol = get_transport_protocol(&transport)?;
         let (source_addr, destination_addr) = convert_addr(&ip, &transport)?;
         let duration = get_duration(raw_packet);
-
         Some(Self {
             payload: Some(packet.payload.to_vec()),
             id,
@@ -116,7 +120,12 @@ impl Packet {
         if self.transport_protocol != TransportProtocol::Udp {
             return;
         }
-
+        if let Some(mpegts) = MpegtsPacket::build(self) {
+            // println!("{:#?}", mpegts);
+            self.session_protocol = SessionProtocol::Mpegts;
+            self.contents = SessionPacket::Mpegts(mpegts);
+            return;
+        }
         if let Some(rtcp) = RtcpPacket::build(self) {
             if is_rtcp(&rtcp) {
                 self.session_protocol = SessionProtocol::Rtcp;
@@ -149,6 +158,13 @@ impl Packet {
                 self.session_protocol = packet_type;
                 self.contents = SessionPacket::Rtcp(rtcp);
             }
+            SessionProtocol::Mpegts => {
+                let Some(mpegts) = MpegtsPacket::build(self) else {
+                    return;
+                };
+                self.session_protocol = packet_type;
+                self.contents = SessionPacket::Mpegts(mpegts);
+            }
             SessionProtocol::Unknown => {
                 self.session_protocol = packet_type;
                 self.contents = SessionPacket::Unknown;
@@ -156,6 +172,12 @@ impl Packet {
         }
     }
 }
+
+// Don't know if this is needed
+// #[cfg(not(target_arch = "wasm32"))]
+// fn is_mpegts(_packet: &MpegtsPacket) -> bool {
+//     TODO: implement
+// }
 
 #[cfg(not(target_arch = "wasm32"))]
 fn is_rtp(packet: &RtpPacket) -> bool {
@@ -228,15 +250,15 @@ fn convert_addr(
 
     let (source_port, dest_port) = match *transport {
         Udp(UdpHeader {
-            source_port,
-            destination_port,
-            ..
-        })
+                source_port,
+                destination_port,
+                ..
+            })
         | Tcp(TcpHeader {
-            source_port,
-            destination_port,
-            ..
-        }) => (source_port, destination_port),
+                  source_port,
+                  destination_port,
+                  ..
+              }) => (source_port, destination_port),
         _ => return None,
     };
 
