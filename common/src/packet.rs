@@ -84,7 +84,6 @@ impl Packet {
         let Ok(packet) = PacketHeaders::from_ethernet_slice(raw_packet) else {
             return None;
         };
-        // println!("{:?}", packet);
         let PacketHeaders {
             ip: Some(ip),
             transport: Some(transport),
@@ -121,7 +120,6 @@ impl Packet {
             return;
         }
         if let Some(mpegts) = MpegtsPacket::build(self) {
-            // println!("{:#?}", mpegts);
             self.session_protocol = SessionProtocol::Mpegts;
             self.contents = SessionPacket::Mpegts(mpegts);
             return;
