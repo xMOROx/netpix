@@ -39,7 +39,7 @@ pub struct RtpInfo {
 }
 
 #[derive(Debug)]
-pub struct Stream {
+pub struct RtpStream {
     pub source_addr: SocketAddr,
     pub destination_addr: SocketAddr,
     pub protocol: TransportProtocol,
@@ -64,7 +64,7 @@ pub struct Stream {
     pub estimated_clock_rate: Option<f64>,
 }
 
-impl Stream {
+impl RtpStream {
     pub fn new(packet: &Packet, rtp: &RtpPacket, default_alias: String) -> Self {
         let rtp_info = RtpInfo {
             packet: rtp.clone(),
