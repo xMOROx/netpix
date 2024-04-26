@@ -5,6 +5,7 @@ use std::net::SocketAddr;
 
 pub use crate::rtcp::RtcpPacket;
 pub use crate::rtp::RtpPacket;
+pub use crate::mpegts::MpegtsPacket;
 pub use packet::Packet;
 pub use sdp::Sdp;
 
@@ -12,8 +13,9 @@ pub mod packet;
 pub mod rtcp;
 pub mod rtp;
 pub mod sdp;
-mod psi;
-mod descriptor;
+pub mod psi;
+pub mod descriptor;
+pub mod mpegts;
 
 pub type StreamKey = (SocketAddr, SocketAddr, TransportProtocol, u32);
 
