@@ -56,3 +56,17 @@ impl From<u16> for PIDTable {
         }
     }
 }
+
+impl Into<u16> for PIDTable {
+    fn into(self) -> u16 {
+        match self {
+            PIDTable::NullPacket => 0x1FFF,
+            PIDTable::ProgramAssociation => 0x0000,
+            PIDTable::ConditionalAccess => 0x0001,
+            PIDTable::TransportStreamDescription => 0x0002,
+            PIDTable::IPMPControlInformation => 0x0003,
+            PIDTable::AdaptiveStreamingInformation => 0x0004,
+            PIDTable::PID(val) => val,
+        }
+    }
+}

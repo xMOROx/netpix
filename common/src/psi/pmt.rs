@@ -19,3 +19,26 @@ pub struct ElementaryStreamInfo {
     pub es_info_length: u16,
     pub descriptors: Vec<Descriptor>,
 }
+
+impl ProgramMapTable {
+    pub fn build() -> Self {
+        Self {
+            header: ProgramSpecificInformationHeader {
+                table_id: 0,
+                section_syntax_indicator: false,
+                section_length: 0,
+                version_number: 0,
+                current_next_indicator: false,
+                section_number: 0,
+                last_section_number: 0,
+                crc_32: 0,
+            },
+
+            program_number: 0,
+            pcr_pid: 0,
+            program_info_length: 0,
+            descriptors: vec!(),
+            elementary_streams_info: vec!(),
+        }
+    }
+}

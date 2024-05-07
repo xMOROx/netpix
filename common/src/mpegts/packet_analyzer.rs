@@ -1,53 +1,42 @@
+use serde::{Deserialize, Serialize};
 use crate::mpegts::{MpegtsPacket, MpegtsFragment, PayloadType, header::PIDTable};
-use crate::psi::PsiTypes;
+use crate::psi::{PsiTypes, pat::ProgramAssociationTable};
 use crate::pes::PesPacketHeader;
 
 pub struct Analyzer;
 
 impl Analyzer {
-    pub fn analyze(incomplete_data: &mut IncompleteData,
-                   packet: &MpegtsPacket) -> Option<PayloadType> {
-        match incomplete_data.payload_type {
-            PayloadType::PSI(table) => {
-                match table {
-                    PsiTypes::PAT => {
-                        todo!("Implement the logic to analyze the payload")
-                    }
-                    PsiTypes::PMT => {
-                        todo!("Implement the logic to analyze the payload")
-                    }
-                }
-            }
-            PayloadType::PES(packet) => {
-                todo!("Implement the logic to analyze the payload")
-            }
+    pub fn collect_data(mut raw_data_packet: RawDataPacket,
+                        raw_packet: &MpegtsFragment) -> Option<RawDataPacket> {
+        if raw_packet.payload.is_none() {
+            return None;
         }
 
+        let payload = raw_packet.payload.as_ref().unwrap();
 
-        if incomplete_data.current_number_of_bytes < packet.payload.len() {
-            None
-        } else {
-            todo!("Implement the logic to analyze the payload");
-        }
+
+        raw_data_packet.data.extend_from_slice(&payload.data);
+
+        Some(raw_data_packet)
+    }
+
+    pub fn analyze(mut raw_data_packet: RawDataPacket) -> PayloadType {
+        todo!("Implement the logic to analyze the payload")
     }
 }
 
-pub struct IncompleteData {
-    data: Vec<u8>,
-    payload_type: PayloadType,
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct RawDataPacket {
+    pub data: Vec<u8>,
     pid: PIDTable,
-    number_of_analyzed_bytes: usize,
-    current_number_of_bytes: usize,
 }
 
-impl IncompleteData {
-    pub fn build(pid: PIDTable, payload_type: PayloadType) -> Self {
+
+impl RawDataPacket {
+    pub fn build(pid: &PIDTable) -> Self {
         Self {
             data: vec!(),
-            payload_type,
-            pid,
-            number_of_analyzed_bytes: 0,
-            current_number_of_bytes: 0,
+            pid: pid.clone(),
         }
     }
 }

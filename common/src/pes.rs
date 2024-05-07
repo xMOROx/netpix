@@ -5,9 +5,22 @@ pub struct PesPacketHeader {
     pub packet_start_code_prefix: u32,
     pub stream_id: u8,
     pub pes_packet_length: u16,
-    pub optional_header: Option<OptionalPesHeader>,  
+    pub optional_header: Option<OptionalPesHeader>,
     pub pes_packet_data_bytes: Vec<u8>,
-    pub padding_bytes: Vec<u8>,              
+    pub padding_bytes: Vec<u8>,
+}
+
+impl PesPacketHeader {
+    pub fn build() -> Self {
+        Self {
+            packet_start_code_prefix: 0,
+            stream_id: 0,
+            pes_packet_length: 0,
+            optional_header: Some(OptionalPesHeader::build()),
+            pes_packet_data_bytes: vec!(),
+            padding_bytes: vec!(),
+        }
+    }
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -28,6 +41,29 @@ pub struct OptionalPesHeader {
     pub pes_header_data_length: u8,
     pub optional_fields: Option<OptionalPesHeaderFields>,
     pub stuffing_bytes: Vec<u8>,
+}
+
+impl OptionalPesHeader {
+    pub fn build() -> Self {
+        Self {
+            marker_bits: 0,
+            pes_scrambling_control: 0,
+            pes_priority: false,
+            data_alignment_indicator: false,
+            copyright: false,
+            original_or_copy: false,
+            pts_dts_flags: 0,
+            escr_flag: false,
+            es_rate_flag: false,
+            dsm_trick_mode_flag: false,
+            additional_copy_info_flag: false,
+            pes_crc_flag: false,
+            pes_extension_flag: false,
+            pes_header_data_length: 0,
+            optional_fields: Some(OptionalPesHeaderFields::build()),
+            stuffing_bytes: vec!(),
+        }
+    }
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -51,12 +87,43 @@ pub struct OptionalPesHeaderFields {
     pub mpeg1_mpeg2_identifier: Option<u8>,
     pub original_stuff_length: Option<u8>,
     pub p_std_buffer_scale: Option<u8>,
-    pub p_std_buffer_size : Option<u16>,
+    pub p_std_buffer_size: Option<u16>,
     pub pes_extension_field_length: Option<u8>,
     pub stream_id_extension_flag: Option<u8>,
     pub stream_id_extension: Option<u8>,
     pub tref_extension_flag: Option<u8>,
     pub tref: Option<u64>,
+}
+
+impl OptionalPesHeaderFields {
+    pub fn build() -> Self {
+        Self {
+            pts: None,
+            dts: None,
+            escr: None,
+            es_rate: None,
+            trick_mode_control: Some(TrickModeControl::build()),
+            additional_copy_info: None,
+            previous_pes_packet_crc: None,
+            pes_private_data_flag: None,
+            pack_header_field_flag: None,
+            program_packet_sequence_counter_flag: None,
+            p_std_buffer_flag: None,
+            pes_extension_flag_2: None,
+            pes_private_data: None,
+            pack_field_length: None,
+            program_packet_sequence_counter: None,
+            mpeg1_mpeg2_identifier: None,
+            original_stuff_length: None,
+            p_std_buffer_scale: None,
+            p_std_buffer_size: None,
+            pes_extension_field_length: None,
+            stream_id_extension_flag: None,
+            stream_id_extension: None,
+            tref_extension_flag: None,
+            tref: None,
+        }
+    }
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -67,14 +134,25 @@ pub struct TrickModeControl {
     pub rep_cntrl: Option<u8>,
 }
 
+impl TrickModeControl {
+    fn build() -> Self {
+        Self {
+            field_id: None,
+            intra_slice_refresh: None,
+            frequency_truncation: None,
+            rep_cntrl: None,
+        }
+    }
+}
+
 #[derive(Debug, PartialEq)]
 pub enum StreamType {
     ProgramStreamMap,
     PrivateStream1,
     PaddingStream,
     PrivateStream2,
-    AudioStream(u8),   
-    VideoStream(u8),   
+    AudioStream(u8),
+    VideoStream(u8),
     ECMStream,
     EMMStream,
     DSMCCStream,
@@ -94,7 +172,7 @@ pub enum StreamType {
     Unknown,
 }
 
-impl From<u8> for StreamType{
+impl From<u8> for StreamType {
     fn from(stream_id: u8) -> Self {
         match stream_id {
             0xBC => StreamType::ProgramStreamMap,

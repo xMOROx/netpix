@@ -7,12 +7,13 @@ pub mod cat;
 pub mod tsdt;
 pub mod ps;
 
+pub const MAX_SECTION_LENGTH: usize = 0x3FD;
+
 ///  11, 12 bits are reserved
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct ProgramSpecificInformationHeader {
     pub table_id: u8,
     pub section_syntax_indicator: bool,
-    pub private_indicator: bool, // for PAT, PMT, CAT is set to 0
     pub section_length: u16,
     pub version_number: u8,
     pub current_next_indicator: bool,
@@ -25,6 +26,7 @@ pub struct ProgramSpecificInformationHeader {
 pub enum PsiTypes {
     PAT(pat::ProgramAssociationTable),
     PMT(pmt::ProgramMapTable),
+    NONE,
 }
 
 

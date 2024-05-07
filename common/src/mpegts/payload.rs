@@ -5,9 +5,10 @@ use crate::{pes::PesPacketHeader, psi::PsiTypes};
 pub enum PayloadType {
     PSI(PsiTypes),
     PES(PesPacketHeader),
+    UNKNOWN,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct RawPayload {
-    pub(crate) data: Vec<u8>,
+    pub data: Vec<u8>,
 }
