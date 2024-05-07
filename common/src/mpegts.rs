@@ -1,11 +1,12 @@
 pub mod header;
 pub mod adaptation_field;
 pub mod payload;
+pub mod packet_analyzer;
 
 use serde::{Deserialize, Serialize};
 use crate::mpegts::adaptation_field::AdaptationField;
 use crate::mpegts::header::Header;
-use crate::mpegts::payload::Payload;
+use crate::mpegts::payload::{PayloadType, RawPayload};
 #[cfg(not(target_arch = "wasm32"))]
 use crate::mpegts::header::{PIDTable, TransportScramblingControl, AdaptationFieldControl};
 use crate::pes::PesPacketHeader;
@@ -17,6 +18,8 @@ const PAYLOAD_LENGTH: usize = 1316;
 const FRAGMENT_SIZE: usize = 188;
 #[cfg(not(target_arch = "wasm32"))]
 const HEADER_SIZE: usize = 4;
+#[cfg(not(target_arch = "wasm32"))]
+const SYNC_BYTE: u8 = 0x47;
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct MpegtsPacket {
@@ -28,7 +31,7 @@ pub struct MpegtsPacket {
 pub struct MpegtsFragment {
     pub header: Header,
     pub adaptation_field: Option<AdaptationField>,
-    pub payload: Option<Payload>,
+    pub payload: Option<RawPayload>,
 }
 
 #[cfg(not(target_arch = "wasm32"))]
@@ -50,7 +53,7 @@ impl MpegtsPacket {
         let mut number_of_fragments: usize = 0;
         let mut fragments: Vec<MpegtsFragment> = vec!();
         // sync byte should be 0x47
-        while (number_of_fragments * FRAGMENT_SIZE) < PAYLOAD_LENGTH && buffer[number_of_fragments * FRAGMENT_SIZE] == 0x47 {
+        while (number_of_fragments * FRAGMENT_SIZE) < PAYLOAD_LENGTH && buffer[number_of_fragments * FRAGMENT_SIZE] == SYNC_BYTE {
             let Some(fragment) = Self::get_frgment(buffer, number_of_fragments * FRAGMENT_SIZE) else {
                 break;
             };
@@ -99,21 +102,8 @@ impl MpegtsPacket {
         let payload_unit_start_indicator = buffer[start_index + 1] & 64 == 1;
         let transport_priority = buffer[start_index + 1] & 32 == 1;
         let pid = (((buffer[start_index + 1] & 31) as u16) << 8) + buffer[start_index + 2] as u16;
-        let pid: PIDTable = match pid {
-            0x0000 => PIDTable::ProgramAssociation,
-            0x0001 => PIDTable::ConditionalAccess,
-            0x0002 => PIDTable::TransportStreamDescription,
-            0x0003 => PIDTable::IPMPControlInformation,
-            0x0004 => PIDTable::AdaptiveStreamingInformation,
-            0x1FFF => PIDTable::NullPacket,
-            val => {
-                if val > 0x000F {
-                    PIDTable::PID(val)
-                } else {
-                    return None;
-                }
-            }
-        };
+        let pid: PIDTable = PIDTable::from(pid);
+
         let transport_scrambling_control = match (buffer[start_index + 3] & 192) >> 6 {
             0 => TransportScramblingControl::NotScrambled,
             val => TransportScramblingControl::UserDefined(val),
@@ -141,7 +131,9 @@ impl MpegtsPacket {
         Some(AdaptationField { adaptation_field_length })
     }
 
-    fn get_payload(_buffer: &Vec<u8>, _start_index: usize) -> Option<Payload> {
-        None
+    fn get_payload(buffer: &Vec<u8>, start_index: usize) -> Option<RawPayload> {
+        let length = if start_index + FRAGMENT_SIZE < buffer.len() { FRAGMENT_SIZE } else { buffer.len() - start_index };
+        let data = buffer[start_index..start_index + length].to_vec();
+        Some(RawPayload { data })
     }
 }
