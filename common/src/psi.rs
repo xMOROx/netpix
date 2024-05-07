@@ -21,6 +21,12 @@ pub struct ProgramSpecificInformationHeader {
     pub crc_32: u32,
 }
 
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub enum PsiTypes {
+    PAT(pat::ProgramAssociationTable),
+    PMT(pmt::ProgramMapTable),
+}
+
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub enum TableId {

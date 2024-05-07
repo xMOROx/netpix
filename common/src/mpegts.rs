@@ -7,7 +7,9 @@ use crate::mpegts::adaptation_field::AdaptationField;
 use crate::mpegts::header::Header;
 use crate::mpegts::payload::Payload;
 #[cfg(not(target_arch = "wasm32"))]
-use crate::mpegts::header::{Header, PIDTable, TransportScramblingControl, AdaptationFieldControl};
+use crate::mpegts::header::{PIDTable, TransportScramblingControl, AdaptationFieldControl};
+use crate::pes::PesPacketHeader;
+use crate::psi::PsiTypes;
 
 #[cfg(not(target_arch = "wasm32"))]
 const PAYLOAD_LENGTH: usize = 1316;
@@ -140,6 +142,6 @@ impl MpegtsPacket {
     }
 
     fn get_payload(_buffer: &Vec<u8>, _start_index: usize) -> Option<Payload> {
-        Some(Payload {})
+        None
     }
 }
