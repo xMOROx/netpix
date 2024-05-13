@@ -1,52 +1,41 @@
 use std::collections::HashMap;
+use std::hash::Hash;
+use log::info;
 use serde::{Deserialize, Serialize};
+use crate::mpegts;
 use crate::mpegts::{MpegtsFragment, PayloadType, header::PIDTable};
-use crate::psi::pat::ProgramAssociationTable;
+use crate::packet::SessionProtocol::Mpegts;
+use crate::psi::pat::{ProgramAssociationTable, MAX_NUMBER_OF_SECTIONS, MAX_SIZE_OF_PAT, ProgramAssociationTableWithRawData};
 
 pub struct Analyzer;
 
 
 impl Analyzer {
-    pub fn collect_data(mut raw_data_packet: RawDataPacket,
-                        raw_packet: &MpegtsFragment) -> Option<RawDataPacket> {
-        if raw_packet.payload.is_none() {
-            return None;
-        }
+    pub fn analyze(mpeg_ts_payloads: &mut HashMap<u16, Vec<MpegtsFragment>>) {
+        let mut pat_packets: HashMap<u8, ProgramAssociationTableWithRawData> = HashMap::new();
 
-        let payload = raw_packet.payload.as_ref().unwrap();
-
-        if raw_data_packet.pid == PIDTable::ProgramAssociation {
-            raw_data_packet.data = payload.data.clone();
-        } else {
-            raw_data_packet.data.extend_from_slice(&payload.data);
-        }
-
-        Some(raw_data_packet)
-    }
-
-    pub fn analyze(mpeg_ts_payloads: &HashMap<u16, RawDataPacket>) {
         let pat_pid: u16 = PIDTable::ProgramAssociation.into();
-        if let Some(pat_payload) = mpeg_ts_payloads.get(&pat_pid) {
-            let pat = ProgramAssociationTable::unmarshal(pat_payload.payload_unit_start_indicator, &pat_payload.data);
-            println!("{:#?}", pat);
+
+        if let Some(pat_payloads) = mpeg_ts_payloads.get(&pat_pid) {
+            for pat_payload in pat_payloads {
+                let pat = ProgramAssociationTable::unmarshal(pat_payload);
+
+                if let Some(raw_pat) = pat {
+                    let mut_pat = pat_packets.entry(raw_pat.header.section_number).or_insert(raw_pat);
+
+                    mut_pat.raw_data.extend(pat_payload.payload.as_ref().unwrap().data.clone());
+                }
+            }
+        }
+
+        for (key, mut value) in pat_packets {
+            if value.header.section_length <= value.raw_data.len() as u16 && value.raw_data.len() >= mpegts::FRAGMENT_SIZE {
+                let pat = ProgramAssociationTable::unmarshal_collected(&mut value);
+            }
         }
     }
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct RawDataPacket {
-    pub payload_unit_start_indicator: bool,
-    pub data: Vec<u8>,
-    pid: PIDTable,
-}
 
 
-impl RawDataPacket {
-    pub fn build(payload_unit_start_indicator: bool, pid: &PIDTable) -> Self {
-        Self {
-            data: vec!(),
-            payload_unit_start_indicator,
-            pid: pid.clone(),
-        }
-    }
-}
+

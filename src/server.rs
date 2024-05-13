@@ -5,20 +5,18 @@ use futures_util::{
 };
 use log::{error, info, warn};
 use rtpeeker_common::packet::{SessionPacket, SessionProtocol};
-use rtpeeker_common::{MpegtsPacket, Packet, psi, Request, Response, Sdp};
+use rtpeeker_common::{MpegtsPacket, Packet, Request, Response, Sdp};
 use rtpeeker_common::{Source, StreamKey};
 use rust_embed::RustEmbed;
 use std::collections::HashMap;
 use std::net::SocketAddr;
-use std::rc::Rc;
 use std::sync::{
     atomic::{AtomicUsize, Ordering},
     Arc,
 };
-use pat::ProgramAssociationTable;
-use psi::pat;
 use rtpeeker_common::mpegts::header::PIDTable;
-use rtpeeker_common::mpegts::packet_analyzer::{Analyzer, RawDataPacket};
+use rtpeeker_common::mpegts::MpegtsFragment;
+use rtpeeker_common::mpegts::packet_analyzer::{Analyzer};
 use tokio::sync::{mpsc, mpsc::UnboundedSender, RwLock};
 use warp::ws::{Message, WebSocket};
 use warp::{http::header::HeaderValue, path::Tail, reply};
@@ -158,7 +156,7 @@ async fn send_pcap_filenames(
 }
 
 async fn sniff(mut sniffer: Sniffer, packets: Packets, clients: Clients) {
-    let mut mpeg_ts_payloads: HashMap<u16, RawDataPacket> = HashMap::new();
+    let mut mpeg_ts_payloads: HashMap<u16, Vec<MpegtsFragment>> = HashMap::new();
 
     while let Some(result) = sniffer.next_packet().await {
         match result {
@@ -166,7 +164,9 @@ async fn sniff(mut sniffer: Sniffer, packets: Packets, clients: Clients) {
                 pack.guess_payload();
 
                 collect_mpeg_ts_payloads(&mut mpeg_ts_payloads, &mut pack).await;
-                Analyzer::analyze(&mpeg_ts_payloads);
+
+
+                Analyzer::analyze(&mut mpeg_ts_payloads);
 
 
                 // TODO: Packet send via WebSocket contains its
@@ -206,25 +206,22 @@ async fn get_mpeg_ts_payload_from_packet(packet: &Packet) -> Option<&MpegtsPacke
     }
 }
 
-async fn collect_mpeg_ts_payloads(mpeg_ts_payloads: &mut HashMap<u16, RawDataPacket>, packet: &mut Packet) {
+async fn collect_mpeg_ts_payloads(mpeg_ts_payloads: &mut HashMap<u16, Vec<MpegtsFragment>>, packet: &mut Packet) {
     let mpegts_packet = match get_mpeg_ts_payload_from_packet(packet).await {
         Some(mpegts_packet) => mpegts_packet,
         None => return,
     };
 
 
-    for fragment in mpegts_packet.fragments.clone().iter_mut() {
-        let pid: Rc<PIDTable> = Rc::new(fragment.header.pid.clone());
-
-        let raw_data_packet = mpeg_ts_payloads.entry(Rc::clone(&pid).as_ref().into()).or_insert_with(|| RawDataPacket::build(fragment.header.payload_unit_start_indicator, &pid));
-
-        let raw_data_packet = if let Some(raw_data_packet) = Analyzer::collect_data(raw_data_packet.clone(), fragment) {
-            raw_data_packet
-        } else {
+    for fragment in mpegts_packet.fragments.iter() {
+        if !mpeg_ts_payloads.contains_key(&fragment.header.pid.clone().into()) {
+            mpeg_ts_payloads.insert(fragment.header.pid.clone().into(), Vec::new());
+        }
+        if fragment.payload.is_none() {
             continue;
-        };
+        }
 
-        mpeg_ts_payloads.insert(Rc::clone(&pid).as_ref().into(), raw_data_packet);
+        mpeg_ts_payloads.get_mut(&fragment.header.pid.clone().into()).unwrap().push(fragment.clone());
     }
 }
 
