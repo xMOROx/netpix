@@ -1,6 +1,8 @@
 use serde::{Deserialize, Serialize};
 use crate::psi::ProgramSpecificInformationHeader;
 
+const STUFFED_BYTE: u8 = 0xFF;
+
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct ProgramAssociationTable {
     pub header: ProgramSpecificInformationHeader,
@@ -36,25 +38,14 @@ impl ProgramAssociationTable {
         let current_next_indicator = (data[5] & 0x01) != 0;
         let section_number = data[6];
         let last_section_number = data[7];
-        let crc_32 = ((data[section_length as usize - 4] as u32) << 24) |
-            ((data[section_length as usize - 3] as u32) << 16) |
-            ((data[section_length as usize - 2] as u32) << 8) |
-            data[section_length as usize - 1] as u32;
-
-        let header = ProgramSpecificInformationHeader {
-            table_id,
-            section_syntax_indicator,
-            section_length: section_length as u16,
-            version_number,
-            current_next_indicator,
-            section_number,
-            last_section_number,
-            crc_32,
-        };
 
         let mut programs = Vec::new();
         let mut i: usize = 8;
         while i < section_length - 4 {
+            if ProgramAssociationTable::check_if_packed_has_stuffing(&data[i..i + 4]) {
+                break;
+            }
+
             let program_number = (data[i] as u16) << 8 | data[i + 1] as u16;
             let mut network_pid = 0;
             let mut program_map_pid = 0;
@@ -73,11 +64,38 @@ impl ProgramAssociationTable {
             });
             i += 4;
         }
+        let crc_data = &data[section_length as usize + 8..];
+        let mut crc_32: u32 = 0;
+
+        for i in 0..crc_data.len() {
+            crc_32 |= (crc_data[i] as u32) << (24 - i * 8);
+        }
+
+        let header = ProgramSpecificInformationHeader {
+            table_id,
+            section_syntax_indicator,
+            section_length: section_length as u16,
+            version_number,
+            current_next_indicator,
+            section_number,
+            last_section_number,
+            crc_32,
+        };
+
 
         ProgramAssociationTable {
             header,
             transport_stream_id,
             programs,
         }
+    }
+
+    fn check_if_packed_has_stuffing(data: &[u8]) -> bool {
+        for byte in data {
+            if *byte != STUFFED_BYTE {
+                return false;
+            }
+        }
+        true
     }
 }
