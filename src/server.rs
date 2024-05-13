@@ -8,14 +8,17 @@ use rtpeeker_common::packet::{SessionPacket, SessionProtocol};
 use rtpeeker_common::{MpegtsPacket, Packet, psi, Request, Response, Sdp};
 use rtpeeker_common::{Source, StreamKey};
 use rust_embed::RustEmbed;
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 use std::net::SocketAddr;
+use std::rc::Rc;
 use std::sync::{
     atomic::{AtomicUsize, Ordering},
     Arc,
 };
+use pat::ProgramAssociationTable;
+use psi::pat;
+use rtpeeker_common::mpegts::header::PIDTable;
 use rtpeeker_common::mpegts::packet_analyzer::{Analyzer, RawDataPacket};
-use rtpeeker_common::mpegts::payload::PayloadType;
 use tokio::sync::{mpsc, mpsc::UnboundedSender, RwLock};
 use warp::ws::{Message, WebSocket};
 use warp::{http::header::HeaderValue, path::Tail, reply};
@@ -162,7 +165,8 @@ async fn sniff(mut sniffer: Sniffer, packets: Packets, clients: Clients) {
             Ok(mut pack) => {
                 pack.guess_payload();
 
-                analyze_mpeg_ts_payload(&mut mpeg_ts_payloads, &mut pack).await;
+                collect_mpeg_ts_payloads(&mut mpeg_ts_payloads, &mut pack).await;
+                Analyzer::analyze(&mpeg_ts_payloads);
 
 
                 // TODO: Packet send via WebSocket contains its
@@ -194,7 +198,7 @@ async fn sniff(mut sniffer: Sniffer, packets: Packets, clients: Clients) {
     }
 }
 
-async fn get_mpeg_ts_payload(packet: &Packet) -> Option<&MpegtsPacket> {
+async fn get_mpeg_ts_payload_from_packet(packet: &Packet) -> Option<&MpegtsPacket> {
     if let SessionPacket::Mpegts(mpegts_packet) = &packet.contents {
         Some(mpegts_packet)
     } else {
@@ -202,26 +206,25 @@ async fn get_mpeg_ts_payload(packet: &Packet) -> Option<&MpegtsPacket> {
     }
 }
 
-async fn analyze_mpeg_ts_payload(mpeg_ts_payloads: &mut HashMap<u16, RawDataPacket>, packet: &mut Packet) {
-    let mpegts_packet = match get_mpeg_ts_payload(packet).await {
+async fn collect_mpeg_ts_payloads(mpeg_ts_payloads: &mut HashMap<u16, RawDataPacket>, packet: &mut Packet) {
+    let mpegts_packet = match get_mpeg_ts_payload_from_packet(packet).await {
         Some(mpegts_packet) => mpegts_packet,
         None => return,
     };
 
 
     for fragment in mpegts_packet.fragments.clone().iter_mut() {
-        let pid = fragment.header.pid.clone();
-        let mut clone_payloads = mpeg_ts_payloads.clone();
+        let pid: Rc<PIDTable> = Rc::new(fragment.header.pid.clone());
 
-        let incomplete_data = clone_payloads.entry(pid.clone().into()).or_insert_with(|| RawDataPacket::build(&pid));
+        let raw_data_packet = mpeg_ts_payloads.entry(Rc::clone(&pid).as_ref().into()).or_insert_with(|| RawDataPacket::build(fragment.header.payload_unit_start_indicator, &pid));
 
-        let incomplete_data = if let Some(incomplete_data) = Analyzer::collect_data(incomplete_data.clone(), fragment) {
-            incomplete_data
+        let raw_data_packet = if let Some(raw_data_packet) = Analyzer::collect_data(raw_data_packet.clone(), fragment) {
+            raw_data_packet
         } else {
             continue;
         };
 
-        mpeg_ts_payloads.insert(pid.clone().into(), incomplete_data.clone());
+        mpeg_ts_payloads.insert(Rc::clone(&pid).as_ref().into(), raw_data_packet);
     }
 }
 

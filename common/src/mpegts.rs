@@ -9,8 +9,6 @@ use crate::mpegts::header::Header;
 use crate::mpegts::payload::{PayloadType, RawPayload};
 #[cfg(not(target_arch = "wasm32"))]
 use crate::mpegts::header::{PIDTable, TransportScramblingControl, AdaptationFieldControl};
-use crate::pes::PesPacketHeader;
-use crate::psi::PsiTypes;
 
 #[cfg(not(target_arch = "wasm32"))]
 const PAYLOAD_LENGTH: usize = 1316;

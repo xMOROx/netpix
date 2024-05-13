@@ -5,7 +5,7 @@ use crate::{pes::PesPacketHeader, psi::PsiTypes};
 pub enum PayloadType {
     PSI(PsiTypes),
     PES(PesPacketHeader),
-    UNKNOWN,
+    Unknown,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
