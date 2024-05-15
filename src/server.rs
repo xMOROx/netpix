@@ -217,12 +217,10 @@ async fn collect_mpeg_ts_payloads(mpeg_ts_payloads: &mut HashMap<u16, Vec<Mpegts
         if !mpeg_ts_payloads.contains_key(&fragment.header.pid.clone().into()) {
             mpeg_ts_payloads.insert(fragment.header.pid.clone().into(), Vec::new());
         }
-        if fragment.payload.is_none() {
-            continue;
-        }
 
         mpeg_ts_payloads.get_mut(&fragment.header.pid.clone().into()).unwrap().push(fragment.clone());
     }
+    // println!("{:?}", mpeg_ts_payloads.get(&0x00));
 }
 
 async fn send_all_packets(
