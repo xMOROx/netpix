@@ -6,7 +6,8 @@ const STUFFED_BYTE: u8 = 0xFF;
 const HEADER_SIZE: usize = 3;
 const HEADER_AFTER_SECTION_LENGTH_SIZE: usize = 5;
 const CRC_SIZE: usize = 4;
-const MAX_SECTION_LENGTH: usize = 1024;
+const PROGRAM_SECTION_SIZE: usize = 4;
+const MAX_SECTION_SIZE: usize = 1024;
 pub const MAX_NUMBER_OF_SECTIONS: usize = 255;
 
 const SECTION_SYNTAX_INDICATOR_MASK: u8 = 0x80;
@@ -56,7 +57,7 @@ impl ProgramAssociationTable {
 
         let transport_stream_id = (data[start + 3] as u16) << 8 | data[start + 4] as u16;
 
-        let programs = Self::parse_programs(data, header.section_length as usize);
+        let programs = Self::parse_programs(data, header.section_length as usize, start);
 
         Some(ProgramAssociationTable {
             header,
@@ -95,10 +96,10 @@ impl ProgramAssociationTable {
         }
     }
 
-    fn parse_programs(data: &[u8], section_length: usize) -> Vec<ProgramAssociationItem> {
+    fn parse_programs(data: &[u8], section_length: usize, start: usize) -> Vec<ProgramAssociationItem> {
         let mut programs: Vec<ProgramAssociationItem> = vec!();
 
-        let mut i: usize = HEADER_SIZE + HEADER_AFTER_SECTION_LENGTH_SIZE + 1;
+        let mut i: usize = HEADER_SIZE + HEADER_AFTER_SECTION_LENGTH_SIZE + start;
         while i < HEADER_SIZE + section_length - CRC_SIZE {
             let program_number = ((data[i] as u16) << 8) | data[i + 1] as u16;
             let mut network_pid = 0;
@@ -116,14 +117,14 @@ impl ProgramAssociationTable {
                 network_pid: if network_pid != 0 { Some(network_pid) } else { None },
                 program_map_pid: if program_map_pid != 0 { Some(program_map_pid) } else { None },
             });
-            i += 4;
+            i += PROGRAM_SECTION_SIZE;
         }
         programs
     }
 
     fn parse_crc32(data: &[u8]) -> u32 {
         let mut crc_32: u32 = 0;
-        for i in 0..4 {
+        for i in 0..CRC_SIZE {
             crc_32 |= ((data[i] as u32) << (24 - i * 8));
         }
         crc_32
