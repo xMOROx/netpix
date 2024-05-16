@@ -4,8 +4,8 @@ use futures_util::{
     SinkExt, StreamExt, TryFutureExt,
 };
 use log::{error, info, warn};
-use rtpeeker_common::packet::SessionProtocol;
-use rtpeeker_common::{Request, Response, Sdp};
+use rtpeeker_common::packet::{SessionPacket, SessionProtocol};
+use rtpeeker_common::{MpegtsPacket, Packet, Request, Response, Sdp};
 use rtpeeker_common::{Source, StreamKey};
 use rust_embed::RustEmbed;
 use std::collections::HashMap;
@@ -14,6 +14,9 @@ use std::sync::{
     atomic::{AtomicUsize, Ordering},
     Arc,
 };
+use rtpeeker_common::mpegts::header::PIDTable;
+use rtpeeker_common::mpegts::MpegtsFragment;
+use rtpeeker_common::mpegts::packet_analyzer::{Analyzer};
 use tokio::sync::{mpsc, mpsc::UnboundedSender, RwLock};
 use warp::ws::{Message, WebSocket};
 use warp::{http::header::HeaderValue, path::Tail, reply};
@@ -153,10 +156,19 @@ async fn send_pcap_filenames(
 }
 
 async fn sniff(mut sniffer: Sniffer, packets: Packets, clients: Clients) {
+    let mut mpeg_ts_payloads: HashMap<u16, Vec<MpegtsFragment>> = HashMap::new();
+
     while let Some(result) = sniffer.next_packet().await {
         match result {
             Ok(mut pack) => {
                 pack.guess_payload();
+
+                collect_mpeg_ts_payloads(&mut mpeg_ts_payloads, &mut pack).await;
+
+
+                Analyzer::analyze(&mut mpeg_ts_payloads);
+
+
                 // TODO: Packet send via WebSocket contains its
                 // payload, which is undesired
                 let response = Response::Packet(pack);
@@ -184,6 +196,31 @@ async fn sniff(mut sniffer: Sniffer, packets: Packets, clients: Clients) {
             Err(err) => info!("Error when capturing a packet: {:?}", err),
         }
     }
+}
+
+async fn get_mpeg_ts_payload_from_packet(packet: &Packet) -> Option<&MpegtsPacket> {
+    if let SessionPacket::Mpegts(mpegts_packet) = &packet.contents {
+        Some(mpegts_packet)
+    } else {
+        None
+    }
+}
+
+async fn collect_mpeg_ts_payloads(mpeg_ts_payloads: &mut HashMap<u16, Vec<MpegtsFragment>>, packet: &mut Packet) {
+    let mpegts_packet = match get_mpeg_ts_payload_from_packet(packet).await {
+        Some(mpegts_packet) => mpegts_packet,
+        None => return,
+    };
+
+
+    for fragment in mpegts_packet.fragments.iter() {
+        if !mpeg_ts_payloads.contains_key(&fragment.header.pid.clone().into()) {
+            mpeg_ts_payloads.insert(fragment.header.pid.clone().into(), Vec::new());
+        }
+
+        mpeg_ts_payloads.get_mut(&fragment.header.pid.clone().into()).unwrap().push(fragment.clone());
+    }
+    // println!("{:?}", mpeg_ts_payloads.get(&0x00));
 }
 
 async fn send_all_packets(
@@ -335,7 +372,7 @@ async fn handle_messages(
                                 cur_source,
                                 packet_type,
                             )
-                            .await;
+                                .await;
                         } else {
                             error!("Received reparse request from client without selected source, client_id: {}", client_id);
                         }
