@@ -67,7 +67,7 @@ impl MpegtsPacket {
         }
         let mut number_of_fragments: usize = 0;
         let mut fragments: Vec<MpegtsFragment> = vec!();
-        // sync byte should be 0x47
+
         while (number_of_fragments * FRAGMENT_SIZE) < PAYLOAD_LENGTH && (buffer[number_of_fragments * FRAGMENT_SIZE] & SYNC_BYTE_MASK) == SYNC_BYTE {
             let Some(fragment) = Self::get_fragment(buffer, number_of_fragments * FRAGMENT_SIZE, number_of_fragments) else {
                 break;
@@ -146,10 +146,14 @@ impl MpegtsPacket {
         Some(AdaptationField { adaptation_field_length })
     }
 
+
     fn get_payload(buffer: &Vec<u8>, start_index: usize, fragment_number: usize) -> Option<RawPayload> {
-        // length could not be longer than 188 - HEADER_SIZE{4B} - adaptation_field_length
-        let length = (fragment_number + 1) * FRAGMENT_SIZE - start_index;
-        let data = buffer[start_index..start_index + length].to_vec();
-        Some(RawPayload { data })
+    let end_index = (fragment_number + 1) * FRAGMENT_SIZE;
+    let length = end_index.saturating_sub(start_index);
+    if length == 0 {
+        return None;
     }
+    let data = buffer[start_index..end_index.min(buffer.len())].to_vec();
+    Some(RawPayload { data })
+}
 }
