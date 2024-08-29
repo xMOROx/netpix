@@ -467,6 +467,7 @@ version = "0.1.0"
 dependencies = [
  "bincode",
  "etherparse",
+ "log",
  "pcap",
  "rtcp",
  "rtp",

@@ -30,7 +30,7 @@ pub enum PsiTypes {
 }
 
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Serialize, PartialEq, Eq, Deserialize, Debug, Clone)]
 pub enum TableId {
     ProgramAssociationSection,
     ConditionalAccessSection,
