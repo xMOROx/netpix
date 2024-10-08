@@ -1,14 +1,15 @@
 pub mod header;
 pub mod adaptation_field;
 pub mod payload;
-pub mod packet_analyzer;
+pub mod psi;
+pub mod pes;
 
 use serde::{Deserialize, Serialize};
 use crate::mpegts::adaptation_field::AdaptationField;
 use crate::mpegts::header::Header;
-use crate::mpegts::payload::{PayloadType, RawPayload};
+use crate::mpegts::payload::RawPayload;
 #[cfg(not(target_arch = "wasm32"))]
-use crate::mpegts::header::{PIDTable, TransportScramblingControl, AdaptationFieldControl};
+use crate::mpegts::header::{AdaptationFieldControl, PIDTable, TransportScramblingControl};
 
 #[cfg(not(target_arch = "wasm32"))]
 const PAYLOAD_LENGTH: usize = 1316;
@@ -92,7 +93,6 @@ impl MpegtsPacket {
                 let Some(adaptation_field) = Self::get_adaptation_field(buffer, start_index) else {
                     return None;
                 };
-                // I'm 99% sure that there should be + 1 but if something doesn't work with payload try removing it xD
                 start_index += adaptation_field.adaptation_field_length as usize;
                 Some(adaptation_field)
             }
@@ -164,7 +164,7 @@ impl MpegtsPacket {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::mpegts::header::{PIDTable, TransportScramblingControl, AdaptationFieldControl};
+    use crate::mpegts::header::{AdaptationFieldControl, PIDTable, TransportScramblingControl};
 
     fn create_test_buffer() -> Vec<u8> {
         let mut buffer = vec![0; PAYLOAD_LENGTH];

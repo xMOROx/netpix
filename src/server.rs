@@ -3,7 +3,7 @@ use futures_util::{
     stream::{SplitSink, SplitStream},
     SinkExt, StreamExt, TryFutureExt,
 };
-use log::{error, info, warn};
+use log::{error, info, log, warn};
 use rtpeeker_common::packet::{SessionPacket, SessionProtocol};
 use rtpeeker_common::{MpegtsPacket, Packet, Request, Response, Sdp};
 use rtpeeker_common::{Source, StreamKey};
@@ -16,7 +16,6 @@ use std::sync::{
 };
 use rtpeeker_common::mpegts::header::PIDTable;
 use rtpeeker_common::mpegts::MpegtsFragment;
-use rtpeeker_common::mpegts::packet_analyzer::{Analyzer};
 use tokio::sync::{mpsc, mpsc::UnboundedSender, RwLock};
 use warp::ws::{Message, WebSocket};
 use warp::{http::header::HeaderValue, path::Tail, reply};
@@ -156,21 +155,11 @@ async fn send_pcap_filenames(
 }
 
 async fn sniff(mut sniffer: Sniffer, packets: Packets, clients: Clients) {
-    let mut mpeg_ts_payloads: HashMap<u16, Vec<MpegtsFragment>> = HashMap::new();
-
     while let Some(result) = sniffer.next_packet().await {
         match result {
             Ok(mut pack) => {
                 pack.guess_payload();
 
-                collect_mpeg_ts_payloads(&mut mpeg_ts_payloads, &mut pack).await;
-
-
-                Analyzer::analyze(&mut mpeg_ts_payloads);
-
-
-                // TODO: Packet send via WebSocket contains its
-                // payload, which is undesired
                 let response = Response::Packet(pack);
 
                 let Ok(encoded) = response.encode() else {
@@ -196,31 +185,6 @@ async fn sniff(mut sniffer: Sniffer, packets: Packets, clients: Clients) {
             Err(err) => info!("Error when capturing a packet: {:?}", err),
         }
     }
-}
-
-async fn get_mpeg_ts_payload_from_packet(packet: &Packet) -> Option<&MpegtsPacket> {
-    if let SessionPacket::Mpegts(mpegts_packet) = &packet.contents {
-        Some(mpegts_packet)
-    } else {
-        None
-    }
-}
-
-async fn collect_mpeg_ts_payloads(mpeg_ts_payloads: &mut HashMap<u16, Vec<MpegtsFragment>>, packet: &mut Packet) {
-    let mpegts_packet = match get_mpeg_ts_payload_from_packet(packet).await {
-        Some(mpegts_packet) => mpegts_packet,
-        None => return,
-    };
-
-
-    for fragment in mpegts_packet.fragments.iter() {
-        if !mpeg_ts_payloads.contains_key(&fragment.header.pid.clone().into()) {
-            mpeg_ts_payloads.insert(fragment.header.pid.clone().into(), Vec::new());
-        }
-
-        mpeg_ts_payloads.get_mut(&fragment.header.pid.clone().into()).unwrap().push(fragment.clone());
-    }
-    // println!("{:?}", mpeg_ts_payloads.get(&0x00));
 }
 
 async fn send_all_packets(
@@ -330,13 +294,12 @@ async fn handle_messages(
     clients: &Clients,
     packets: &PacketsMap,
 ) {
-    // we could also simply pass the tx and source as function arguments
-    // but it doesn't really matter
+
     let rd_clients = clients.read().await;
     let client = rd_clients.get(&client_id).unwrap();
     let mut source = client.source.clone();
     let mut sender = client.sender.clone();
-    std::mem::drop(rd_clients);
+    drop(rd_clients);
 
     while let Some(result) = ws_rx.next().await {
         match result {
@@ -384,7 +347,7 @@ async fn handle_messages(
                         let mut wr_clients = clients.write().await;
                         let client = wr_clients.get_mut(&client_id).unwrap();
                         client.source = source.clone();
-                        std::mem::drop(wr_clients);
+                        drop(wr_clients);
 
                         send_all_packets(client_id, packets, &mut sender).await;
                     }

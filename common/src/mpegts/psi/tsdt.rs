@@ -1,5 +1,5 @@
 use crate::descriptor::Descriptor;
-use crate::psi::ProgramSpecificInformationHeader;
+use crate::mpegts::psi::ProgramSpecificInformationHeader;
 
 pub struct ProgramSpecificInformation {
     pub header: ProgramSpecificInformationHeader,
