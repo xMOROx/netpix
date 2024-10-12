@@ -1,5 +1,5 @@
 use crate::mpegts::psi::pat::fragmentary_pat::FragmentaryProgramAssociationTable;
-use crate::mpegts::psi::pat::{ProgramAssociationItem, ProgramAssociationTable};
+use crate::mpegts::psi::pat::ProgramAssociationTable;
 
 pub struct PatBuffer {
     last_section_number: u8,
@@ -41,6 +41,7 @@ impl PatBuffer {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::mpegts::psi::pat::ProgramAssociationItem;
 
     #[test]
     fn test_pat_buffer_with_one_fragment() {

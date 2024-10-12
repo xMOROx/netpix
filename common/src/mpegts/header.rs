@@ -44,7 +44,6 @@ impl From<u16> for PIDTable {
             0x0002 => PIDTable::TransportStreamDescription,
             0x0003 => PIDTable::IPMPControlInformation,
             0x0004 => PIDTable::AdaptiveStreamingInformation,
-            0x1FFF => PIDTable::NullPacket,
             val => {
                 if val > 0x000F {
                     PIDTable::PID(val)

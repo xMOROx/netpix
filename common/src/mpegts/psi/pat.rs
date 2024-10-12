@@ -2,17 +2,13 @@ pub mod fragmentary_pat;
 mod pat_buffer;
 
 use serde::{Deserialize, Serialize};
-use crate::mpegts::psi::ProgramSpecificInformationHeader;
-use crate::MpegtsPacket;
 
 const HEADER_SIZE: usize = 3;
 const HEADER_AFTER_SECTION_LENGTH_SIZE: usize = 5;
-const CRC_SIZE: usize = 4;
 const PROGRAM_SECTION_SIZE: usize = 4;
 
 const SECTION_SYNTAX_INDICATOR_MASK: u8 = 0x80;
 const SECTION_LENGTH_UPPER_MASK: u8 = 0x0F;
-const SECTION_LENGTH_LOWER_MASK: u8 = 0xFF;
 const VERSION_NUMBER_MASK: u8 = 0x3E;
 const CURRENT_NEXT_INDICATOR_MASK: u8 = 0x01;
 const PROGRAM_PID_UPPER_MASK: u8 = 0x1F;

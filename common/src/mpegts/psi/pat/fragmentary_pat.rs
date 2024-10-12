@@ -1,4 +1,3 @@
-use log::error;
 use serde::{Deserialize, Serialize};
 use crate::mpegts::psi::pat::{CURRENT_NEXT_INDICATOR_MASK, HEADER_AFTER_SECTION_LENGTH_SIZE, HEADER_SIZE, SECTION_LENGTH_UPPER_MASK, SECTION_SYNTAX_INDICATOR_MASK, VERSION_NUMBER_MASK, PADDING_BYTE};
 use crate::mpegts::psi::ProgramSpecificInformationHeader;
