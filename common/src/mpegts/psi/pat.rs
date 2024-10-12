@@ -18,20 +18,47 @@ const CURRENT_NEXT_INDICATOR_MASK: u8 = 0x01;
 const PROGRAM_PID_UPPER_MASK: u8 = 0x1F;
 const PADDING_BYTE: u8 = 0xFF;
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone, Ord, PartialOrd, Eq)]
 pub struct ProgramAssociationTable {
     pub transport_stream_id: u16,
     pub programs: Vec<ProgramAssociationItem>,
     pub crc_32: u32,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone, Ord, PartialOrd, Eq)]
 pub struct ProgramAssociationItem {
     pub program_number: u16,
     pub network_pid: Option<u16>,
     pub program_map_pid: Option<u16>,
 }
 
+impl PartialEq for ProgramAssociationTable {
+    fn eq(&self, other: &Self) -> bool {
+        let transport_stream_id = self.transport_stream_id == other.transport_stream_id;
+        let programs = self.programs == other.programs;
+        let crc_32 = self.crc_32 == other.crc_32;
+
+        transport_stream_id && programs && crc_32
+    }
+}
+
+impl PartialEq for ProgramAssociationItem {
+    fn eq(&self, other: &Self) -> bool {
+        let program_numbers = self.program_number == other.program_number;
+        let network_pids = match (self.network_pid, other.network_pid) {
+            (Some(a), Some(b)) => a == b,
+            (None, None) => true,
+            _ => false,
+        };
+        let program_map_pids = match (self.program_map_pid, other.program_map_pid) {
+            (Some(a), Some(b)) => a == b,
+            (None, None) => true,
+            _ => false,
+        };
+
+        program_numbers && network_pids && program_map_pids
+    }
+}
 
 impl ProgramAssociationTable {
     pub fn build(transport_stream_id: u16, data: &[u8]) -> Option<Self> {
@@ -45,7 +72,7 @@ impl ProgramAssociationTable {
     fn unmarshal_programs(data: &[u8]) -> Vec<ProgramAssociationItem> {
         let mut programs = Vec::new();
         let mut index = 0;
-        while index < data.len() {
+        while index < data.len() - 4 { // Skip CRC-32
             let program_number = ((data[index] as u16) << 8) | data[index + 1] as u16;
             if program_number == 0 {
                 // 0xrrrnnnnn nnnnnnnn; r = reserved, n = network_pid
