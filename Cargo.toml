@@ -1,13 +1,13 @@
 [package]
 name = "rtpeeker"
-version = "0.1.0"
+version = "0.2.0"
 edition = "2021"
 license = "MIT"
-description = "RTP streams analysis and visualization tool"
+description = "Multicast streams analysis and visualization tool"
 homepage = "https://github.com/LVala/rtpeeker/"
-repository = "https://github.com/LVala/rtpeeker/"
+repository = "https://github.com/xMOROx/rtpeeker"
 readme = "README.md"
-keywords = ["streaming", "RTP", "networking"]
+keywords = ["streaming", "RTP", "networking", "MPEG-TS"]
 categories = ["development-tools", "multimedia", "visualization"]
 include = ["/src/", "/dist/"]
 

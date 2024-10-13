@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
-use crate::psi::ProgramSpecificInformationHeader;
 use crate::descriptor::Descriptor;
+use crate::mpegts::psi::ProgramSpecificInformationHeader;
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct ConditionalAccessTable {

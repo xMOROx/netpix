@@ -10,7 +10,7 @@ pub mod ps;
 pub const MAX_SECTION_LENGTH: usize = 0x3FD;
 
 ///  11, 12 bits are reserved
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone, Ord, PartialOrd, Eq)]
 pub struct ProgramSpecificInformationHeader {
     pub table_id: u8,
     pub section_syntax_indicator: bool,
@@ -19,7 +19,6 @@ pub struct ProgramSpecificInformationHeader {
     pub current_next_indicator: bool,
     pub section_number: u8,
     pub last_section_number: u8,
-    pub crc_32: u32,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -30,7 +29,7 @@ pub enum PsiTypes {
 }
 
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Serialize, PartialEq, Eq, Deserialize, Debug, Clone)]
 pub enum TableId {
     ProgramAssociationSection,
     ConditionalAccessSection,
@@ -47,6 +46,20 @@ pub enum TableId {
     DefinedInIsoIec13818_6,
     UserPrivate,
     Forbidden,
+}
+
+impl PartialEq for ProgramSpecificInformationHeader {
+    fn eq(&self, other: &Self) -> bool {
+        let table_id = self.table_id == other.table_id;
+        let section_syntax_indicator = self.section_syntax_indicator == other.section_syntax_indicator;
+        let section_length = self.section_length == other.section_length;
+        let version_number = self.version_number == other.version_number;
+        let current_next_indicator = self.current_next_indicator == other.current_next_indicator;
+        let section_number = self.section_number == other.section_number;
+        let last_section_number = self.last_section_number == other.last_section_number;
+
+        table_id && section_syntax_indicator && section_length && version_number && current_next_indicator && section_number && last_section_number
+    }
 }
 
 impl From<u8> for TableId {

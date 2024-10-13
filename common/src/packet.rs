@@ -62,10 +62,10 @@ pub enum SessionPacket {
     Unknown,
     Rtp(RtpPacket),
     Rtcp(Vec<RtcpPacket>),
-    Mpegts(MpegtsPacket),
+    Mpegts(MpegtsPacket)
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Packet {
     pub payload: Option<Vec<u8>>,
     pub id: usize,
@@ -119,11 +119,14 @@ impl Packet {
         if self.transport_protocol != TransportProtocol::Udp {
             return;
         }
+
         if let Some(mpegts) = MpegtsPacket::build(self) {
             self.session_protocol = SessionProtocol::Mpegts;
             self.contents = SessionPacket::Mpegts(mpegts);
             return;
         }
+
+
         if let Some(rtcp) = RtcpPacket::build(self) {
             if is_rtcp(&rtcp) {
                 self.session_protocol = SessionProtocol::Rtcp;
