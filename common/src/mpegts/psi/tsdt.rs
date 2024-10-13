@@ -1,4 +1,4 @@
-use crate::descriptor::Descriptor;
+use crate::mpegts::psi::pmt::descriptor::Descriptor;
 use crate::mpegts::psi::ProgramSpecificInformationHeader;
 
 pub struct ProgramSpecificInformation {
