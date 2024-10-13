@@ -1,6 +1,7 @@
 use serde::{Deserialize, Serialize};
-use crate::mpegts::psi::pat::{CURRENT_NEXT_INDICATOR_MASK, HEADER_AFTER_SECTION_LENGTH_SIZE, HEADER_SIZE, SECTION_LENGTH_UPPER_MASK, SECTION_SYNTAX_INDICATOR_MASK, VERSION_NUMBER_MASK, PADDING_BYTE};
-use crate::mpegts::psi::ProgramSpecificInformationHeader;
+use crate::mpegts::psi::pat::{HEADER_AFTER_SECTION_LENGTH_SIZE, HEADER_SIZE};
+use crate::mpegts::psi::{CURRENT_NEXT_INDICATOR_MASK, MAX_SECTION_LENGTH, ProgramSpecificInformation, ProgramSpecificInformationHeader, SECTION_LENGTH_UPPER_MASK, SECTION_SYNTAX_INDICATOR_MASK, TableId, VERSION_NUMBER_MASK};
+use crate::mpegts::psi::psi_buffer::FragmentaryPsi;
 
 #[derive(Serialize, Deserialize, Debug, Clone, Ord, PartialOrd, Eq)]
 pub struct FragmentaryProgramAssociationTable {
@@ -8,6 +9,16 @@ pub struct FragmentaryProgramAssociationTable {
     pub transport_stream_id: u16,
     pub payload: Vec<u8>,
     pub is_stuffed: bool,
+}
+
+impl ProgramSpecificInformation for FragmentaryProgramAssociationTable {
+    fn get_header(&self) -> &ProgramSpecificInformationHeader {
+        &self.header
+    }
+
+    fn get_table_id(&self) -> TableId {
+        TableId::ProgramAssociationSection
+    }
 }
 
 impl PartialEq for FragmentaryProgramAssociationTable {
@@ -21,8 +32,8 @@ impl PartialEq for FragmentaryProgramAssociationTable {
     }
 }
 
-impl FragmentaryProgramAssociationTable {
-    pub fn unmarshall(data: &[u8], is_pointer_field: bool) -> Option<Self> {
+impl FragmentaryPsi for FragmentaryProgramAssociationTable {
+    fn unmarshall(data: &[u8], is_pointer_field: bool) -> Option<Self> {
         if data.len() < HEADER_SIZE {
             return None;
         }
@@ -54,19 +65,6 @@ impl FragmentaryProgramAssociationTable {
         })
     }
 
-    fn determine_last_byte(data: &[u8]) -> usize {
-        let mut last_byte = data.len();
-
-        for i in 0..data.len() {
-            if data[i] == PADDING_BYTE {
-                last_byte = i;
-                break;
-            }
-        }
-
-        last_byte
-    }
-
     fn unmarshall_header(data: &[u8]) -> Option<ProgramSpecificInformationHeader> {
         let table_id = data[0];
         let section_syntax_indicator = (data[1] & SECTION_SYNTAX_INDICATOR_MASK) != 0;
@@ -76,7 +74,7 @@ impl FragmentaryProgramAssociationTable {
             return None;
         }
 
-        if section_length > 0x3FD {
+        if section_length > MAX_SECTION_LENGTH {
             return None;
         }
 
@@ -146,7 +144,7 @@ mod tests {
             0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
             0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
             0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
-            0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF
+            0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
         ];
 
 
@@ -192,21 +190,25 @@ mod tests {
         assert_eq!(unmarshalled.is_stuffed, true);
         assert_eq!(unmarshalled.payload.len(), 8);
     }
+
     #[test]
     fn should_return_none_when_data_is_empty() {
         let data: Vec<u8> = vec![];
         assert_eq!(FragmentaryProgramAssociationTable::unmarshall(&data, false), None);
     }
+
     #[test]
     fn should_return_none_when_data_is_too_short() {
         let data: Vec<u8> = vec![0x00, 0x00, 0x00, 0x00, 0x00];
         assert_eq!(FragmentaryProgramAssociationTable::unmarshall(&data, false), None);
     }
+
     #[test]
     fn should_return_none_when_section_length_is_too_small() {
         let data: Vec<u8> = vec![0x00, 0x00, 0x00, 0x00, 0x00];
         assert_eq!(FragmentaryProgramAssociationTable::unmarshall(&data, false), None);
     }
+
     #[test]
     fn should_return_none_when_section_length_is_too_large() {
         let data: Vec<u8> = vec![0x00, 0x00, 0x03, 0xFE, 0x00];

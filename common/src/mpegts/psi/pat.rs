@@ -1,18 +1,15 @@
 pub mod fragmentary_pat;
-mod pat_buffer;
+pub mod pat_buffer;
 
 use serde::{Deserialize, Serialize};
-
+#[cfg(not(target_arch = "wasm32"))]
 const HEADER_SIZE: usize = 3;
+#[cfg(not(target_arch = "wasm32"))]
 const HEADER_AFTER_SECTION_LENGTH_SIZE: usize = 5;
+#[cfg(not(target_arch = "wasm32"))]
 const PROGRAM_SECTION_SIZE: usize = 4;
-
-const SECTION_SYNTAX_INDICATOR_MASK: u8 = 0x80;
-const SECTION_LENGTH_UPPER_MASK: u8 = 0x0F;
-const VERSION_NUMBER_MASK: u8 = 0x3E;
-const CURRENT_NEXT_INDICATOR_MASK: u8 = 0x01;
+#[cfg(not(target_arch = "wasm32"))]
 const PROGRAM_PID_UPPER_MASK: u8 = 0x1F;
-const PADDING_BYTE: u8 = 0xFF;
 
 #[derive(Serialize, Deserialize, Debug, Clone, Ord, PartialOrd, Eq)]
 pub struct ProgramAssociationTable {
