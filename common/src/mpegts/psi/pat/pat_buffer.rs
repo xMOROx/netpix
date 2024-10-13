@@ -37,12 +37,12 @@ impl PsiBuffer<ProgramAssociationTable, FragmentaryProgramAssociationTable> for 
             return None;
         }
 
-        let cumulated_payload = self.pat_fragments.iter().fold(Vec::new(), |mut acc, fragment| {
+        let accumulated_payload = self.pat_fragments.iter().fold(Vec::new(), |mut acc, fragment| {
             acc.extend_from_slice(&fragment.payload);
             acc
         });
 
-        ProgramAssociationTable::build(self.pat_fragments[0].transport_stream_id, &cumulated_payload)
+        ProgramAssociationTable::build(self.pat_fragments[0].transport_stream_id, &accumulated_payload)
     }
 }
 
