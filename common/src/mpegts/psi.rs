@@ -14,7 +14,6 @@ pub const SECTION_LENGTH_UPPER_MASK: u8 = 0x0F;
 pub const VERSION_NUMBER_MASK: u8 = 0x3E;
 pub const CURRENT_NEXT_INDICATOR_MASK: u8 = 0x01;
 
-///  11, 12 bits are reserved
 pub trait ProgramSpecificInformation {
     fn get_header(&self) -> &ProgramSpecificInformationHeader;
     fn get_table_id(&self) -> TableId;
