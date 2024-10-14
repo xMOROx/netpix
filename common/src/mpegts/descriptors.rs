@@ -3,12 +3,14 @@ mod video_stream;
 mod audio_stream;
 mod hierarchy;
 mod maximum_bitrate_descriptor;
+mod multiplex_buffer_utilization_descriptor;
 
 use std::fmt::Debug;
 use serde::{Deserialize, Serialize};
 use crate::mpegts::descriptors::audio_stream::AudioStreamDescriptor;
 use crate::mpegts::descriptors::hierarchy::HierarchyDescriptor;
 use crate::mpegts::descriptors::maximum_bitrate_descriptor::MaximumBitrateDescriptor;
+use crate::mpegts::descriptors::multiplex_buffer_utilization_descriptor::MultiplexBufferUtilizationDescriptor;
 use crate::mpegts::descriptors::types::DescriptorType;
 use crate::mpegts::descriptors::video_stream::VideoStreamDescriptor;
 
@@ -24,6 +26,7 @@ pub enum Descriptor {
     AudioStreamDescriptor(AudioStreamDescriptor),
     HierarchyDescriptor(HierarchyDescriptor),
     MaximumBitrateDescriptor(MaximumBitrateDescriptor),
+    MultiplexBufferUtilizationDescriptor(MultiplexBufferUtilizationDescriptor),
 }
 
 impl Descriptor {
@@ -35,22 +38,27 @@ impl Descriptor {
                 VideoStreamDescriptor::unmarshall(header, payload).map(|descriptor| {
                     Descriptor::VideoStreamDescriptor(descriptor)
                 })
-            },
+            }
             DescriptorType::AudioStreamDescriptor => {
                 AudioStreamDescriptor::unmarshall(header, payload).map(|descriptor| {
                     Descriptor::AudioStreamDescriptor(descriptor)
                 })
-            },
+            }
             DescriptorType::HierarchyDescriptor => {
                 HierarchyDescriptor::unmarshall(header, payload).map(|descriptor| {
                     Descriptor::HierarchyDescriptor(descriptor)
                 })
-            },
+            }
             DescriptorType::MaximumBitrateDescriptor => {
                 MaximumBitrateDescriptor::unmarshall(header, payload).map(|descriptor| {
                     Descriptor::MaximumBitrateDescriptor(descriptor)
                 })
-            },
+            }
+            DescriptorType::MultiplexBufferUtilizationDescriptor => {
+                MultiplexBufferUtilizationDescriptor::unmarshall(header, payload).map(|descriptor| {
+                    Descriptor::MultiplexBufferUtilizationDescriptor(descriptor)
+                })
+            }
             _ => None,
         }
     }
