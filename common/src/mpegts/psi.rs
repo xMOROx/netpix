@@ -19,7 +19,6 @@ pub trait ProgramSpecificInformation {
     fn get_table_id(&self) -> TableId;
 }
 
-
 #[derive(Serialize, Deserialize, Debug, Clone, Ord, PartialOrd, Eq)]
 pub struct ProgramSpecificInformationHeader {
     pub table_id: u8,

@@ -3,6 +3,7 @@ pub mod adaptation_field;
 pub mod payload;
 pub mod psi;
 pub mod pes;
+pub mod descriptors;
 
 use serde::{Deserialize, Serialize};
 use crate::mpegts::adaptation_field::AdaptationField;

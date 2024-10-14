@@ -1,10 +1,9 @@
 pub mod fragmentary_pmt;
 pub mod pmt_buffer;
-pub mod descriptor;
 mod stream_types;
 
 use serde::{Deserialize, Serialize};
-use descriptor::Descriptor;
+use crate::mpegts::descriptors::{Descriptor, DescriptorHeader};
 use crate::mpegts::psi::pmt::stream_types::StreamTypes;
 
 #[cfg(not(target_arch = "wasm32"))]
@@ -31,7 +30,7 @@ pub const STREAM_LENGTH: usize = 5;
 #[derive(Serialize, Deserialize, Debug, Clone, Ord, PartialOrd, Eq)]
 pub struct ProgramMapTable {
     pub fields: PmtFields,
-    pub descriptors: Vec<Descriptor>,
+    pub descriptors: Vec<DescriptorHeader>,
     pub elementary_streams_info: Vec<ElementaryStreamInfo>,
     pub crc_32: u32,
 }
@@ -93,7 +92,7 @@ impl ProgramMapTable {
         })
     }
 
-    fn unmarshal_descriptors(data: &[u8]) -> Vec<Descriptor> {
+    fn unmarshal_descriptors(data: &[u8]) -> Vec<DescriptorHeader> {
         vec![]
     }
 

@@ -1,5 +1,5 @@
 use crate::mpegts;
-use crate::mpegts::psi::{CURRENT_NEXT_INDICATOR_MASK, MAX_SECTION_LENGTH, ProgramSpecificInformationHeader, SECTION_LENGTH_UPPER_MASK, SECTION_SYNTAX_INDICATOR_MASK, VERSION_NUMBER_MASK};
+use crate::mpegts::psi::{ProgramSpecificInformationHeader};
 
 pub trait PsiBuffer<T, U: FragmentaryPsi> {
     fn new(last_section_number: u8) -> Self;
@@ -11,7 +11,9 @@ pub trait PsiBuffer<T, U: FragmentaryPsi> {
 }
 
 pub trait FragmentaryPsi {
-    fn unmarshall(data: &[u8], is_pointer_field: bool) -> Option<Self> where Self: Sized;
+    fn unmarshall(data: &[u8], is_pointer_field: bool) -> Option<Self>
+    where
+        Self: Sized;
     fn unmarshall_header(data: &[u8]) -> Option<ProgramSpecificInformationHeader>;
 
     fn determine_last_byte(data: &[u8]) -> usize {

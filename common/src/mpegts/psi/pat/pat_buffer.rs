@@ -1,6 +1,6 @@
 use crate::mpegts::psi::pat::fragmentary_pat::FragmentaryProgramAssociationTable;
 use crate::mpegts::psi::pat::ProgramAssociationTable;
-use crate::mpegts::psi::psi_buffer::{FragmentaryPsi, PsiBuffer};
+use crate::mpegts::psi::psi_buffer::PsiBuffer;
 
 pub struct PatBuffer {
     last_section_number: u8,
