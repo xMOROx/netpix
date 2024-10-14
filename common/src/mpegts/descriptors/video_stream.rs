@@ -104,12 +104,12 @@ impl PartialEq for VideoStreamDescriptor {
 mod tests {
     use super::*;
     use crate::mpegts::descriptors::DescriptorHeader;
-    use crate::mpegts::descriptors::types::DescriptorType;
+    use crate::mpegts::descriptors::types::DescriptorTag;
     #[test]
     fn test_video_stream_descriptor_unmarshall_with_only_flag_to_false() {
         let data = vec![0x02, 0x03, 0b1000_1101, 0x03, 0b0111_1111];
         let header = DescriptorHeader {
-            descriptor_tag: DescriptorType::from(0x02),
+            descriptor_tag: DescriptorTag::from(0x02),
             descriptor_length: 0x03,
         };
         let descriptor = VideoStreamDescriptor {
@@ -131,7 +131,7 @@ mod tests {
     fn test_video_stream_descriptor_unmarshall_with_only_flag_to_true() {
         let data = vec![0x02, 0x01, 0b1000_1010];
         let header = DescriptorHeader {
-            descriptor_tag: DescriptorType::from(0x02),
+            descriptor_tag: DescriptorTag::from(0x02),
             descriptor_length: 0x01,
         };
         let descriptor = VideoStreamDescriptor {
@@ -152,7 +152,7 @@ mod tests {
     #[test]
     fn test_video_stream_descriptor_eq() {
         let header = DescriptorHeader {
-            descriptor_tag: DescriptorType::from(0x02),
+            descriptor_tag: DescriptorTag::from(0x02),
             descriptor_length: 0x03,
         };
         let descriptor = VideoStreamDescriptor {

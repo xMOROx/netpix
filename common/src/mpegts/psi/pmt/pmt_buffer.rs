@@ -67,10 +67,12 @@ impl PmtBuffer {
 
 #[cfg(test)]
 mod tests {
+    use crate::mpegts::descriptors::DescriptorHeader;
     use crate::mpegts::psi::pmt::{ElementaryStreamInfo, PmtFields};
     use crate::mpegts::psi::pmt::stream_types::StreamTypes::{AVCVideoStreamAsDefinedInItuTH264OrIsoIec1449610Video, IsoIec111723Audio, RecItuTH2220OrIsoIec138181PESPackets, RecItuTH2220OrIsoIec138181PrivateSections};
     use super::*;
     use crate::mpegts::psi::psi_buffer::FragmentaryPsi;
+    use crate::mpegts::descriptors::types::DescriptorTag::{MaximumBitrateDescriptor, MultiplexBufferUtilizationDescriptor};
 
     #[test]
     fn test_pmt_buffer_with_one_fragment() {
@@ -123,6 +125,7 @@ mod tests {
             0xff, 0xff, 0xff, 0xff,
         ];
 
+
         let mut buffer = PmtBuffer::new(0);
         let fragment = FragmentaryProgramMapTable::unmarshall(&data, true).unwrap();
         buffer.add_fragment(fragment);
@@ -135,10 +138,10 @@ mod tests {
         assert_eq!(buffer.is_complete(), true);
         assert_eq!(buffer.build(), Some(ProgramMapTable {
             fields,
-            descriptors: vec![],
+            descriptors: vec![DescriptorHeader { descriptor_tag: MaximumBitrateDescriptor, descriptor_length: 3 }, DescriptorHeader { descriptor_tag: MultiplexBufferUtilizationDescriptor, descriptor_length: 4 }],
             elementary_streams_info: vec![
                 ElementaryStreamInfo { stream_type: AVCVideoStreamAsDefinedInItuTH264OrIsoIec1449610Video, elementary_pid: 602, es_info_length: 22, descriptors: vec![] },
- ElementaryStreamInfo { stream_type: IsoIec111723Audio, elementary_pid: 603, es_info_length: 17, descriptors: vec![] },
+                ElementaryStreamInfo { stream_type: IsoIec111723Audio, elementary_pid: 603, es_info_length: 17, descriptors: vec![] },
                 ElementaryStreamInfo { stream_type: RecItuTH2220OrIsoIec138181PrivateSections, elementary_pid: 607, es_info_length: 13, descriptors: vec![] },
                 ElementaryStreamInfo { stream_type: RecItuTH2220OrIsoIec138181PESPackets, elementary_pid: 606, es_info_length: 18, descriptors: vec![] },
                 ElementaryStreamInfo { stream_type: RecItuTH2220OrIsoIec138181PESPackets, elementary_pid: 608, es_info_length: 25, descriptors: vec![] },

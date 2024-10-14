@@ -62,13 +62,13 @@ impl PartialEq for AudioStreamDescriptor {
 mod tests {
     use super::*;
     use crate::mpegts::descriptors::DescriptorHeader;
-    use crate::mpegts::descriptors::types::DescriptorType;
+    use crate::mpegts::descriptors::types::DescriptorTag;
 
     #[test]
     fn test_audio_stream_descriptor_unmarshall() {
         let data = vec![0b1110_1000];
         let header = DescriptorHeader {
-            descriptor_tag: DescriptorType::from(0x03),
+            descriptor_tag: DescriptorTag::from(0x03),
             descriptor_length: 0x01,
         };
         let descriptor = AudioStreamDescriptor {
@@ -85,7 +85,7 @@ mod tests {
     #[test]
     fn test_audio_stream_descriptor_eq() {
         let header = DescriptorHeader {
-            descriptor_tag: DescriptorType::from(0x03),
+            descriptor_tag: DescriptorTag::from(0x03),
             descriptor_length: 0x01,
         };
         let descriptor = AudioStreamDescriptor {

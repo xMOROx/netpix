@@ -45,13 +45,13 @@ impl PartialEq for MaximumBitrateDescriptor {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::mpegts::descriptors::{DescriptorHeader, DescriptorType};
+    use crate::mpegts::descriptors::{DescriptorHeader, DescriptorTag};
 
     #[test]
     fn test_maximum_bitrate_descriptor() {
         let data = vec![0b00111111, 0b11111111, 0b11111111];
         let header = DescriptorHeader {
-            descriptor_tag: DescriptorType::MaximumBitrateDescriptor,
+            descriptor_tag: DescriptorTag::MaximumBitrateDescriptor,
             descriptor_length: 3,
         };
 
@@ -62,7 +62,7 @@ mod tests {
     fn test_maximum_bitrate_descriptor_2() {
         let data = vec![0x0e, 0x03, 0xc0, 0x00, 0x00];
         let header = DescriptorHeader {
-            descriptor_tag: DescriptorType::MaximumBitrateDescriptor,
+            descriptor_tag: DescriptorTag::MaximumBitrateDescriptor,
             descriptor_length: 3,
         };
 
@@ -73,7 +73,7 @@ mod tests {
     fn test_maximum_bitrate_descriptor_3() {
         let data = vec![0x0e, 0x03, 0xc0, 0x17, 0x15];
         let header = DescriptorHeader {
-            descriptor_tag: DescriptorType::MaximumBitrateDescriptor,
+            descriptor_tag: DescriptorTag::MaximumBitrateDescriptor,
             descriptor_length: 3,
         };
 

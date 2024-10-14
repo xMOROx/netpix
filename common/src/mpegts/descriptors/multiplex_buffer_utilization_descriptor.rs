@@ -70,7 +70,7 @@ impl PartialEq for MultiplexBufferUtilizationDescriptor {
 mod tests {
     use super::*;
     use crate::mpegts::descriptors::{DescriptorHeader};
-    use crate::mpegts::descriptors::types::DescriptorType;
+    use crate::mpegts::descriptors::types::DescriptorTag;
 
 
 
@@ -81,13 +81,13 @@ mod tests {
         ];
 
         let descriptor = MultiplexBufferUtilizationDescriptor::unmarshall(DescriptorHeader {
-            descriptor_tag: DescriptorType::from(0x0c),
+            descriptor_tag: DescriptorTag::from(0x0c),
             descriptor_length: 4,
         }, &bytes[2..]).unwrap();
 
         assert_eq!(descriptor, MultiplexBufferUtilizationDescriptor {
             header: DescriptorHeader {
-                descriptor_tag: DescriptorType::from(0x0c),
+                descriptor_tag: DescriptorTag::from(0x0c),
                 descriptor_length: 4,
             },
             bound_valid_flag: true,
@@ -103,13 +103,13 @@ mod tests {
         ];
 
         let descriptor = MultiplexBufferUtilizationDescriptor::unmarshall(DescriptorHeader {
-            descriptor_tag: DescriptorType::from(0x0c),
+            descriptor_tag: DescriptorTag::from(0x0c),
             descriptor_length: 4,
         }, &bytes[2..]).unwrap();
 
         assert_eq!(descriptor, MultiplexBufferUtilizationDescriptor {
             header: DescriptorHeader {
-                descriptor_tag: DescriptorType::from(0x0c),
+                descriptor_tag: DescriptorTag::from(0x0c),
                 descriptor_length: 4,
             },
             bound_valid_flag: false,
@@ -127,7 +127,7 @@ mod tests {
         ];
 
         let descriptor = MultiplexBufferUtilizationDescriptor::unmarshall(DescriptorHeader {
-            descriptor_tag: DescriptorType::from(0x0c),
+            descriptor_tag: DescriptorTag::from(0x0c),
             descriptor_length: 3,
         }, &bytes);
 

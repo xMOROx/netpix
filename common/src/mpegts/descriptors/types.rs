@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Debug, Clone, Ord, PartialOrd, Eq)]
-pub enum DescriptorType {
+pub enum DescriptorTag {
     VideoStreamDescriptor,
     AudioStreamDescriptor,
     HierarchyDescriptor,
@@ -53,177 +53,177 @@ pub enum DescriptorType {
     Unknown,
 }
 
-impl DescriptorType {
+impl DescriptorTag {
     pub fn to_u8(&self) -> u8 {
         match self {
-            DescriptorType::VideoStreamDescriptor => 0x02,
-            DescriptorType::AudioStreamDescriptor => 0x03,
-            DescriptorType::HierarchyDescriptor => 0x04,
-            DescriptorType::RegistrationDescriptor => 0x05,
-            DescriptorType::DataStreamAlignmentDescriptor => 0x06,
-            DescriptorType::TargetBackgroundGridDescriptor => 0x07,
-            DescriptorType::VideoWindowDescriptor => 0x08,
-            DescriptorType::CaDescriptor => 0x09,
-            DescriptorType::Iso639LanguageDescriptor => 0x0A,
-            DescriptorType::SystemClockDescriptor => 0x0B,
-            DescriptorType::MultiplexBufferUtilizationDescriptor => 0x0C,
-            DescriptorType::CopyrightDescriptor => 0x0D,
-            DescriptorType::MaximumBitrateDescriptor => 0x0E,
-            DescriptorType::PrivateDataIndicatorDescriptor => 0x0F,
-            DescriptorType::SmoothingBufferDescriptor => 0x10,
-            DescriptorType::StdDescriptor => 0x11,
-            DescriptorType::IbpDescriptor => 0x12,
-            DescriptorType::Mpeg4VideoDescriptor => 0x1B,
-            DescriptorType::Mpeg4AudioDescriptor => 0x1C,
-            DescriptorType::IodDescriptor => 0x1D,
-            DescriptorType::SlDescriptor => 0x1E,
-            DescriptorType::FmcDescriptor => 0x1F,
-            DescriptorType::ExternalEsIdDescriptor => 0x20,
-            DescriptorType::MuxCodeDescriptor => 0x21,
-            DescriptorType::FmxBufferSizeDescriptor => 0x22,
-            DescriptorType::MultiplexbufferDescriptor => 0x23,
-            DescriptorType::ContentLabelingDescriptor => 0x24,
-            DescriptorType::MetadataPointerDescriptor => 0x25,
-            DescriptorType::MetadataDescriptor => 0x26,
-            DescriptorType::MetadataStdDescriptor => 0x27,
-            DescriptorType::AvcVideoDescriptor => 0x28,
-            DescriptorType::AvcTimingAndHrdDescriptor => 0x2A,
-            DescriptorType::Mpeg2AacAudioDescriptor => 0x2B,
-            DescriptorType::FlexMuxTimingDescriptor => 0x2C,
-            DescriptorType::Mpeg4TextDescriptor => 0x2D,
-            DescriptorType::Mpeg4AudioExtensionDescriptor => 0x2E,
-            DescriptorType::AuxiliaryVideoStreamDescriptor => 0x2F,
-            DescriptorType::SvcExtensionDescriptor => 0x30,
-            DescriptorType::MvcExtensionDescriptor => 0x31,
-            DescriptorType::J2kVideoDescriptor => 0x32,
-            DescriptorType::MvcOperationPointDescriptor => 0x33,
-            DescriptorType::Mpeg2StereoscopicVideoFormatDescriptor => 0x34,
-            DescriptorType::StereoscopicProgramInfoDescriptor => 0x35,
-            DescriptorType::StereoscopicVideoInfoDescriptor => 0x36,
-            DescriptorType::TransportProfileDescriptor => 0x37,
-            DescriptorType::HevcVideoDescriptor => 0x38,
-            DescriptorType::ExtensionDescriptor => 0x3F,
-            DescriptorType::UserPrivate => 0x40,
-            DescriptorType::Unknown => 0x00,
+            DescriptorTag::VideoStreamDescriptor => 0x02,
+            DescriptorTag::AudioStreamDescriptor => 0x03,
+            DescriptorTag::HierarchyDescriptor => 0x04,
+            DescriptorTag::RegistrationDescriptor => 0x05,
+            DescriptorTag::DataStreamAlignmentDescriptor => 0x06,
+            DescriptorTag::TargetBackgroundGridDescriptor => 0x07,
+            DescriptorTag::VideoWindowDescriptor => 0x08,
+            DescriptorTag::CaDescriptor => 0x09,
+            DescriptorTag::Iso639LanguageDescriptor => 0x0A,
+            DescriptorTag::SystemClockDescriptor => 0x0B,
+            DescriptorTag::MultiplexBufferUtilizationDescriptor => 0x0C,
+            DescriptorTag::CopyrightDescriptor => 0x0D,
+            DescriptorTag::MaximumBitrateDescriptor => 0x0E,
+            DescriptorTag::PrivateDataIndicatorDescriptor => 0x0F,
+            DescriptorTag::SmoothingBufferDescriptor => 0x10,
+            DescriptorTag::StdDescriptor => 0x11,
+            DescriptorTag::IbpDescriptor => 0x12,
+            DescriptorTag::Mpeg4VideoDescriptor => 0x1B,
+            DescriptorTag::Mpeg4AudioDescriptor => 0x1C,
+            DescriptorTag::IodDescriptor => 0x1D,
+            DescriptorTag::SlDescriptor => 0x1E,
+            DescriptorTag::FmcDescriptor => 0x1F,
+            DescriptorTag::ExternalEsIdDescriptor => 0x20,
+            DescriptorTag::MuxCodeDescriptor => 0x21,
+            DescriptorTag::FmxBufferSizeDescriptor => 0x22,
+            DescriptorTag::MultiplexbufferDescriptor => 0x23,
+            DescriptorTag::ContentLabelingDescriptor => 0x24,
+            DescriptorTag::MetadataPointerDescriptor => 0x25,
+            DescriptorTag::MetadataDescriptor => 0x26,
+            DescriptorTag::MetadataStdDescriptor => 0x27,
+            DescriptorTag::AvcVideoDescriptor => 0x28,
+            DescriptorTag::AvcTimingAndHrdDescriptor => 0x2A,
+            DescriptorTag::Mpeg2AacAudioDescriptor => 0x2B,
+            DescriptorTag::FlexMuxTimingDescriptor => 0x2C,
+            DescriptorTag::Mpeg4TextDescriptor => 0x2D,
+            DescriptorTag::Mpeg4AudioExtensionDescriptor => 0x2E,
+            DescriptorTag::AuxiliaryVideoStreamDescriptor => 0x2F,
+            DescriptorTag::SvcExtensionDescriptor => 0x30,
+            DescriptorTag::MvcExtensionDescriptor => 0x31,
+            DescriptorTag::J2kVideoDescriptor => 0x32,
+            DescriptorTag::MvcOperationPointDescriptor => 0x33,
+            DescriptorTag::Mpeg2StereoscopicVideoFormatDescriptor => 0x34,
+            DescriptorTag::StereoscopicProgramInfoDescriptor => 0x35,
+            DescriptorTag::StereoscopicVideoInfoDescriptor => 0x36,
+            DescriptorTag::TransportProfileDescriptor => 0x37,
+            DescriptorTag::HevcVideoDescriptor => 0x38,
+            DescriptorTag::ExtensionDescriptor => 0x3F,
+            DescriptorTag::UserPrivate => 0x40,
+            DescriptorTag::Unknown => 0x00,
         }
     }
 }
 
 
-impl Default for DescriptorType {
+impl Default for DescriptorTag {
     fn default() -> Self {
-        DescriptorType::Unknown
+        DescriptorTag::Unknown
     }
 }
 
-impl From<u8> for DescriptorType {
+impl From<u8> for DescriptorTag {
     fn from(value: u8) -> Self {
         match value {
-            0x02 => DescriptorType::VideoStreamDescriptor,
-            0x03 => DescriptorType::AudioStreamDescriptor,
-            0x04 => DescriptorType::HierarchyDescriptor,
-            0x05 => DescriptorType::RegistrationDescriptor,
-            0x06 => DescriptorType::DataStreamAlignmentDescriptor,
-            0x07 => DescriptorType::TargetBackgroundGridDescriptor,
-            0x08 => DescriptorType::VideoWindowDescriptor,
-            0x09 => DescriptorType::CaDescriptor,
-            0x0A => DescriptorType::Iso639LanguageDescriptor,
-            0x0B => DescriptorType::SystemClockDescriptor,
-            0x0C => DescriptorType::MultiplexBufferUtilizationDescriptor,
-            0x0D => DescriptorType::CopyrightDescriptor,
-            0x0E => DescriptorType::MaximumBitrateDescriptor,
-            0x0F => DescriptorType::PrivateDataIndicatorDescriptor,
-            0x10 => DescriptorType::SmoothingBufferDescriptor,
-            0x11 => DescriptorType::StdDescriptor,
-            0x12 => DescriptorType::IbpDescriptor,
-            0x1B => DescriptorType::Mpeg4VideoDescriptor,
-            0x1C => DescriptorType::Mpeg4AudioDescriptor,
-            0x1D => DescriptorType::IodDescriptor,
-            0x1E => DescriptorType::SlDescriptor,
-            0x1F => DescriptorType::FmcDescriptor,
-            0x20 => DescriptorType::ExternalEsIdDescriptor,
-            0x21 => DescriptorType::MuxCodeDescriptor,
-            0x22 => DescriptorType::FmxBufferSizeDescriptor,
-            0x23 => DescriptorType::MultiplexbufferDescriptor,
-            0x24 => DescriptorType::ContentLabelingDescriptor,
-            0x25 => DescriptorType::MetadataPointerDescriptor,
-            0x26 => DescriptorType::MetadataDescriptor,
-            0x27 => DescriptorType::MetadataStdDescriptor,
-            0x28 => DescriptorType::AvcVideoDescriptor,
-            0x2A => DescriptorType::AvcTimingAndHrdDescriptor,
-            0x2B => DescriptorType::Mpeg2AacAudioDescriptor,
-            0x2C => DescriptorType::FlexMuxTimingDescriptor,
-            0x2D => DescriptorType::Mpeg4TextDescriptor,
-            0x2E => DescriptorType::Mpeg4AudioExtensionDescriptor,
-            0x2F => DescriptorType::AuxiliaryVideoStreamDescriptor,
-            0x30 => DescriptorType::SvcExtensionDescriptor,
-            0x31 => DescriptorType::MvcExtensionDescriptor,
-            0x32 => DescriptorType::J2kVideoDescriptor,
-            0x33 => DescriptorType::MvcOperationPointDescriptor,
-            0x34 => DescriptorType::Mpeg2StereoscopicVideoFormatDescriptor,
-            0x35 => DescriptorType::StereoscopicProgramInfoDescriptor,
-            0x36 => DescriptorType::StereoscopicVideoInfoDescriptor,
-            0x37 => DescriptorType::TransportProfileDescriptor,
-            0x38 => DescriptorType::HevcVideoDescriptor,
-            0x3F => DescriptorType::ExtensionDescriptor,
-            0x40..=0xFF => DescriptorType::UserPrivate,
-            _ => DescriptorType::Unknown,
+            0x02 => DescriptorTag::VideoStreamDescriptor,
+            0x03 => DescriptorTag::AudioStreamDescriptor,
+            0x04 => DescriptorTag::HierarchyDescriptor,
+            0x05 => DescriptorTag::RegistrationDescriptor,
+            0x06 => DescriptorTag::DataStreamAlignmentDescriptor,
+            0x07 => DescriptorTag::TargetBackgroundGridDescriptor,
+            0x08 => DescriptorTag::VideoWindowDescriptor,
+            0x09 => DescriptorTag::CaDescriptor,
+            0x0A => DescriptorTag::Iso639LanguageDescriptor,
+            0x0B => DescriptorTag::SystemClockDescriptor,
+            0x0C => DescriptorTag::MultiplexBufferUtilizationDescriptor,
+            0x0D => DescriptorTag::CopyrightDescriptor,
+            0x0E => DescriptorTag::MaximumBitrateDescriptor,
+            0x0F => DescriptorTag::PrivateDataIndicatorDescriptor,
+            0x10 => DescriptorTag::SmoothingBufferDescriptor,
+            0x11 => DescriptorTag::StdDescriptor,
+            0x12 => DescriptorTag::IbpDescriptor,
+            0x1B => DescriptorTag::Mpeg4VideoDescriptor,
+            0x1C => DescriptorTag::Mpeg4AudioDescriptor,
+            0x1D => DescriptorTag::IodDescriptor,
+            0x1E => DescriptorTag::SlDescriptor,
+            0x1F => DescriptorTag::FmcDescriptor,
+            0x20 => DescriptorTag::ExternalEsIdDescriptor,
+            0x21 => DescriptorTag::MuxCodeDescriptor,
+            0x22 => DescriptorTag::FmxBufferSizeDescriptor,
+            0x23 => DescriptorTag::MultiplexbufferDescriptor,
+            0x24 => DescriptorTag::ContentLabelingDescriptor,
+            0x25 => DescriptorTag::MetadataPointerDescriptor,
+            0x26 => DescriptorTag::MetadataDescriptor,
+            0x27 => DescriptorTag::MetadataStdDescriptor,
+            0x28 => DescriptorTag::AvcVideoDescriptor,
+            0x2A => DescriptorTag::AvcTimingAndHrdDescriptor,
+            0x2B => DescriptorTag::Mpeg2AacAudioDescriptor,
+            0x2C => DescriptorTag::FlexMuxTimingDescriptor,
+            0x2D => DescriptorTag::Mpeg4TextDescriptor,
+            0x2E => DescriptorTag::Mpeg4AudioExtensionDescriptor,
+            0x2F => DescriptorTag::AuxiliaryVideoStreamDescriptor,
+            0x30 => DescriptorTag::SvcExtensionDescriptor,
+            0x31 => DescriptorTag::MvcExtensionDescriptor,
+            0x32 => DescriptorTag::J2kVideoDescriptor,
+            0x33 => DescriptorTag::MvcOperationPointDescriptor,
+            0x34 => DescriptorTag::Mpeg2StereoscopicVideoFormatDescriptor,
+            0x35 => DescriptorTag::StereoscopicProgramInfoDescriptor,
+            0x36 => DescriptorTag::StereoscopicVideoInfoDescriptor,
+            0x37 => DescriptorTag::TransportProfileDescriptor,
+            0x38 => DescriptorTag::HevcVideoDescriptor,
+            0x3F => DescriptorTag::ExtensionDescriptor,
+            0x40..=0xFF => DescriptorTag::UserPrivate,
+            _ => DescriptorTag::Unknown,
         }
     }
 }
 
-impl PartialEq for DescriptorType {
+impl PartialEq for DescriptorTag {
     fn eq(&self, other: &Self) -> bool {
         match (self, other) {
-            (DescriptorType::VideoStreamDescriptor, DescriptorType::VideoStreamDescriptor) => true,
-            (DescriptorType::AudioStreamDescriptor, DescriptorType::AudioStreamDescriptor) => true,
-            (DescriptorType::HierarchyDescriptor, DescriptorType::HierarchyDescriptor) => true,
-            (DescriptorType::RegistrationDescriptor, DescriptorType::RegistrationDescriptor) => true,
-            (DescriptorType::DataStreamAlignmentDescriptor, DescriptorType::DataStreamAlignmentDescriptor) => true,
-            (DescriptorType::TargetBackgroundGridDescriptor, DescriptorType::TargetBackgroundGridDescriptor) => true,
-            (DescriptorType::VideoWindowDescriptor, DescriptorType::VideoWindowDescriptor) => true,
-            (DescriptorType::CaDescriptor, DescriptorType::CaDescriptor) => true,
-            (DescriptorType::Iso639LanguageDescriptor, DescriptorType::Iso639LanguageDescriptor) => true,
-            (DescriptorType::SystemClockDescriptor, DescriptorType::SystemClockDescriptor) => true,
-            (DescriptorType::MultiplexBufferUtilizationDescriptor, DescriptorType::MultiplexBufferUtilizationDescriptor) => true,
-            (DescriptorType::CopyrightDescriptor, DescriptorType::CopyrightDescriptor) => true,
-            (DescriptorType::MaximumBitrateDescriptor, DescriptorType::MaximumBitrateDescriptor) => true,
-            (DescriptorType::PrivateDataIndicatorDescriptor, DescriptorType::PrivateDataIndicatorDescriptor) => true,
-            (DescriptorType::SmoothingBufferDescriptor, DescriptorType::SmoothingBufferDescriptor) => true,
-            (DescriptorType::StdDescriptor, DescriptorType::StdDescriptor) => true,
-            (DescriptorType::IbpDescriptor, DescriptorType::IbpDescriptor) => true,
-            (DescriptorType::Mpeg4VideoDescriptor, DescriptorType::Mpeg4VideoDescriptor) => true,
-            (DescriptorType::Mpeg4AudioDescriptor, DescriptorType::Mpeg4AudioDescriptor) => true,
-            (DescriptorType::IodDescriptor, DescriptorType::IodDescriptor) => true,
-            (DescriptorType::SlDescriptor, DescriptorType::SlDescriptor) => true,
-            (DescriptorType::FmcDescriptor, DescriptorType::FmcDescriptor) => true,
-            (DescriptorType::ExternalEsIdDescriptor, DescriptorType::ExternalEsIdDescriptor) => true,
-            (DescriptorType::MuxCodeDescriptor, DescriptorType::MuxCodeDescriptor) => true,
-            (DescriptorType::FmxBufferSizeDescriptor, DescriptorType::FmxBufferSizeDescriptor) => true,
-            (DescriptorType::MultiplexbufferDescriptor, DescriptorType::MultiplexbufferDescriptor) => true,
-            (DescriptorType::ContentLabelingDescriptor, DescriptorType::ContentLabelingDescriptor) => true,
-            (DescriptorType::MetadataPointerDescriptor, DescriptorType::MetadataPointerDescriptor) => true,
-            (DescriptorType::MetadataDescriptor, DescriptorType::MetadataDescriptor) => true,
-            (DescriptorType::MetadataStdDescriptor, DescriptorType::MetadataStdDescriptor) => true,
-            (DescriptorType::AvcVideoDescriptor, DescriptorType::AvcVideoDescriptor) => true,
-            (DescriptorType::AvcTimingAndHrdDescriptor, DescriptorType::AvcTimingAndHrdDescriptor) => true,
-            (DescriptorType::Mpeg2AacAudioDescriptor, DescriptorType::Mpeg2AacAudioDescriptor) => true,
-            (DescriptorType::FlexMuxTimingDescriptor, DescriptorType::FlexMuxTimingDescriptor) => true,
-            (DescriptorType::Mpeg4TextDescriptor, DescriptorType::Mpeg4TextDescriptor) => true,
-            (DescriptorType::Mpeg4AudioExtensionDescriptor, DescriptorType::Mpeg4AudioExtensionDescriptor) => true,
-            (DescriptorType::AuxiliaryVideoStreamDescriptor, DescriptorType::AuxiliaryVideoStreamDescriptor) => true,
-            (DescriptorType::SvcExtensionDescriptor, DescriptorType::SvcExtensionDescriptor) => true,
-            (DescriptorType::MvcExtensionDescriptor, DescriptorType::MvcExtensionDescriptor) => true,
-            (DescriptorType::J2kVideoDescriptor, DescriptorType::J2kVideoDescriptor) => true,
-            (DescriptorType::MvcOperationPointDescriptor, DescriptorType::MvcOperationPointDescriptor) => true,
-            (DescriptorType::Mpeg2StereoscopicVideoFormatDescriptor, DescriptorType::Mpeg2StereoscopicVideoFormatDescriptor) => true,
-            (DescriptorType::StereoscopicProgramInfoDescriptor, DescriptorType::StereoscopicProgramInfoDescriptor) => true,
-            (DescriptorType::StereoscopicVideoInfoDescriptor, DescriptorType::StereoscopicVideoInfoDescriptor) => true,
-            (DescriptorType::TransportProfileDescriptor, DescriptorType::TransportProfileDescriptor) => true,
-            (DescriptorType::HevcVideoDescriptor, DescriptorType::HevcVideoDescriptor) => true,
-            (DescriptorType::ExtensionDescriptor, DescriptorType::ExtensionDescriptor) => true,
-            (DescriptorType::UserPrivate, DescriptorType::UserPrivate) => true,
-            (DescriptorType::Unknown, DescriptorType::Unknown) => true,
+            (DescriptorTag::VideoStreamDescriptor, DescriptorTag::VideoStreamDescriptor) => true,
+            (DescriptorTag::AudioStreamDescriptor, DescriptorTag::AudioStreamDescriptor) => true,
+            (DescriptorTag::HierarchyDescriptor, DescriptorTag::HierarchyDescriptor) => true,
+            (DescriptorTag::RegistrationDescriptor, DescriptorTag::RegistrationDescriptor) => true,
+            (DescriptorTag::DataStreamAlignmentDescriptor, DescriptorTag::DataStreamAlignmentDescriptor) => true,
+            (DescriptorTag::TargetBackgroundGridDescriptor, DescriptorTag::TargetBackgroundGridDescriptor) => true,
+            (DescriptorTag::VideoWindowDescriptor, DescriptorTag::VideoWindowDescriptor) => true,
+            (DescriptorTag::CaDescriptor, DescriptorTag::CaDescriptor) => true,
+            (DescriptorTag::Iso639LanguageDescriptor, DescriptorTag::Iso639LanguageDescriptor) => true,
+            (DescriptorTag::SystemClockDescriptor, DescriptorTag::SystemClockDescriptor) => true,
+            (DescriptorTag::MultiplexBufferUtilizationDescriptor, DescriptorTag::MultiplexBufferUtilizationDescriptor) => true,
+            (DescriptorTag::CopyrightDescriptor, DescriptorTag::CopyrightDescriptor) => true,
+            (DescriptorTag::MaximumBitrateDescriptor, DescriptorTag::MaximumBitrateDescriptor) => true,
+            (DescriptorTag::PrivateDataIndicatorDescriptor, DescriptorTag::PrivateDataIndicatorDescriptor) => true,
+            (DescriptorTag::SmoothingBufferDescriptor, DescriptorTag::SmoothingBufferDescriptor) => true,
+            (DescriptorTag::StdDescriptor, DescriptorTag::StdDescriptor) => true,
+            (DescriptorTag::IbpDescriptor, DescriptorTag::IbpDescriptor) => true,
+            (DescriptorTag::Mpeg4VideoDescriptor, DescriptorTag::Mpeg4VideoDescriptor) => true,
+            (DescriptorTag::Mpeg4AudioDescriptor, DescriptorTag::Mpeg4AudioDescriptor) => true,
+            (DescriptorTag::IodDescriptor, DescriptorTag::IodDescriptor) => true,
+            (DescriptorTag::SlDescriptor, DescriptorTag::SlDescriptor) => true,
+            (DescriptorTag::FmcDescriptor, DescriptorTag::FmcDescriptor) => true,
+            (DescriptorTag::ExternalEsIdDescriptor, DescriptorTag::ExternalEsIdDescriptor) => true,
+            (DescriptorTag::MuxCodeDescriptor, DescriptorTag::MuxCodeDescriptor) => true,
+            (DescriptorTag::FmxBufferSizeDescriptor, DescriptorTag::FmxBufferSizeDescriptor) => true,
+            (DescriptorTag::MultiplexbufferDescriptor, DescriptorTag::MultiplexbufferDescriptor) => true,
+            (DescriptorTag::ContentLabelingDescriptor, DescriptorTag::ContentLabelingDescriptor) => true,
+            (DescriptorTag::MetadataPointerDescriptor, DescriptorTag::MetadataPointerDescriptor) => true,
+            (DescriptorTag::MetadataDescriptor, DescriptorTag::MetadataDescriptor) => true,
+            (DescriptorTag::MetadataStdDescriptor, DescriptorTag::MetadataStdDescriptor) => true,
+            (DescriptorTag::AvcVideoDescriptor, DescriptorTag::AvcVideoDescriptor) => true,
+            (DescriptorTag::AvcTimingAndHrdDescriptor, DescriptorTag::AvcTimingAndHrdDescriptor) => true,
+            (DescriptorTag::Mpeg2AacAudioDescriptor, DescriptorTag::Mpeg2AacAudioDescriptor) => true,
+            (DescriptorTag::FlexMuxTimingDescriptor, DescriptorTag::FlexMuxTimingDescriptor) => true,
+            (DescriptorTag::Mpeg4TextDescriptor, DescriptorTag::Mpeg4TextDescriptor) => true,
+            (DescriptorTag::Mpeg4AudioExtensionDescriptor, DescriptorTag::Mpeg4AudioExtensionDescriptor) => true,
+            (DescriptorTag::AuxiliaryVideoStreamDescriptor, DescriptorTag::AuxiliaryVideoStreamDescriptor) => true,
+            (DescriptorTag::SvcExtensionDescriptor, DescriptorTag::SvcExtensionDescriptor) => true,
+            (DescriptorTag::MvcExtensionDescriptor, DescriptorTag::MvcExtensionDescriptor) => true,
+            (DescriptorTag::J2kVideoDescriptor, DescriptorTag::J2kVideoDescriptor) => true,
+            (DescriptorTag::MvcOperationPointDescriptor, DescriptorTag::MvcOperationPointDescriptor) => true,
+            (DescriptorTag::Mpeg2StereoscopicVideoFormatDescriptor, DescriptorTag::Mpeg2StereoscopicVideoFormatDescriptor) => true,
+            (DescriptorTag::StereoscopicProgramInfoDescriptor, DescriptorTag::StereoscopicProgramInfoDescriptor) => true,
+            (DescriptorTag::StereoscopicVideoInfoDescriptor, DescriptorTag::StereoscopicVideoInfoDescriptor) => true,
+            (DescriptorTag::TransportProfileDescriptor, DescriptorTag::TransportProfileDescriptor) => true,
+            (DescriptorTag::HevcVideoDescriptor, DescriptorTag::HevcVideoDescriptor) => true,
+            (DescriptorTag::ExtensionDescriptor, DescriptorTag::ExtensionDescriptor) => true,
+            (DescriptorTag::UserPrivate, DescriptorTag::UserPrivate) => true,
+            (DescriptorTag::Unknown, DescriptorTag::Unknown) => true,
             _ => false,
         }
     }
@@ -235,114 +235,114 @@ mod tests {
 
     #[test]
     fn test_descriptor_type_equality() {
-        assert_eq!(DescriptorType::VideoStreamDescriptor, DescriptorType::VideoStreamDescriptor);
-        assert_eq!(DescriptorType::AudioStreamDescriptor, DescriptorType::AudioStreamDescriptor);
-        assert_eq!(DescriptorType::HierarchyDescriptor, DescriptorType::HierarchyDescriptor);
-        assert_eq!(DescriptorType::RegistrationDescriptor, DescriptorType::RegistrationDescriptor);
-        assert_eq!(DescriptorType::DataStreamAlignmentDescriptor, DescriptorType::DataStreamAlignmentDescriptor);
-        assert_eq!(DescriptorType::TargetBackgroundGridDescriptor, DescriptorType::TargetBackgroundGridDescriptor);
-        assert_eq!(DescriptorType::VideoWindowDescriptor, DescriptorType::VideoWindowDescriptor);
-        assert_eq!(DescriptorType::CaDescriptor, DescriptorType::CaDescriptor);
-        assert_eq!(DescriptorType::Iso639LanguageDescriptor, DescriptorType::Iso639LanguageDescriptor);
-        assert_eq!(DescriptorType::SystemClockDescriptor, DescriptorType::SystemClockDescriptor);
-        assert_eq!(DescriptorType::MultiplexBufferUtilizationDescriptor, DescriptorType::MultiplexBufferUtilizationDescriptor);
-        assert_eq!(DescriptorType::CopyrightDescriptor, DescriptorType::CopyrightDescriptor);
-        assert_eq!(DescriptorType::MaximumBitrateDescriptor, DescriptorType::MaximumBitrateDescriptor);
-        assert_eq!(DescriptorType::PrivateDataIndicatorDescriptor, DescriptorType::PrivateDataIndicatorDescriptor);
-        assert_eq!(DescriptorType::SmoothingBufferDescriptor, DescriptorType::SmoothingBufferDescriptor);
-        assert_eq!(DescriptorType::StdDescriptor, DescriptorType::StdDescriptor);
-        assert_eq!(DescriptorType::IbpDescriptor, DescriptorType::IbpDescriptor);
-        assert_eq!(DescriptorType::Mpeg4VideoDescriptor, DescriptorType::Mpeg4VideoDescriptor);
-        assert_eq!(DescriptorType::Mpeg4AudioDescriptor, DescriptorType::Mpeg4AudioDescriptor);
-        assert_eq!(DescriptorType::IodDescriptor, DescriptorType::IodDescriptor);
-        assert_eq!(DescriptorType::SlDescriptor, DescriptorType::SlDescriptor);
-        assert_eq!(DescriptorType::FmcDescriptor, DescriptorType::FmcDescriptor);
-        assert_eq!(DescriptorType::ExternalEsIdDescriptor, DescriptorType::ExternalEsIdDescriptor);
-        assert_eq!(DescriptorType::MuxCodeDescriptor, DescriptorType::MuxCodeDescriptor);
-        assert_eq!(DescriptorType::FmxBufferSizeDescriptor, DescriptorType::FmxBufferSizeDescriptor);
-        assert_eq!(DescriptorType::MultiplexbufferDescriptor, DescriptorType::MultiplexbufferDescriptor);
-        assert_eq!(DescriptorType::ContentLabelingDescriptor, DescriptorType::ContentLabelingDescriptor);
-        assert_eq!(DescriptorType::MetadataPointerDescriptor, DescriptorType::MetadataPointerDescriptor);
-        assert_eq!(DescriptorType::MetadataDescriptor, DescriptorType::MetadataDescriptor);
-        assert_eq!(DescriptorType::MetadataStdDescriptor, DescriptorType::MetadataStdDescriptor);
-        assert_eq!(DescriptorType::AvcVideoDescriptor, DescriptorType::AvcVideoDescriptor);
-        assert_eq!(DescriptorType::Mpeg2AacAudioDescriptor, DescriptorType::Mpeg2AacAudioDescriptor);
-        assert_eq!(DescriptorType::FlexMuxTimingDescriptor, DescriptorType::FlexMuxTimingDescriptor);
-        assert_eq!(DescriptorType::Mpeg4TextDescriptor, DescriptorType::Mpeg4TextDescriptor);
-        assert_eq!(DescriptorType::Mpeg4AudioExtensionDescriptor, DescriptorType::Mpeg4AudioExtensionDescriptor);
-        assert_eq!(DescriptorType::AuxiliaryVideoStreamDescriptor, DescriptorType::AuxiliaryVideoStreamDescriptor);
-        assert_eq!(DescriptorType::SvcExtensionDescriptor, DescriptorType::SvcExtensionDescriptor);
-        assert_eq!(DescriptorType::MvcExtensionDescriptor, DescriptorType::MvcExtensionDescriptor);
-        assert_eq!(DescriptorType::J2kVideoDescriptor, DescriptorType::J2kVideoDescriptor);
-        assert_eq!(DescriptorType::MvcOperationPointDescriptor, DescriptorType::MvcOperationPointDescriptor);
-        assert_eq!(DescriptorType::Mpeg2StereoscopicVideoFormatDescriptor, DescriptorType::Mpeg2StereoscopicVideoFormatDescriptor);
-        assert_eq!(DescriptorType::StereoscopicProgramInfoDescriptor, DescriptorType::StereoscopicProgramInfoDescriptor);
-        assert_eq!(DescriptorType::StereoscopicVideoInfoDescriptor, DescriptorType::StereoscopicVideoInfoDescriptor);
-        assert_eq!(DescriptorType::TransportProfileDescriptor, DescriptorType::TransportProfileDescriptor);
-        assert_eq!(DescriptorType::HevcVideoDescriptor, DescriptorType::HevcVideoDescriptor);
-        assert_eq!(DescriptorType::ExtensionDescriptor, DescriptorType::ExtensionDescriptor);
-        assert_eq!(DescriptorType::UserPrivate, DescriptorType::UserPrivate);
-        assert_eq!(DescriptorType::Unknown, DescriptorType::Unknown);
+        assert_eq!(DescriptorTag::VideoStreamDescriptor, DescriptorTag::VideoStreamDescriptor);
+        assert_eq!(DescriptorTag::AudioStreamDescriptor, DescriptorTag::AudioStreamDescriptor);
+        assert_eq!(DescriptorTag::HierarchyDescriptor, DescriptorTag::HierarchyDescriptor);
+        assert_eq!(DescriptorTag::RegistrationDescriptor, DescriptorTag::RegistrationDescriptor);
+        assert_eq!(DescriptorTag::DataStreamAlignmentDescriptor, DescriptorTag::DataStreamAlignmentDescriptor);
+        assert_eq!(DescriptorTag::TargetBackgroundGridDescriptor, DescriptorTag::TargetBackgroundGridDescriptor);
+        assert_eq!(DescriptorTag::VideoWindowDescriptor, DescriptorTag::VideoWindowDescriptor);
+        assert_eq!(DescriptorTag::CaDescriptor, DescriptorTag::CaDescriptor);
+        assert_eq!(DescriptorTag::Iso639LanguageDescriptor, DescriptorTag::Iso639LanguageDescriptor);
+        assert_eq!(DescriptorTag::SystemClockDescriptor, DescriptorTag::SystemClockDescriptor);
+        assert_eq!(DescriptorTag::MultiplexBufferUtilizationDescriptor, DescriptorTag::MultiplexBufferUtilizationDescriptor);
+        assert_eq!(DescriptorTag::CopyrightDescriptor, DescriptorTag::CopyrightDescriptor);
+        assert_eq!(DescriptorTag::MaximumBitrateDescriptor, DescriptorTag::MaximumBitrateDescriptor);
+        assert_eq!(DescriptorTag::PrivateDataIndicatorDescriptor, DescriptorTag::PrivateDataIndicatorDescriptor);
+        assert_eq!(DescriptorTag::SmoothingBufferDescriptor, DescriptorTag::SmoothingBufferDescriptor);
+        assert_eq!(DescriptorTag::StdDescriptor, DescriptorTag::StdDescriptor);
+        assert_eq!(DescriptorTag::IbpDescriptor, DescriptorTag::IbpDescriptor);
+        assert_eq!(DescriptorTag::Mpeg4VideoDescriptor, DescriptorTag::Mpeg4VideoDescriptor);
+        assert_eq!(DescriptorTag::Mpeg4AudioDescriptor, DescriptorTag::Mpeg4AudioDescriptor);
+        assert_eq!(DescriptorTag::IodDescriptor, DescriptorTag::IodDescriptor);
+        assert_eq!(DescriptorTag::SlDescriptor, DescriptorTag::SlDescriptor);
+        assert_eq!(DescriptorTag::FmcDescriptor, DescriptorTag::FmcDescriptor);
+        assert_eq!(DescriptorTag::ExternalEsIdDescriptor, DescriptorTag::ExternalEsIdDescriptor);
+        assert_eq!(DescriptorTag::MuxCodeDescriptor, DescriptorTag::MuxCodeDescriptor);
+        assert_eq!(DescriptorTag::FmxBufferSizeDescriptor, DescriptorTag::FmxBufferSizeDescriptor);
+        assert_eq!(DescriptorTag::MultiplexbufferDescriptor, DescriptorTag::MultiplexbufferDescriptor);
+        assert_eq!(DescriptorTag::ContentLabelingDescriptor, DescriptorTag::ContentLabelingDescriptor);
+        assert_eq!(DescriptorTag::MetadataPointerDescriptor, DescriptorTag::MetadataPointerDescriptor);
+        assert_eq!(DescriptorTag::MetadataDescriptor, DescriptorTag::MetadataDescriptor);
+        assert_eq!(DescriptorTag::MetadataStdDescriptor, DescriptorTag::MetadataStdDescriptor);
+        assert_eq!(DescriptorTag::AvcVideoDescriptor, DescriptorTag::AvcVideoDescriptor);
+        assert_eq!(DescriptorTag::Mpeg2AacAudioDescriptor, DescriptorTag::Mpeg2AacAudioDescriptor);
+        assert_eq!(DescriptorTag::FlexMuxTimingDescriptor, DescriptorTag::FlexMuxTimingDescriptor);
+        assert_eq!(DescriptorTag::Mpeg4TextDescriptor, DescriptorTag::Mpeg4TextDescriptor);
+        assert_eq!(DescriptorTag::Mpeg4AudioExtensionDescriptor, DescriptorTag::Mpeg4AudioExtensionDescriptor);
+        assert_eq!(DescriptorTag::AuxiliaryVideoStreamDescriptor, DescriptorTag::AuxiliaryVideoStreamDescriptor);
+        assert_eq!(DescriptorTag::SvcExtensionDescriptor, DescriptorTag::SvcExtensionDescriptor);
+        assert_eq!(DescriptorTag::MvcExtensionDescriptor, DescriptorTag::MvcExtensionDescriptor);
+        assert_eq!(DescriptorTag::J2kVideoDescriptor, DescriptorTag::J2kVideoDescriptor);
+        assert_eq!(DescriptorTag::MvcOperationPointDescriptor, DescriptorTag::MvcOperationPointDescriptor);
+        assert_eq!(DescriptorTag::Mpeg2StereoscopicVideoFormatDescriptor, DescriptorTag::Mpeg2StereoscopicVideoFormatDescriptor);
+        assert_eq!(DescriptorTag::StereoscopicProgramInfoDescriptor, DescriptorTag::StereoscopicProgramInfoDescriptor);
+        assert_eq!(DescriptorTag::StereoscopicVideoInfoDescriptor, DescriptorTag::StereoscopicVideoInfoDescriptor);
+        assert_eq!(DescriptorTag::TransportProfileDescriptor, DescriptorTag::TransportProfileDescriptor);
+        assert_eq!(DescriptorTag::HevcVideoDescriptor, DescriptorTag::HevcVideoDescriptor);
+        assert_eq!(DescriptorTag::ExtensionDescriptor, DescriptorTag::ExtensionDescriptor);
+        assert_eq!(DescriptorTag::UserPrivate, DescriptorTag::UserPrivate);
+        assert_eq!(DescriptorTag::Unknown, DescriptorTag::Unknown);
     }
 
     #[test]
     fn test_descriptor_type_inequality() {
-        assert_ne!(DescriptorType::VideoStreamDescriptor, DescriptorType::AudioStreamDescriptor);
-        assert_ne!(DescriptorType::HierarchyDescriptor, DescriptorType::RegistrationDescriptor);
-        assert_ne!(DescriptorType::DataStreamAlignmentDescriptor, DescriptorType::TargetBackgroundGridDescriptor);
+        assert_ne!(DescriptorTag::VideoStreamDescriptor, DescriptorTag::AudioStreamDescriptor);
+        assert_ne!(DescriptorTag::HierarchyDescriptor, DescriptorTag::RegistrationDescriptor);
+        assert_ne!(DescriptorTag::DataStreamAlignmentDescriptor, DescriptorTag::TargetBackgroundGridDescriptor);
     }
 
     #[test]
     fn test_from_u8() {
-        assert_eq!(DescriptorType::from(0x02), DescriptorType::VideoStreamDescriptor);
-        assert_eq!(DescriptorType::from(0x03), DescriptorType::AudioStreamDescriptor);
-        assert_eq!(DescriptorType::from(0x04), DescriptorType::HierarchyDescriptor);
-        assert_eq!(DescriptorType::from(0x05), DescriptorType::RegistrationDescriptor);
-        assert_eq!(DescriptorType::from(0x06), DescriptorType::DataStreamAlignmentDescriptor);
-        assert_eq!(DescriptorType::from(0x07), DescriptorType::TargetBackgroundGridDescriptor);
-        assert_eq!(DescriptorType::from(0x08), DescriptorType::VideoWindowDescriptor);
-        assert_eq!(DescriptorType::from(0x09), DescriptorType::CaDescriptor);
-        assert_eq!(DescriptorType::from(0x0A), DescriptorType::Iso639LanguageDescriptor);
-        assert_eq!(DescriptorType::from(0x0B), DescriptorType::SystemClockDescriptor);
-        assert_eq!(DescriptorType::from(0x0C), DescriptorType::MultiplexBufferUtilizationDescriptor);
-        assert_eq!(DescriptorType::from(0x0D), DescriptorType::CopyrightDescriptor);
-        assert_eq!(DescriptorType::from(0x0E), DescriptorType::MaximumBitrateDescriptor);
-        assert_eq!(DescriptorType::from(0x0F), DescriptorType::PrivateDataIndicatorDescriptor);
-        assert_eq!(DescriptorType::from(0x10), DescriptorType::SmoothingBufferDescriptor);
-        assert_eq!(DescriptorType::from(0x11), DescriptorType::StdDescriptor);
-        assert_eq!(DescriptorType::from(0x12), DescriptorType::IbpDescriptor);
-        assert_eq!(DescriptorType::from(0x1B), DescriptorType::Mpeg4VideoDescriptor);
-        assert_eq!(DescriptorType::from(0x1C), DescriptorType::Mpeg4AudioDescriptor);
-        assert_eq!(DescriptorType::from(0x1D), DescriptorType::IodDescriptor);
-        assert_eq!(DescriptorType::from(0x1E), DescriptorType::SlDescriptor);
-        assert_eq!(DescriptorType::from(0x1F), DescriptorType::FmcDescriptor);
-        assert_eq!(DescriptorType::from(0x20), DescriptorType::ExternalEsIdDescriptor);
-        assert_eq!(DescriptorType::from(0x21), DescriptorType::MuxCodeDescriptor);
-        assert_eq!(DescriptorType::from(0x22), DescriptorType::FmxBufferSizeDescriptor);
-        assert_eq!(DescriptorType::from(0x23), DescriptorType::MultiplexbufferDescriptor);
-        assert_eq!(DescriptorType::from(0x24), DescriptorType::ContentLabelingDescriptor);
-        assert_eq!(DescriptorType::from(0x25), DescriptorType::MetadataPointerDescriptor);
-        assert_eq!(DescriptorType::from(0x26), DescriptorType::MetadataDescriptor);
-        assert_eq!(DescriptorType::from(0x27), DescriptorType::MetadataStdDescriptor);
-        assert_eq!(DescriptorType::from(0x28), DescriptorType::AvcVideoDescriptor);
-        assert_eq!(DescriptorType::from(0x2A), DescriptorType::AvcTimingAndHrdDescriptor);
-        assert_eq!(DescriptorType::from(0x2B), DescriptorType::Mpeg2AacAudioDescriptor);
-        assert_eq!(DescriptorType::from(0x2C), DescriptorType::FlexMuxTimingDescriptor);
-        assert_eq!(DescriptorType::from(0x2D), DescriptorType::Mpeg4TextDescriptor);
-        assert_eq!(DescriptorType::from(0x2E), DescriptorType::Mpeg4AudioExtensionDescriptor);
-        assert_eq!(DescriptorType::from(0x2F), DescriptorType::AuxiliaryVideoStreamDescriptor);
-        assert_eq!(DescriptorType::from(0x30), DescriptorType::SvcExtensionDescriptor);
-        assert_eq!(DescriptorType::from(0x31), DescriptorType::MvcExtensionDescriptor);
-        assert_eq!(DescriptorType::from(0x32), DescriptorType::J2kVideoDescriptor);
-        assert_eq!(DescriptorType::from(0x33), DescriptorType::MvcOperationPointDescriptor);
-        assert_eq!(DescriptorType::from(0x34), DescriptorType::Mpeg2StereoscopicVideoFormatDescriptor);
-        assert_eq!(DescriptorType::from(0x35), DescriptorType::StereoscopicProgramInfoDescriptor);
-        assert_eq!(DescriptorType::from(0x36), DescriptorType::StereoscopicVideoInfoDescriptor);
-        assert_eq!(DescriptorType::from(0x37), DescriptorType::TransportProfileDescriptor);
-        assert_eq!(DescriptorType::from(0x38), DescriptorType::HevcVideoDescriptor);
-        assert_eq!(DescriptorType::from(0x3F), DescriptorType::ExtensionDescriptor);
-        assert_eq!(DescriptorType::from(0x40), DescriptorType::UserPrivate);
-        assert_eq!(DescriptorType::from(0xFF), DescriptorType::UserPrivate);
-        assert_eq!(DescriptorType::from(0x00), DescriptorType::Unknown);
+        assert_eq!(DescriptorTag::from(0x02), DescriptorTag::VideoStreamDescriptor);
+        assert_eq!(DescriptorTag::from(0x03), DescriptorTag::AudioStreamDescriptor);
+        assert_eq!(DescriptorTag::from(0x04), DescriptorTag::HierarchyDescriptor);
+        assert_eq!(DescriptorTag::from(0x05), DescriptorTag::RegistrationDescriptor);
+        assert_eq!(DescriptorTag::from(0x06), DescriptorTag::DataStreamAlignmentDescriptor);
+        assert_eq!(DescriptorTag::from(0x07), DescriptorTag::TargetBackgroundGridDescriptor);
+        assert_eq!(DescriptorTag::from(0x08), DescriptorTag::VideoWindowDescriptor);
+        assert_eq!(DescriptorTag::from(0x09), DescriptorTag::CaDescriptor);
+        assert_eq!(DescriptorTag::from(0x0A), DescriptorTag::Iso639LanguageDescriptor);
+        assert_eq!(DescriptorTag::from(0x0B), DescriptorTag::SystemClockDescriptor);
+        assert_eq!(DescriptorTag::from(0x0C), DescriptorTag::MultiplexBufferUtilizationDescriptor);
+        assert_eq!(DescriptorTag::from(0x0D), DescriptorTag::CopyrightDescriptor);
+        assert_eq!(DescriptorTag::from(0x0E), DescriptorTag::MaximumBitrateDescriptor);
+        assert_eq!(DescriptorTag::from(0x0F), DescriptorTag::PrivateDataIndicatorDescriptor);
+        assert_eq!(DescriptorTag::from(0x10), DescriptorTag::SmoothingBufferDescriptor);
+        assert_eq!(DescriptorTag::from(0x11), DescriptorTag::StdDescriptor);
+        assert_eq!(DescriptorTag::from(0x12), DescriptorTag::IbpDescriptor);
+        assert_eq!(DescriptorTag::from(0x1B), DescriptorTag::Mpeg4VideoDescriptor);
+        assert_eq!(DescriptorTag::from(0x1C), DescriptorTag::Mpeg4AudioDescriptor);
+        assert_eq!(DescriptorTag::from(0x1D), DescriptorTag::IodDescriptor);
+        assert_eq!(DescriptorTag::from(0x1E), DescriptorTag::SlDescriptor);
+        assert_eq!(DescriptorTag::from(0x1F), DescriptorTag::FmcDescriptor);
+        assert_eq!(DescriptorTag::from(0x20), DescriptorTag::ExternalEsIdDescriptor);
+        assert_eq!(DescriptorTag::from(0x21), DescriptorTag::MuxCodeDescriptor);
+        assert_eq!(DescriptorTag::from(0x22), DescriptorTag::FmxBufferSizeDescriptor);
+        assert_eq!(DescriptorTag::from(0x23), DescriptorTag::MultiplexbufferDescriptor);
+        assert_eq!(DescriptorTag::from(0x24), DescriptorTag::ContentLabelingDescriptor);
+        assert_eq!(DescriptorTag::from(0x25), DescriptorTag::MetadataPointerDescriptor);
+        assert_eq!(DescriptorTag::from(0x26), DescriptorTag::MetadataDescriptor);
+        assert_eq!(DescriptorTag::from(0x27), DescriptorTag::MetadataStdDescriptor);
+        assert_eq!(DescriptorTag::from(0x28), DescriptorTag::AvcVideoDescriptor);
+        assert_eq!(DescriptorTag::from(0x2A), DescriptorTag::AvcTimingAndHrdDescriptor);
+        assert_eq!(DescriptorTag::from(0x2B), DescriptorTag::Mpeg2AacAudioDescriptor);
+        assert_eq!(DescriptorTag::from(0x2C), DescriptorTag::FlexMuxTimingDescriptor);
+        assert_eq!(DescriptorTag::from(0x2D), DescriptorTag::Mpeg4TextDescriptor);
+        assert_eq!(DescriptorTag::from(0x2E), DescriptorTag::Mpeg4AudioExtensionDescriptor);
+        assert_eq!(DescriptorTag::from(0x2F), DescriptorTag::AuxiliaryVideoStreamDescriptor);
+        assert_eq!(DescriptorTag::from(0x30), DescriptorTag::SvcExtensionDescriptor);
+        assert_eq!(DescriptorTag::from(0x31), DescriptorTag::MvcExtensionDescriptor);
+        assert_eq!(DescriptorTag::from(0x32), DescriptorTag::J2kVideoDescriptor);
+        assert_eq!(DescriptorTag::from(0x33), DescriptorTag::MvcOperationPointDescriptor);
+        assert_eq!(DescriptorTag::from(0x34), DescriptorTag::Mpeg2StereoscopicVideoFormatDescriptor);
+        assert_eq!(DescriptorTag::from(0x35), DescriptorTag::StereoscopicProgramInfoDescriptor);
+        assert_eq!(DescriptorTag::from(0x36), DescriptorTag::StereoscopicVideoInfoDescriptor);
+        assert_eq!(DescriptorTag::from(0x37), DescriptorTag::TransportProfileDescriptor);
+        assert_eq!(DescriptorTag::from(0x38), DescriptorTag::HevcVideoDescriptor);
+        assert_eq!(DescriptorTag::from(0x3F), DescriptorTag::ExtensionDescriptor);
+        assert_eq!(DescriptorTag::from(0x40), DescriptorTag::UserPrivate);
+        assert_eq!(DescriptorTag::from(0xFF), DescriptorTag::UserPrivate);
+        assert_eq!(DescriptorTag::from(0x00), DescriptorTag::Unknown);
     }
 }

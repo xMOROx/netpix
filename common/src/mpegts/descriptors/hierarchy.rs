@@ -148,13 +148,13 @@ impl From<u8> for HierarchyType {
 mod tests {
     use super::*;
     use crate::mpegts::descriptors::DescriptorHeader;
-    use crate::mpegts::descriptors::types::DescriptorType;
+    use crate::mpegts::descriptors::types::DescriptorTag;
 
     #[test]
     fn test_hierarchy_descriptor_unmarshall() {
         let data = vec![0b0000_0000, 0b0000_0000, 0b0000_0000, 0b0000_0000];
         let header = DescriptorHeader {
-            descriptor_tag: DescriptorType::from(0x04),
+            descriptor_tag: DescriptorTag::from(0x04),
             descriptor_length: 0x04,
         };
         let descriptor = HierarchyDescriptor {
@@ -177,7 +177,7 @@ mod tests {
     fn test_hierarchy_descriptor_unmarshall_with_flags() {
         let data = vec![0b1111_0000, 0b0000_0001, 0b0011_1111, 0b1011_1111];
         let header = DescriptorHeader {
-            descriptor_tag: DescriptorType::from(0x04),
+            descriptor_tag: DescriptorTag::from(0x04),
             descriptor_length: 0x04,
         };
         let descriptor = HierarchyDescriptor {
@@ -200,7 +200,7 @@ mod tests {
     fn test_hierarchy_descriptor_unmarshall_invalid_length() {
         let data = vec![0b0000_0000, 0b0000_0000, 0b0000_0000];
         let header = DescriptorHeader {
-            descriptor_tag: DescriptorType::from(0x04),
+            descriptor_tag: DescriptorTag::from(0x04),
             descriptor_length: 0x03,
         };
 
