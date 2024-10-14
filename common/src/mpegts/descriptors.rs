@@ -2,11 +2,13 @@ mod types;
 mod video_stream;
 mod audio_stream;
 mod hierarchy;
+mod maximum_bitrate_descriptor;
 
 use std::fmt::Debug;
 use serde::{Deserialize, Serialize};
 use crate::mpegts::descriptors::audio_stream::AudioStreamDescriptor;
 use crate::mpegts::descriptors::hierarchy::HierarchyDescriptor;
+use crate::mpegts::descriptors::maximum_bitrate_descriptor::MaximumBitrateDescriptor;
 use crate::mpegts::descriptors::types::DescriptorType;
 use crate::mpegts::descriptors::video_stream::VideoStreamDescriptor;
 
@@ -21,6 +23,7 @@ pub enum Descriptor {
     VideoStreamDescriptor(VideoStreamDescriptor),
     AudioStreamDescriptor(AudioStreamDescriptor),
     HierarchyDescriptor(HierarchyDescriptor),
+    MaximumBitrateDescriptor(MaximumBitrateDescriptor),
 }
 
 impl Descriptor {
@@ -43,7 +46,11 @@ impl Descriptor {
                     Descriptor::HierarchyDescriptor(descriptor)
                 })
             },
-
+            DescriptorType::MaximumBitrateDescriptor => {
+                MaximumBitrateDescriptor::unmarshall(header, payload).map(|descriptor| {
+                    Descriptor::MaximumBitrateDescriptor(descriptor)
+                })
+            },
             _ => None,
         }
     }
