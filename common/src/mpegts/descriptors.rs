@@ -1,10 +1,12 @@
 mod types;
 mod video_stream;
 mod audio_stream;
+mod hierarchy;
 
 use std::fmt::Debug;
 use serde::{Deserialize, Serialize};
 use crate::mpegts::descriptors::audio_stream::AudioStreamDescriptor;
+use crate::mpegts::descriptors::hierarchy::HierarchyDescriptor;
 use crate::mpegts::descriptors::types::DescriptorType;
 use crate::mpegts::descriptors::video_stream::VideoStreamDescriptor;
 
@@ -18,6 +20,7 @@ pub trait ParsableDescriptor<T>: Debug {
 pub enum Descriptor {
     VideoStreamDescriptor(VideoStreamDescriptor),
     AudioStreamDescriptor(AudioStreamDescriptor),
+    HierarchyDescriptor(HierarchyDescriptor),
 }
 
 impl Descriptor {
@@ -35,6 +38,12 @@ impl Descriptor {
                     Descriptor::AudioStreamDescriptor(descriptor)
                 })
             },
+            DescriptorType::HierarchyDescriptor => {
+                HierarchyDescriptor::unmarshall(header, payload).map(|descriptor| {
+                    Descriptor::HierarchyDescriptor(descriptor)
+                })
+            },
+
             _ => None,
         }
     }
