@@ -1,10 +1,12 @@
 mod types;
-mod video_stream_descriptor;
+mod video_stream;
+mod audio_stream;
 
 use std::fmt::Debug;
 use serde::{Deserialize, Serialize};
+use crate::mpegts::descriptors::audio_stream::AudioStreamDescriptor;
 use crate::mpegts::descriptors::types::DescriptorType;
-use crate::mpegts::descriptors::video_stream_descriptor::VideoStreamDescriptor;
+use crate::mpegts::descriptors::video_stream::VideoStreamDescriptor;
 
 pub trait ParsableDescriptor<T>: Debug {
     fn descriptor_tag(&self) -> u8;
@@ -15,17 +17,24 @@ pub trait ParsableDescriptor<T>: Debug {
 #[derive(Serialize, Deserialize, Debug, Clone, Ord, PartialOrd, Eq)]
 pub enum Descriptor {
     VideoStreamDescriptor(VideoStreamDescriptor),
+    AudioStreamDescriptor(AudioStreamDescriptor),
 }
 
 impl Descriptor {
     pub fn unmarshall(data: &[u8]) -> Option<Self> {
         let header = DescriptorHeader::unmarshall(data);
+        let payload = &data[2..];
         match header.descriptor_tag {
             DescriptorType::VideoStreamDescriptor => {
-                VideoStreamDescriptor::unmarshall(header, &data[2..]).map(|descriptor| {
+                VideoStreamDescriptor::unmarshall(header, payload).map(|descriptor| {
                     Descriptor::VideoStreamDescriptor(descriptor)
                 })
-            }
+            },
+            DescriptorType::AudioStreamDescriptor => {
+                AudioStreamDescriptor::unmarshall(header, payload).map(|descriptor| {
+                    Descriptor::AudioStreamDescriptor(descriptor)
+                })
+            },
             _ => None,
         }
     }
