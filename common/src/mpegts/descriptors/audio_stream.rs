@@ -62,7 +62,7 @@ impl PartialEq for AudioStreamDescriptor {
 mod tests {
     use super::*;
     use crate::mpegts::descriptors::DescriptorHeader;
-    use crate::mpegts::descriptors::types::DescriptorTag;
+    use crate::mpegts::descriptors::tags::DescriptorTag;
 
     #[test]
     fn test_audio_stream_descriptor_unmarshall() {

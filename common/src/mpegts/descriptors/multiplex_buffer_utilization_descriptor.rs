@@ -70,7 +70,7 @@ impl PartialEq for MultiplexBufferUtilizationDescriptor {
 mod tests {
     use super::*;
     use crate::mpegts::descriptors::{DescriptorHeader};
-    use crate::mpegts::descriptors::types::DescriptorTag;
+    use crate::mpegts::descriptors::tags::DescriptorTag;
 
 
 

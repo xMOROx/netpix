@@ -104,7 +104,7 @@ impl PartialEq for VideoStreamDescriptor {
 mod tests {
     use super::*;
     use crate::mpegts::descriptors::DescriptorHeader;
-    use crate::mpegts::descriptors::types::DescriptorTag;
+    use crate::mpegts::descriptors::tags::DescriptorTag;
     #[test]
     fn test_video_stream_descriptor_unmarshall_with_only_flag_to_false() {
         let data = vec![0x02, 0x03, 0b1000_1101, 0x03, 0b0111_1111];

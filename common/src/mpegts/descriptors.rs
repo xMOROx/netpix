@@ -1,9 +1,9 @@
-pub mod types;
-mod video_stream;
-mod audio_stream;
-mod hierarchy;
-mod maximum_bitrate_descriptor;
-mod multiplex_buffer_utilization_descriptor;
+pub mod tags;
+pub mod video_stream;
+pub mod audio_stream;
+pub mod hierarchy;
+pub mod maximum_bitrate_descriptor;
+pub mod multiplex_buffer_utilization_descriptor;
 
 use std::fmt::Debug;
 use serde::{Deserialize, Serialize};
@@ -11,7 +11,7 @@ use crate::mpegts::descriptors::audio_stream::AudioStreamDescriptor;
 use crate::mpegts::descriptors::hierarchy::HierarchyDescriptor;
 use crate::mpegts::descriptors::maximum_bitrate_descriptor::MaximumBitrateDescriptor;
 use crate::mpegts::descriptors::multiplex_buffer_utilization_descriptor::MultiplexBufferUtilizationDescriptor;
-use crate::mpegts::descriptors::types::DescriptorTag;
+use crate::mpegts::descriptors::tags::DescriptorTag;
 use crate::mpegts::descriptors::video_stream::VideoStreamDescriptor;
 
 #[cfg(not(target_arch = "wasm32"))]
@@ -24,7 +24,7 @@ pub trait ParsableDescriptor<T>: Debug {
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, Ord, PartialOrd, Eq)]
-pub enum Descriptor {
+pub enum Descriptors {
     VideoStreamDescriptor(VideoStreamDescriptor),
     AudioStreamDescriptor(AudioStreamDescriptor),
     HierarchyDescriptor(HierarchyDescriptor),
@@ -32,34 +32,34 @@ pub enum Descriptor {
     MultiplexBufferUtilizationDescriptor(MultiplexBufferUtilizationDescriptor),
 }
 
-impl Descriptor {
+impl Descriptors {
     pub fn unmarshall(data: &[u8]) -> Option<Self> {
         let header = DescriptorHeader::unmarshall(data);
         let payload = &data[2..];
         match header.descriptor_tag {
-            DescriptorTag::VideoStreamDescriptor => {
+            DescriptorTag::VideoStreamDescriptorTag => {
                 VideoStreamDescriptor::unmarshall(header, payload).map(|descriptor| {
-                    Descriptor::VideoStreamDescriptor(descriptor)
+                    Descriptors::VideoStreamDescriptor(descriptor)
                 })
             }
-            DescriptorTag::AudioStreamDescriptor => {
+            DescriptorTag::AudioStreamDescriptorTag => {
                 AudioStreamDescriptor::unmarshall(header, payload).map(|descriptor| {
-                    Descriptor::AudioStreamDescriptor(descriptor)
+                    Descriptors::AudioStreamDescriptor(descriptor)
                 })
             }
-            DescriptorTag::HierarchyDescriptor => {
+            DescriptorTag::HierarchyDescriptorTag => {
                 HierarchyDescriptor::unmarshall(header, payload).map(|descriptor| {
-                    Descriptor::HierarchyDescriptor(descriptor)
+                    Descriptors::HierarchyDescriptor(descriptor)
                 })
             }
-            DescriptorTag::MaximumBitrateDescriptor => {
+            DescriptorTag::MaximumBitrateDescriptorTag => {
                 MaximumBitrateDescriptor::unmarshall(header, payload).map(|descriptor| {
-                    Descriptor::MaximumBitrateDescriptor(descriptor)
+                    Descriptors::MaximumBitrateDescriptor(descriptor)
                 })
             }
-            DescriptorTag::MultiplexBufferUtilizationDescriptor => {
+            DescriptorTag::MultiplexBufferUtilizationDescriptorTag => {
                 MultiplexBufferUtilizationDescriptor::unmarshall(header, payload).map(|descriptor| {
-                    Descriptor::MultiplexBufferUtilizationDescriptor(descriptor)
+                    Descriptors::MultiplexBufferUtilizationDescriptor(descriptor)
                 })
             }
             _ => None,
@@ -70,10 +70,11 @@ impl Descriptor {
         let mut offset = 0;
         while offset < data.len() {
             let header = DescriptorHeader::unmarshall(&data[offset..]);
-            Self::unmarshall(&data[offset..]).map(|descriptor| {
+            Self::unmarshall(&data[offset..(header.descriptor_length + HEADER_SIZE) as usize + offset]).map(|descriptor| {
                 descriptors.push(descriptor);
             });
             offset += (HEADER_SIZE + header.descriptor_length) as usize;
+
         }
         descriptors
     }
@@ -97,7 +98,7 @@ impl DescriptorHeader {
     }
 }
 
-impl PartialEq for Descriptor {
+impl PartialEq for Descriptors {
     fn eq(&self, other: &Self) -> bool {
         true
     }

@@ -148,7 +148,7 @@ impl From<u8> for HierarchyType {
 mod tests {
     use super::*;
     use crate::mpegts::descriptors::DescriptorHeader;
-    use crate::mpegts::descriptors::types::DescriptorTag;
+    use crate::mpegts::descriptors::tags::DescriptorTag;
 
     #[test]
     fn test_hierarchy_descriptor_unmarshall() {
