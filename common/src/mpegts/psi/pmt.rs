@@ -3,7 +3,7 @@ pub mod pmt_buffer;
 mod stream_types;
 
 use serde::{Deserialize, Serialize};
-use crate::mpegts::descriptors::{Descriptor, DescriptorHeader};
+use crate::mpegts::descriptors::{Descriptors, DescriptorHeader};
 use crate::mpegts::psi::pmt::stream_types::StreamTypes;
 
 #[cfg(not(target_arch = "wasm32"))]
@@ -30,7 +30,7 @@ pub const STREAM_LENGTH: usize = 5;
 #[derive(Serialize, Deserialize, Debug, Clone, Ord, PartialOrd, Eq)]
 pub struct ProgramMapTable {
     pub fields: PmtFields,
-    pub descriptors: Vec<DescriptorHeader>,
+    pub descriptors: Vec<Descriptors>,
     pub elementary_streams_info: Vec<ElementaryStreamInfo>,
     pub crc_32: u32,
 }
@@ -68,7 +68,7 @@ pub struct ElementaryStreamInfo {
     pub stream_type: StreamTypes, // table is defined on page 55 of H.222.0 (03/2017)
     pub elementary_pid: u16,
     pub es_info_length: u16,
-    pub descriptors: Vec<Descriptor>,
+    pub descriptors: Vec<Descriptors>,
 }
 
 impl PartialEq for ElementaryStreamInfo {
@@ -92,16 +92,9 @@ impl ProgramMapTable {
         })
     }
 
-    fn unmarshal_descriptors(data: &[u8]) -> Vec<DescriptorHeader> {
-        let mut descriptors = Vec::new();
-        let mut index = 0;
+    fn unmarshal_descriptors(data: &[u8]) -> Vec<Descriptors> {
 
-        while index < data.len() {
-            let descriptor = DescriptorHeader::unmarshall(&data[index..]);
-            descriptors.push(descriptor.clone());
-            index += descriptor.clone().descriptor_length as usize + 2;
-        }
-        descriptors
+        Descriptors::unmarshall_many(data)
     }
 
     fn unmarshal_elementary_streams_info(data: &[u8]) -> Vec<ElementaryStreamInfo> {

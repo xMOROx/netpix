@@ -4,10 +4,12 @@ pub mod audio_stream;
 pub mod hierarchy;
 pub mod maximum_bitrate_descriptor;
 pub mod multiplex_buffer_utilization_descriptor;
+mod data_stream_alignment_descriptor;
 
 use std::fmt::Debug;
 use serde::{Deserialize, Serialize};
 use crate::mpegts::descriptors::audio_stream::AudioStreamDescriptor;
+use crate::mpegts::descriptors::data_stream_alignment_descriptor::DataStreamAlignmentDescriptor;
 use crate::mpegts::descriptors::hierarchy::HierarchyDescriptor;
 use crate::mpegts::descriptors::maximum_bitrate_descriptor::MaximumBitrateDescriptor;
 use crate::mpegts::descriptors::multiplex_buffer_utilization_descriptor::MultiplexBufferUtilizationDescriptor;
@@ -30,6 +32,7 @@ pub enum Descriptors {
     HierarchyDescriptor(HierarchyDescriptor),
     MaximumBitrateDescriptor(MaximumBitrateDescriptor),
     MultiplexBufferUtilizationDescriptor(MultiplexBufferUtilizationDescriptor),
+    DataStreamAlignmentDescriptor(DataStreamAlignmentDescriptor),
 }
 
 impl Descriptors {
@@ -60,6 +63,11 @@ impl Descriptors {
             DescriptorTag::MultiplexBufferUtilizationDescriptorTag => {
                 MultiplexBufferUtilizationDescriptor::unmarshall(header, payload).map(|descriptor| {
                     Descriptors::MultiplexBufferUtilizationDescriptor(descriptor)
+                })
+            },
+            DescriptorTag::DataStreamAlignmentDescriptorTag => {
+                DataStreamAlignmentDescriptor::unmarshall(header, payload).map(|descriptor| {
+                    Descriptors::DataStreamAlignmentDescriptor(descriptor)
                 })
             }
             _ => None,

@@ -67,12 +67,14 @@ impl PmtBuffer {
 
 #[cfg(test)]
 mod tests {
-    use crate::mpegts::descriptors::DescriptorHeader;
+    use crate::mpegts::descriptors::{DescriptorHeader, Descriptors};
+    use crate::mpegts::descriptors::maximum_bitrate_descriptor::MaximumBitrateDescriptor;
+    use crate::mpegts::descriptors::multiplex_buffer_utilization_descriptor::MultiplexBufferUtilizationDescriptor;
     use crate::mpegts::psi::pmt::{ElementaryStreamInfo, PmtFields};
     use crate::mpegts::psi::pmt::stream_types::StreamTypes::{AVCVideoStreamAsDefinedInItuTH264OrIsoIec1449610Video, IsoIec111723Audio, RecItuTH2220OrIsoIec138181PESPackets, RecItuTH2220OrIsoIec138181PrivateSections};
     use super::*;
     use crate::mpegts::psi::psi_buffer::FragmentaryPsi;
-    use crate::mpegts::descriptors::types::DescriptorTag::{MaximumBitrateDescriptor, MultiplexBufferUtilizationDescriptor};
+    use crate::mpegts::descriptors::tags::DescriptorTag::{MaximumBitrateDescriptorTag, MultiplexBufferUtilizationDescriptorTag};
 
     #[test]
     fn test_pmt_buffer_with_one_fragment() {
@@ -138,7 +140,10 @@ mod tests {
         assert_eq!(buffer.is_complete(), true);
         assert_eq!(buffer.build(), Some(ProgramMapTable {
             fields,
-            descriptors: vec![DescriptorHeader { descriptor_tag: MaximumBitrateDescriptor, descriptor_length: 3 }, DescriptorHeader { descriptor_tag: MultiplexBufferUtilizationDescriptor, descriptor_length: 4 }],
+            descriptors: vec![
+                Descriptors::MaximumBitrateDescriptor(MaximumBitrateDescriptor { header: DescriptorHeader { descriptor_tag: MaximumBitrateDescriptorTag, descriptor_length: 3 }, maximum_bitrate: 0 }),
+                Descriptors::MultiplexBufferUtilizationDescriptor(MultiplexBufferUtilizationDescriptor { header: DescriptorHeader { descriptor_tag: MultiplexBufferUtilizationDescriptorTag, descriptor_length: 4 }, bound_valid_flag: true, ltw_offset_lower_bound: Some(180), ltw_offset_upper_bound: Some(360) }),
+            ],
             elementary_streams_info: vec![
                 ElementaryStreamInfo { stream_type: AVCVideoStreamAsDefinedInItuTH264OrIsoIec1449610Video, elementary_pid: 602, es_info_length: 22, descriptors: vec![] },
                 ElementaryStreamInfo { stream_type: IsoIec111723Audio, elementary_pid: 603, es_info_length: 17, descriptors: vec![] },
