@@ -6,6 +6,7 @@ pub mod maximum_bitrate_descriptor;
 pub mod multiplex_buffer_utilization_descriptor;
 mod data_stream_alignment_descriptor;
 mod avc_video_descriptor;
+mod iso_639_language_descriptor;
 
 use std::fmt::Debug;
 use serde::{Deserialize, Serialize};
@@ -13,6 +14,7 @@ use crate::mpegts::descriptors::audio_stream::AudioStreamDescriptor;
 use crate::mpegts::descriptors::avc_video_descriptor::AvcVideoDescriptor;
 use crate::mpegts::descriptors::data_stream_alignment_descriptor::DataStreamAlignmentDescriptor;
 use crate::mpegts::descriptors::hierarchy::HierarchyDescriptor;
+use crate::mpegts::descriptors::iso_639_language_descriptor::Iso639LanguageDescriptor;
 use crate::mpegts::descriptors::maximum_bitrate_descriptor::MaximumBitrateDescriptor;
 use crate::mpegts::descriptors::multiplex_buffer_utilization_descriptor::MultiplexBufferUtilizationDescriptor;
 use crate::mpegts::descriptors::tags::DescriptorTag;
@@ -36,6 +38,7 @@ pub enum Descriptors {
     MultiplexBufferUtilizationDescriptor(MultiplexBufferUtilizationDescriptor),
     DataStreamAlignmentDescriptor(DataStreamAlignmentDescriptor),
     AvcVideoDescriptor(AvcVideoDescriptor),
+    Iso639LanguageDescriptor(Iso639LanguageDescriptor),
     UserPrivate(u8),
     Unknown,
 }
@@ -78,6 +81,11 @@ impl Descriptors {
             DescriptorTag::AvcVideoDescriptorTag => {
                 AvcVideoDescriptor::unmarshall(header, payload).map(|descriptor| {
                     Descriptors::AvcVideoDescriptor(descriptor)
+                })
+            },
+            DescriptorTag::Iso639LanguageDescriptorTag => {
+                Iso639LanguageDescriptor::unmarshall(header, payload).map(|descriptor| {
+                    Descriptors::Iso639LanguageDescriptor(descriptor)
                 })
             }
             DescriptorTag::UserPrivate => {
