@@ -5,10 +5,12 @@ pub mod hierarchy;
 pub mod maximum_bitrate_descriptor;
 pub mod multiplex_buffer_utilization_descriptor;
 mod data_stream_alignment_descriptor;
+mod avc_video_descriptor;
 
 use std::fmt::Debug;
 use serde::{Deserialize, Serialize};
 use crate::mpegts::descriptors::audio_stream::AudioStreamDescriptor;
+use crate::mpegts::descriptors::avc_video_descriptor::AvcVideoDescriptor;
 use crate::mpegts::descriptors::data_stream_alignment_descriptor::DataStreamAlignmentDescriptor;
 use crate::mpegts::descriptors::hierarchy::HierarchyDescriptor;
 use crate::mpegts::descriptors::maximum_bitrate_descriptor::MaximumBitrateDescriptor;
@@ -33,6 +35,9 @@ pub enum Descriptors {
     MaximumBitrateDescriptor(MaximumBitrateDescriptor),
     MultiplexBufferUtilizationDescriptor(MultiplexBufferUtilizationDescriptor),
     DataStreamAlignmentDescriptor(DataStreamAlignmentDescriptor),
+    AvcVideoDescriptor(AvcVideoDescriptor),
+    UserPrivate(u8),
+    Unknown,
 }
 
 impl Descriptors {
@@ -64,13 +69,23 @@ impl Descriptors {
                 MultiplexBufferUtilizationDescriptor::unmarshall(header, payload).map(|descriptor| {
                     Descriptors::MultiplexBufferUtilizationDescriptor(descriptor)
                 })
-            },
+            }
             DescriptorTag::DataStreamAlignmentDescriptorTag => {
                 DataStreamAlignmentDescriptor::unmarshall(header, payload).map(|descriptor| {
                     Descriptors::DataStreamAlignmentDescriptor(descriptor)
                 })
+            },
+            DescriptorTag::AvcVideoDescriptorTag => {
+                AvcVideoDescriptor::unmarshall(header, payload).map(|descriptor| {
+                    Descriptors::AvcVideoDescriptor(descriptor)
+                })
             }
-            _ => None,
+            DescriptorTag::UserPrivate => {
+                Some(Descriptors::UserPrivate(data[0]))
+            }
+            _ => {
+                Some(Descriptors::Unknown)
+            }
         }
     }
     pub fn unmarshall_many(data: &[u8]) -> Vec<Self> {
@@ -82,7 +97,6 @@ impl Descriptors {
                 descriptors.push(descriptor);
             });
             offset += (HEADER_SIZE + header.descriptor_length) as usize;
-
         }
         descriptors
     }
