@@ -30,7 +30,7 @@ impl ParsableDescriptor<RegistrationDescriptor> for RegistrationDescriptor {
         }
 
         let format_identifier = u32::from_be_bytes([data[0], data[1], data[2], data[3]]);
-        let additional_identification_info = data[4..].to_vec();
+        let additional_identification_info = data[4..header.descriptor_length.clone() as usize].to_vec();
 
         Some(RegistrationDescriptor {
             header,
@@ -50,7 +50,7 @@ mod tests {
         let bytes = vec![0x00, 0x00, 0x00, 0x00, 0x00, 0x00];
         let header = DescriptorHeader {
             descriptor_tag: DescriptorTag::RegistrationDescriptorTag,
-            descriptor_length: 5,
+            descriptor_length: 6,
         };
 
         let descriptor = RegistrationDescriptor {

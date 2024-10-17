@@ -11,13 +11,15 @@ pub mod registration_descriptor;
 pub mod target_background_grid_descriptor;
 pub mod video_window_descriptor;
 pub mod ca_descriptor;
-mod system_clock_descriptor;
+pub mod system_clock_descriptor;
+pub mod copyright_descriptor;
 
 use std::fmt::Debug;
 use serde::{Deserialize, Serialize};
 use crate::mpegts::descriptors::audio_stream::AudioStreamDescriptor;
 use crate::mpegts::descriptors::avc_video_descriptor::AvcVideoDescriptor;
 use crate::mpegts::descriptors::ca_descriptor::CaDescriptor;
+use crate::mpegts::descriptors::copyright_descriptor::CopyrightDescriptor;
 use crate::mpegts::descriptors::data_stream_alignment_descriptor::DataStreamAlignmentDescriptor;
 use crate::mpegts::descriptors::hierarchy::HierarchyDescriptor;
 use crate::mpegts::descriptors::iso_639_language_descriptor::Iso639LanguageDescriptor;
@@ -50,6 +52,7 @@ pub enum Descriptors {
     CaDescriptor(CaDescriptor),
     SystemClockDescriptor(SystemClockDescriptor),
     MaximumBitrateDescriptor(MaximumBitrateDescriptor),
+    CopyrightDescriptor(CopyrightDescriptor),
     MultiplexBufferUtilizationDescriptor(MultiplexBufferUtilizationDescriptor),
     DataStreamAlignmentDescriptor(DataStreamAlignmentDescriptor),
     AvcVideoDescriptor(AvcVideoDescriptor),
@@ -106,6 +109,11 @@ impl Descriptors {
             DescriptorTag::MaximumBitrateDescriptorTag => {
                 MaximumBitrateDescriptor::unmarshall(header, payload).map(|descriptor| {
                     Descriptors::MaximumBitrateDescriptor(descriptor)
+                })
+            }
+            DescriptorTag::CopyrightDescriptorTag => {
+                CopyrightDescriptor::unmarshall(header, payload).map(|descriptor| {
+                    Descriptors::CopyrightDescriptor(descriptor)
                 })
             }
             DescriptorTag::MultiplexBufferUtilizationDescriptorTag => {
@@ -180,6 +188,7 @@ impl PartialEq for Descriptors {
             (Descriptors::CaDescriptor(a), Descriptors::CaDescriptor(b)) => a == b,
             (Descriptors::SystemClockDescriptor(a), Descriptors::SystemClockDescriptor(b)) => a == b,
             (Descriptors::MaximumBitrateDescriptor(a), Descriptors::MaximumBitrateDescriptor(b)) => a == b,
+            (Descriptors::CopyrightDescriptor(a), Descriptors::CopyrightDescriptor(b)) => a == b,
             (Descriptors::MultiplexBufferUtilizationDescriptor(a), Descriptors::MultiplexBufferUtilizationDescriptor(b)) => a == b,
             (Descriptors::DataStreamAlignmentDescriptor(a), Descriptors::DataStreamAlignmentDescriptor(b)) => a == b,
             (Descriptors::AvcVideoDescriptor(a), Descriptors::AvcVideoDescriptor(b)) => a == b,
