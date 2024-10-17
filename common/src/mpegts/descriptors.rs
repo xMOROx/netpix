@@ -7,6 +7,7 @@ pub mod multiplex_buffer_utilization_descriptor;
 pub mod data_stream_alignment_descriptor;
 pub mod avc_video_descriptor;
 pub mod iso_639_language_descriptor;
+pub mod registration_descriptor;
 
 use std::fmt::Debug;
 use serde::{Deserialize, Serialize};
@@ -17,6 +18,7 @@ use crate::mpegts::descriptors::hierarchy::HierarchyDescriptor;
 use crate::mpegts::descriptors::iso_639_language_descriptor::Iso639LanguageDescriptor;
 use crate::mpegts::descriptors::maximum_bitrate_descriptor::MaximumBitrateDescriptor;
 use crate::mpegts::descriptors::multiplex_buffer_utilization_descriptor::MultiplexBufferUtilizationDescriptor;
+use crate::mpegts::descriptors::registration_descriptor::RegistrationDescriptor;
 use crate::mpegts::descriptors::tags::DescriptorTag;
 use crate::mpegts::descriptors::video_stream::VideoStreamDescriptor;
 
@@ -34,6 +36,7 @@ pub enum Descriptors {
     VideoStreamDescriptor(VideoStreamDescriptor),
     AudioStreamDescriptor(AudioStreamDescriptor),
     HierarchyDescriptor(HierarchyDescriptor),
+    RegistrationDescriptor(RegistrationDescriptor),
     MaximumBitrateDescriptor(MaximumBitrateDescriptor),
     MultiplexBufferUtilizationDescriptor(MultiplexBufferUtilizationDescriptor),
     DataStreamAlignmentDescriptor(DataStreamAlignmentDescriptor),
@@ -63,6 +66,11 @@ impl Descriptors {
                     Descriptors::HierarchyDescriptor(descriptor)
                 })
             }
+            DescriptorTag::RegistrationDescriptorTag => {
+                RegistrationDescriptor::unmarshall(header, payload).map(|descriptor| {
+                    Descriptors::RegistrationDescriptor(descriptor)
+                })
+            }
             DescriptorTag::MaximumBitrateDescriptorTag => {
                 MaximumBitrateDescriptor::unmarshall(header, payload).map(|descriptor| {
                     Descriptors::MaximumBitrateDescriptor(descriptor)
@@ -77,12 +85,12 @@ impl Descriptors {
                 DataStreamAlignmentDescriptor::unmarshall(header, payload).map(|descriptor| {
                     Descriptors::DataStreamAlignmentDescriptor(descriptor)
                 })
-            },
+            }
             DescriptorTag::AvcVideoDescriptorTag => {
                 AvcVideoDescriptor::unmarshall(header, payload).map(|descriptor| {
                     Descriptors::AvcVideoDescriptor(descriptor)
                 })
-            },
+            }
             DescriptorTag::Iso639LanguageDescriptorTag => {
                 Iso639LanguageDescriptor::unmarshall(header, payload).map(|descriptor| {
                     Descriptors::Iso639LanguageDescriptor(descriptor)
