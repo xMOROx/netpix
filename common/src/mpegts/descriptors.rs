@@ -14,6 +14,7 @@ pub mod ca_descriptor;
 pub mod system_clock_descriptor;
 pub mod copyright_descriptor;
 pub mod private_data_indicator_descriptor;
+mod std_descriptor;
 
 use std::fmt::Debug;
 use serde::{Deserialize, Serialize};
@@ -28,6 +29,7 @@ use crate::mpegts::descriptors::maximum_bitrate_descriptor::MaximumBitrateDescri
 use crate::mpegts::descriptors::multiplex_buffer_utilization_descriptor::MultiplexBufferUtilizationDescriptor;
 use crate::mpegts::descriptors::private_data_indicator_descriptor::PrivateDataIndicatorDescriptor;
 use crate::mpegts::descriptors::registration_descriptor::RegistrationDescriptor;
+use crate::mpegts::descriptors::std_descriptor::StdDescriptor;
 use crate::mpegts::descriptors::system_clock_descriptor::SystemClockDescriptor;
 use crate::mpegts::descriptors::tags::DescriptorTag;
 use crate::mpegts::descriptors::target_background_grid_descriptor::TargetBackgroundGridDescriptor;
@@ -57,11 +59,37 @@ pub enum Descriptors {
     CopyrightDescriptor(CopyrightDescriptor),
     MultiplexBufferUtilizationDescriptor(MultiplexBufferUtilizationDescriptor),
     PrivateDataIndicatorDescriptor(PrivateDataIndicatorDescriptor),
+    StdDescriptor(StdDescriptor),
     DataStreamAlignmentDescriptor(DataStreamAlignmentDescriptor),
     AvcVideoDescriptor(AvcVideoDescriptor),
     Iso639LanguageDescriptor(Iso639LanguageDescriptor),
     UserPrivate(u8),
     Unknown,
+}
+
+impl std::fmt::Display for Descriptors {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Descriptors::VideoStreamDescriptor(descriptor) => write!(f, "{}", descriptor),
+            Descriptors::AudioStreamDescriptor(descriptor) => write!(f, "{}", descriptor),
+            Descriptors::HierarchyDescriptor(descriptor) => write!(f, "{}", descriptor),
+            Descriptors::RegistrationDescriptor(descriptor) => write!(f, "{}", descriptor),
+            Descriptors::TargetBackgroundGridDescriptor(descriptor) => write!(f, "{}", descriptor),
+            Descriptors::VideoWindowDescriptor(descriptor) => write!(f, "{}", descriptor),
+            Descriptors::CaDescriptor(descriptor) => write!(f, "{}", descriptor),
+            Descriptors::SystemClockDescriptor(descriptor) => write!(f, "{}", descriptor),
+            Descriptors::MaximumBitrateDescriptor(descriptor) => write!(f, "{}", descriptor),
+            Descriptors::CopyrightDescriptor(descriptor) => write!(f, "{}", descriptor),
+            Descriptors::MultiplexBufferUtilizationDescriptor(descriptor) => write!(f, "{}", descriptor),
+            Descriptors::PrivateDataIndicatorDescriptor(descriptor) => write!(f, "{}", descriptor),
+            Descriptors::StdDescriptor(descriptor) => write!(f, "{}", descriptor),
+            Descriptors::DataStreamAlignmentDescriptor(descriptor) => write!(f, "{}", descriptor),
+            Descriptors::AvcVideoDescriptor(descriptor) => write!(f, "{}", descriptor),
+            Descriptors::Iso639LanguageDescriptor(descriptor) => write!(f, "{}", descriptor),
+            Descriptors::UserPrivate(data) => write!(f, "User Private: {}", data),
+            Descriptors::Unknown => write!(f, "Unknown"),
+        }
+    }
 }
 
 impl Descriptors {
@@ -127,6 +155,11 @@ impl Descriptors {
             DescriptorTag::PrivateDataIndicatorDescriptorTag => {
                 PrivateDataIndicatorDescriptor::unmarshall(header, payload).map(|descriptor| {
                     Descriptors::PrivateDataIndicatorDescriptor(descriptor)
+                })
+            }
+            DescriptorTag::StdDescriptorTag => {
+                StdDescriptor::unmarshall(header, payload).map(|descriptor| {
+                    Descriptors::StdDescriptor(descriptor)
                 })
             }
             DescriptorTag::DataStreamAlignmentDescriptorTag => {
@@ -199,6 +232,7 @@ impl PartialEq for Descriptors {
             (Descriptors::CopyrightDescriptor(a), Descriptors::CopyrightDescriptor(b)) => a == b,
             (Descriptors::MultiplexBufferUtilizationDescriptor(a), Descriptors::MultiplexBufferUtilizationDescriptor(b)) => a == b,
             (Descriptors::PrivateDataIndicatorDescriptor(a), Descriptors::PrivateDataIndicatorDescriptor(b)) => a == b,
+            (Descriptors::StdDescriptor(a), Descriptors::StdDescriptor(b)) => a == b,
             (Descriptors::DataStreamAlignmentDescriptor(a), Descriptors::DataStreamAlignmentDescriptor(b)) => a == b,
             (Descriptors::AvcVideoDescriptor(a), Descriptors::AvcVideoDescriptor(b)) => a == b,
             (Descriptors::Iso639LanguageDescriptor(a), Descriptors::Iso639LanguageDescriptor(b)) => a == b,
