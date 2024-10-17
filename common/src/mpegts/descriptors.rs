@@ -8,13 +8,15 @@ pub mod data_stream_alignment_descriptor;
 pub mod avc_video_descriptor;
 pub mod iso_639_language_descriptor;
 pub mod registration_descriptor;
-mod target_background_grid_descriptor;
-mod video_window_descriptor;
+pub mod target_background_grid_descriptor;
+pub mod video_window_descriptor;
+pub mod ca_descriptor;
 
 use std::fmt::Debug;
 use serde::{Deserialize, Serialize};
 use crate::mpegts::descriptors::audio_stream::AudioStreamDescriptor;
 use crate::mpegts::descriptors::avc_video_descriptor::AvcVideoDescriptor;
+use crate::mpegts::descriptors::ca_descriptor::CaDescriptor;
 use crate::mpegts::descriptors::data_stream_alignment_descriptor::DataStreamAlignmentDescriptor;
 use crate::mpegts::descriptors::hierarchy::HierarchyDescriptor;
 use crate::mpegts::descriptors::iso_639_language_descriptor::Iso639LanguageDescriptor;
@@ -43,6 +45,7 @@ pub enum Descriptors {
     RegistrationDescriptor(RegistrationDescriptor),
     TargetBackgroundGridDescriptor(TargetBackgroundGridDescriptor),
     VideoWindowDescriptor(VideoWindowDescriptor),
+    CaDescriptor(CaDescriptor),
     MaximumBitrateDescriptor(MaximumBitrateDescriptor),
     MultiplexBufferUtilizationDescriptor(MultiplexBufferUtilizationDescriptor),
     DataStreamAlignmentDescriptor(DataStreamAlignmentDescriptor),
@@ -85,6 +88,11 @@ impl Descriptors {
             DescriptorTag::VideoWindowDescriptorTag => {
                 VideoWindowDescriptor::unmarshall(header, payload).map(|descriptor| {
                     Descriptors::VideoWindowDescriptor(descriptor)
+                })
+            }
+            DescriptorTag::CaDescriptorTag => {
+                CaDescriptor::unmarshall(header, payload).map(|descriptor| {
+                    Descriptors::CaDescriptor(descriptor)
                 })
             }
             DescriptorTag::MaximumBitrateDescriptorTag => {
