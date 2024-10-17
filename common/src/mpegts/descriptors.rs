@@ -13,6 +13,7 @@ pub mod video_window_descriptor;
 pub mod ca_descriptor;
 pub mod system_clock_descriptor;
 pub mod copyright_descriptor;
+pub mod private_data_indicator_descriptor;
 
 use std::fmt::Debug;
 use serde::{Deserialize, Serialize};
@@ -25,6 +26,7 @@ use crate::mpegts::descriptors::hierarchy::HierarchyDescriptor;
 use crate::mpegts::descriptors::iso_639_language_descriptor::Iso639LanguageDescriptor;
 use crate::mpegts::descriptors::maximum_bitrate_descriptor::MaximumBitrateDescriptor;
 use crate::mpegts::descriptors::multiplex_buffer_utilization_descriptor::MultiplexBufferUtilizationDescriptor;
+use crate::mpegts::descriptors::private_data_indicator_descriptor::PrivateDataIndicatorDescriptor;
 use crate::mpegts::descriptors::registration_descriptor::RegistrationDescriptor;
 use crate::mpegts::descriptors::system_clock_descriptor::SystemClockDescriptor;
 use crate::mpegts::descriptors::tags::DescriptorTag;
@@ -54,6 +56,7 @@ pub enum Descriptors {
     MaximumBitrateDescriptor(MaximumBitrateDescriptor),
     CopyrightDescriptor(CopyrightDescriptor),
     MultiplexBufferUtilizationDescriptor(MultiplexBufferUtilizationDescriptor),
+    PrivateDataIndicatorDescriptor(PrivateDataIndicatorDescriptor),
     DataStreamAlignmentDescriptor(DataStreamAlignmentDescriptor),
     AvcVideoDescriptor(AvcVideoDescriptor),
     Iso639LanguageDescriptor(Iso639LanguageDescriptor),
@@ -119,6 +122,11 @@ impl Descriptors {
             DescriptorTag::MultiplexBufferUtilizationDescriptorTag => {
                 MultiplexBufferUtilizationDescriptor::unmarshall(header, payload).map(|descriptor| {
                     Descriptors::MultiplexBufferUtilizationDescriptor(descriptor)
+                })
+            }
+            DescriptorTag::PrivateDataIndicatorDescriptorTag => {
+                PrivateDataIndicatorDescriptor::unmarshall(header, payload).map(|descriptor| {
+                    Descriptors::PrivateDataIndicatorDescriptor(descriptor)
                 })
             }
             DescriptorTag::DataStreamAlignmentDescriptorTag => {
@@ -190,6 +198,7 @@ impl PartialEq for Descriptors {
             (Descriptors::MaximumBitrateDescriptor(a), Descriptors::MaximumBitrateDescriptor(b)) => a == b,
             (Descriptors::CopyrightDescriptor(a), Descriptors::CopyrightDescriptor(b)) => a == b,
             (Descriptors::MultiplexBufferUtilizationDescriptor(a), Descriptors::MultiplexBufferUtilizationDescriptor(b)) => a == b,
+            (Descriptors::PrivateDataIndicatorDescriptor(a), Descriptors::PrivateDataIndicatorDescriptor(b)) => a == b,
             (Descriptors::DataStreamAlignmentDescriptor(a), Descriptors::DataStreamAlignmentDescriptor(b)) => a == b,
             (Descriptors::AvcVideoDescriptor(a), Descriptors::AvcVideoDescriptor(b)) => a == b,
             (Descriptors::Iso639LanguageDescriptor(a), Descriptors::Iso639LanguageDescriptor(b)) => a == b,
