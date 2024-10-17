@@ -11,6 +11,7 @@ pub mod registration_descriptor;
 pub mod target_background_grid_descriptor;
 pub mod video_window_descriptor;
 pub mod ca_descriptor;
+mod system_clock_descriptor;
 
 use std::fmt::Debug;
 use serde::{Deserialize, Serialize};
@@ -23,6 +24,7 @@ use crate::mpegts::descriptors::iso_639_language_descriptor::Iso639LanguageDescr
 use crate::mpegts::descriptors::maximum_bitrate_descriptor::MaximumBitrateDescriptor;
 use crate::mpegts::descriptors::multiplex_buffer_utilization_descriptor::MultiplexBufferUtilizationDescriptor;
 use crate::mpegts::descriptors::registration_descriptor::RegistrationDescriptor;
+use crate::mpegts::descriptors::system_clock_descriptor::SystemClockDescriptor;
 use crate::mpegts::descriptors::tags::DescriptorTag;
 use crate::mpegts::descriptors::target_background_grid_descriptor::TargetBackgroundGridDescriptor;
 use crate::mpegts::descriptors::video_stream::VideoStreamDescriptor;
@@ -46,6 +48,7 @@ pub enum Descriptors {
     TargetBackgroundGridDescriptor(TargetBackgroundGridDescriptor),
     VideoWindowDescriptor(VideoWindowDescriptor),
     CaDescriptor(CaDescriptor),
+    SystemClockDescriptor(SystemClockDescriptor),
     MaximumBitrateDescriptor(MaximumBitrateDescriptor),
     MultiplexBufferUtilizationDescriptor(MultiplexBufferUtilizationDescriptor),
     DataStreamAlignmentDescriptor(DataStreamAlignmentDescriptor),
@@ -93,6 +96,11 @@ impl Descriptors {
             DescriptorTag::CaDescriptorTag => {
                 CaDescriptor::unmarshall(header, payload).map(|descriptor| {
                     Descriptors::CaDescriptor(descriptor)
+                })
+            }
+            DescriptorTag::SystemClockDescriptorTag => {
+                SystemClockDescriptor::unmarshall(header, payload).map(|descriptor| {
+                    Descriptors::SystemClockDescriptor(descriptor)
                 })
             }
             DescriptorTag::MaximumBitrateDescriptorTag => {
@@ -162,7 +170,24 @@ impl DescriptorHeader {
 
 impl PartialEq for Descriptors {
     fn eq(&self, other: &Self) -> bool {
-        true
+        match (self, other) {
+            (Descriptors::VideoStreamDescriptor(a), Descriptors::VideoStreamDescriptor(b)) => a == b,
+            (Descriptors::AudioStreamDescriptor(a), Descriptors::AudioStreamDescriptor(b)) => a == b,
+            (Descriptors::HierarchyDescriptor(a), Descriptors::HierarchyDescriptor(b)) => a == b,
+            (Descriptors::RegistrationDescriptor(a), Descriptors::RegistrationDescriptor(b)) => a == b,
+            (Descriptors::TargetBackgroundGridDescriptor(a), Descriptors::TargetBackgroundGridDescriptor(b)) => a == b,
+            (Descriptors::VideoWindowDescriptor(a), Descriptors::VideoWindowDescriptor(b)) => a == b,
+            (Descriptors::CaDescriptor(a), Descriptors::CaDescriptor(b)) => a == b,
+            (Descriptors::SystemClockDescriptor(a), Descriptors::SystemClockDescriptor(b)) => a == b,
+            (Descriptors::MaximumBitrateDescriptor(a), Descriptors::MaximumBitrateDescriptor(b)) => a == b,
+            (Descriptors::MultiplexBufferUtilizationDescriptor(a), Descriptors::MultiplexBufferUtilizationDescriptor(b)) => a == b,
+            (Descriptors::DataStreamAlignmentDescriptor(a), Descriptors::DataStreamAlignmentDescriptor(b)) => a == b,
+            (Descriptors::AvcVideoDescriptor(a), Descriptors::AvcVideoDescriptor(b)) => a == b,
+            (Descriptors::Iso639LanguageDescriptor(a), Descriptors::Iso639LanguageDescriptor(b)) => a == b,
+            (Descriptors::UserPrivate(a), Descriptors::UserPrivate(b)) => a == b,
+            (Descriptors::Unknown, Descriptors::Unknown) => true,
+            _ => false,
+        }
     }
 }
 
