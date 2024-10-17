@@ -67,14 +67,20 @@ impl PmtBuffer {
 
 #[cfg(test)]
 mod tests {
-    use crate::mpegts::descriptors::{DescriptorHeader, Descriptors};
+    use crate::mpegts::descriptors::{avc_video_descriptor, DescriptorHeader, Descriptors};
+    use crate::mpegts::descriptors::audio_stream::AudioStreamDescriptor;
+    use crate::mpegts::descriptors::data_stream_alignment_descriptor::AlignmentType::SliceOrVideoAccessUnit;
+    use crate::mpegts::descriptors::data_stream_alignment_descriptor::DataStreamAlignmentDescriptor;
+    use crate::mpegts::descriptors::iso_639_language_descriptor::{Iso639LanguageDescriptor, Section};
+    use crate::mpegts::descriptors::iso_639_language_descriptor::AudioType::{Undefined, VisualImpairedCommentary};
     use crate::mpegts::descriptors::maximum_bitrate_descriptor::MaximumBitrateDescriptor;
     use crate::mpegts::descriptors::multiplex_buffer_utilization_descriptor::MultiplexBufferUtilizationDescriptor;
     use crate::mpegts::psi::pmt::{ElementaryStreamInfo, PmtFields};
     use crate::mpegts::psi::pmt::stream_types::StreamTypes::{AVCVideoStreamAsDefinedInItuTH264OrIsoIec1449610Video, IsoIec111723Audio, RecItuTH2220OrIsoIec138181PESPackets, RecItuTH2220OrIsoIec138181PrivateSections};
     use super::*;
     use crate::mpegts::psi::psi_buffer::FragmentaryPsi;
-    use crate::mpegts::descriptors::tags::DescriptorTag::{MaximumBitrateDescriptorTag, MultiplexBufferUtilizationDescriptorTag};
+    use crate::mpegts::descriptors::tags::DescriptorTag::{AudioStreamDescriptorTag, AvcVideoDescriptorTag, DataStreamAlignmentDescriptorTag, Iso639LanguageDescriptorTag, MaximumBitrateDescriptorTag, MultiplexBufferUtilizationDescriptorTag, VideoStreamDescriptorTag};
+    use crate::mpegts::descriptors::video_stream::VideoStreamDescriptor;
 
     #[test]
     fn test_pmt_buffer_with_one_fragment() {
@@ -145,11 +151,46 @@ mod tests {
                 Descriptors::MultiplexBufferUtilizationDescriptor(MultiplexBufferUtilizationDescriptor { header: DescriptorHeader { descriptor_tag: MultiplexBufferUtilizationDescriptorTag, descriptor_length: 4 }, bound_valid_flag: true, ltw_offset_lower_bound: Some(180), ltw_offset_upper_bound: Some(360) }),
             ],
             elementary_streams_info: vec![
-                ElementaryStreamInfo { stream_type: AVCVideoStreamAsDefinedInItuTH264OrIsoIec1449610Video, elementary_pid: 602, es_info_length: 22, descriptors: vec![] },
-                ElementaryStreamInfo { stream_type: IsoIec111723Audio, elementary_pid: 603, es_info_length: 17, descriptors: vec![] },
-                ElementaryStreamInfo { stream_type: RecItuTH2220OrIsoIec138181PrivateSections, elementary_pid: 607, es_info_length: 13, descriptors: vec![] },
-                ElementaryStreamInfo { stream_type: RecItuTH2220OrIsoIec138181PESPackets, elementary_pid: 606, es_info_length: 18, descriptors: vec![] },
-                ElementaryStreamInfo { stream_type: RecItuTH2220OrIsoIec138181PESPackets, elementary_pid: 608, es_info_length: 25, descriptors: vec![] },
+                ElementaryStreamInfo {
+                    stream_type: AVCVideoStreamAsDefinedInItuTH264OrIsoIec1449610Video,
+                    elementary_pid: 602,
+                    es_info_length: 22,
+                    descriptors: vec![
+                        Descriptors::UserPrivate(82),
+                        Descriptors::MaximumBitrateDescriptor(MaximumBitrateDescriptor { header: DescriptorHeader { descriptor_tag: MaximumBitrateDescriptorTag, descriptor_length: 3 }, maximum_bitrate: 0 }),
+                        Descriptors::VideoStreamDescriptor(VideoStreamDescriptor { header: DescriptorHeader { descriptor_tag: VideoStreamDescriptorTag, descriptor_length: 3 }, multiple_frame_rate_flag: false, frame_rate_code: 3, mpeg_1_only_flag: true, constrained_parameter_flag: true, still_picture_flag: false, profile_and_level_indication: None, chroma_format: None, frame_rate_extension_flag: None }),
+                        Descriptors::DataStreamAlignmentDescriptor(DataStreamAlignmentDescriptor { header: DescriptorHeader { descriptor_tag: DataStreamAlignmentDescriptorTag, descriptor_length: 1 }, alignment_type: SliceOrVideoAccessUnit }),
+                        Descriptors::AvcVideoDescriptor(avc_video_descriptor::AvcVideoDescriptor { header: DescriptorHeader { descriptor_tag: AvcVideoDescriptorTag, descriptor_length: 4 }, profile_idc: 77, constraint_set0_flag: false, constraint_set1_flag: true, constraint_set2_flag: false, constraint_set3_flag: false, constraint_set4_flag: false, constraint_set5_flag: false, avc_compatible_flags: 0, level_idc: 40, avc_still_present: false, avc_24_hour_picture_flag: true, frame_packing_sei_flag: false }),
+                    ],
+                },
+                ElementaryStreamInfo {
+                    stream_type: IsoIec111723Audio,
+                    elementary_pid: 603,
+                    es_info_length: 17,
+                    descriptors: vec![
+                        Descriptors::UserPrivate(82),
+                        Descriptors::MaximumBitrateDescriptor(MaximumBitrateDescriptor { header: DescriptorHeader { descriptor_tag: MaximumBitrateDescriptorTag, descriptor_length: 3 }, maximum_bitrate: 0 }),
+                        Descriptors::Iso639LanguageDescriptor(Iso639LanguageDescriptor { header: DescriptorHeader { descriptor_tag: Iso639LanguageDescriptorTag, descriptor_length: 4 }, section: vec![Section { language_code: "pol".to_string(), audio_type: Undefined }] }),
+                        Descriptors::AudioStreamDescriptor(AudioStreamDescriptor { header: DescriptorHeader { descriptor_tag: AudioStreamDescriptorTag, descriptor_length: 1 }, free_format_flag: false, id: 1, layer: 2, variable_rate_audio_indicator: false }),
+                    ],
+                },
+                ElementaryStreamInfo { stream_type: RecItuTH2220OrIsoIec138181PrivateSections, elementary_pid: 607, es_info_length: 13, descriptors: vec![
+                    Descriptors::UserPrivate(82),
+                    Descriptors::MaximumBitrateDescriptor(MaximumBitrateDescriptor { header: DescriptorHeader { descriptor_tag: MaximumBitrateDescriptorTag, descriptor_length: 3 }, maximum_bitrate: 0 }),
+                    Descriptors::UserPrivate(111)
+                ] },
+                ElementaryStreamInfo { stream_type: RecItuTH2220OrIsoIec138181PESPackets, elementary_pid: 606, es_info_length: 18, descriptors: vec![
+                    Descriptors::UserPrivate(82),
+                    Descriptors::MaximumBitrateDescriptor(MaximumBitrateDescriptor { header: DescriptorHeader { descriptor_tag: MaximumBitrateDescriptorTag, descriptor_length: 3 }, maximum_bitrate: 0 }),
+                    Descriptors::UserPrivate(89)
+                ] },
+                ElementaryStreamInfo { stream_type: RecItuTH2220OrIsoIec138181PESPackets, elementary_pid: 608, es_info_length: 25, descriptors: vec![
+                    Descriptors::UserPrivate(82),
+                    Descriptors::MaximumBitrateDescriptor(MaximumBitrateDescriptor { header: DescriptorHeader { descriptor_tag: MaximumBitrateDescriptorTag, descriptor_length: 3 }, maximum_bitrate: 0 }),
+                    Descriptors::Iso639LanguageDescriptor(Iso639LanguageDescriptor { header: DescriptorHeader { descriptor_tag: Iso639LanguageDescriptorTag, descriptor_length: 4 }, section: vec![Section { language_code: "aux".to_string(), audio_type: VisualImpairedCommentary }] }),
+                    Descriptors::Unknown,
+                    Descriptors::UserPrivate(122)
+                ] },
             ],
             crc_32: 0x3359b688,
         }));

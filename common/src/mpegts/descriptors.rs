@@ -4,9 +4,9 @@ pub mod audio_stream;
 pub mod hierarchy;
 pub mod maximum_bitrate_descriptor;
 pub mod multiplex_buffer_utilization_descriptor;
-mod data_stream_alignment_descriptor;
-mod avc_video_descriptor;
-mod iso_639_language_descriptor;
+pub mod data_stream_alignment_descriptor;
+pub mod avc_video_descriptor;
+pub mod iso_639_language_descriptor;
 
 use std::fmt::Debug;
 use serde::{Deserialize, Serialize};

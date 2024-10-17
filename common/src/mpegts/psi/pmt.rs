@@ -105,14 +105,14 @@ impl ProgramMapTable {
             let stream_type = data[index];
             let elementary_pid = (((data[index + 1] & ELEMENTARY_PID_UPPER_MASK as u8) as u16) << 8) | (data[index + 2] & ELEMENTARY_PID_LOWER_MASK as u8) as u16;
             let es_info_length = (((data[index + 3] & ES_INFO_LENGTH_UPPER_MASK as u8) as u16) << 8) | (data[index + 4] & ELEMENTARY_PID_LOWER_MASK as u8) as u16;
-            // let descriptors = Descriptor::unmarshall_many(&data[index + STREAM_LENGTH..index + STREAM_LENGTH + es_info_length as usize]);
+            let descriptors = Descriptors::unmarshall_many(&data[index + STREAM_LENGTH..index + STREAM_LENGTH + es_info_length as usize]);
 
 
             elementary_streams_info.push(ElementaryStreamInfo {
                 stream_type: StreamTypes::from(stream_type),
                 elementary_pid,
                 es_info_length,
-                descriptors: vec![],
+                descriptors,
             });
 
             index += STREAM_LENGTH + es_info_length as usize;
