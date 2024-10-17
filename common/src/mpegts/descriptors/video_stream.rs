@@ -30,6 +30,28 @@ pub struct VideoStreamDescriptor {
     pub frame_rate_extension_flag: Option<bool>,
 }
 
+impl std::fmt::Display for VideoStreamDescriptor {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let mut profile_and_level_indication = String::from("None");
+        let mut chroma_format = String::from("None");
+        let mut frame_rate_extension_flag = String::from("None");
+
+        if let Some(value) = self.profile_and_level_indication {
+            profile_and_level_indication = value.to_string();
+        }
+
+        if let Some(value) = self.chroma_format {
+            chroma_format = value.to_string();
+        }
+
+        if let Some(value) = self.frame_rate_extension_flag {
+            frame_rate_extension_flag = value.to_string();
+        }
+
+        write!(f, "Multiple Frame Rate Flag: {}\nFrame Rate Code: {}\nMPEG 1 Only Flag: {}\nConstrained Parameter Flag: {}\nStill Picture Flag: {}\nProfile And Level Indication: {}\nChroma Format: {}\nFrame Rate Extension Flag: {}", self.multiple_frame_rate_flag, self.frame_rate_code, self.mpeg_1_only_flag, self.constrained_parameter_flag, self.still_picture_flag, profile_and_level_indication, chroma_format, frame_rate_extension_flag)
+    }
+}
+
 impl ParsableDescriptor<VideoStreamDescriptor> for VideoStreamDescriptor {
     fn descriptor_tag(&self) -> u8 {
         self.header.descriptor_tag.to_u8()

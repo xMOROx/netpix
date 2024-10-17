@@ -18,6 +18,24 @@ pub enum AlignmentType {
     Custom(u8),
 }
 
+impl std::fmt::Display for DataStreamAlignmentDescriptor {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "Alignment Type: {}", self.alignment_type)
+    }
+}
+impl std::fmt::Display for AlignmentType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            AlignmentType::Reserved => write!(f, "Reserved"),
+            AlignmentType::Slice => write!(f, "Slice"),
+            AlignmentType::SliceOrVideoAccessUnit => write!(f, "Slice or Video Access Unit"),
+            AlignmentType::GOPorSEQ => write!(f, "GOP or SEQ"),
+            AlignmentType::SEQ => write!(f, "SEQ"),
+            AlignmentType::Custom(value) => write!(f, "Custom({})", value),
+        }
+    }
+}
+
 impl PartialEq for DataStreamAlignmentDescriptor {
     fn eq(&self, other: &Self) -> bool {
         self.header == other.header

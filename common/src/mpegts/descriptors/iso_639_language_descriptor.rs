@@ -9,6 +9,7 @@ pub struct Iso639LanguageDescriptor {
     pub header: DescriptorHeader,
     pub section: Vec<Section>,
 }
+
 #[derive(Serialize, Deserialize, Debug, Clone, Ord, PartialOrd, Eq)]
 pub struct Section {
     pub language_code: String,
@@ -24,6 +25,7 @@ pub enum AudioType {
     UserPrivate,
     Reserved,
 }
+
 impl ParsableDescriptor<Iso639LanguageDescriptor> for Iso639LanguageDescriptor {
     fn descriptor_tag(&self) -> u8 {
         self.header.descriptor_tag.to_u8()
@@ -55,6 +57,17 @@ impl ParsableDescriptor<Iso639LanguageDescriptor> for Iso639LanguageDescriptor {
         })
     }
 }
+
+impl std::fmt::Display for Iso639LanguageDescriptor {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let mut sections = String::new();
+        for s in &self.section {
+            sections.push_str(&format!("Language Code: {}\nAudio Type: {:?}\n", s.language_code, s.audio_type));
+        }
+        write!(f, "{}", sections)
+    }
+}
+
 impl PartialEq for Iso639LanguageDescriptor {
     fn eq(&self, other: &Self) -> bool {
         self.header == other.header

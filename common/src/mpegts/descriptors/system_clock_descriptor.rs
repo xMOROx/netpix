@@ -18,6 +18,13 @@ pub struct SystemClockDescriptor {
     pub clock_accuracy_exponent: u8,
 }
 
+impl std::fmt::Display for SystemClockDescriptor {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "External Clock Reference Indicator: {}\nClock Accuracy Integer: {}\nClock Accuracy Exponent: {}",
+               self.external_clock_reference_indicator, self.clock_accuracy_integer, self.clock_accuracy_exponent)
+    }
+}
+
 impl ParsableDescriptor<SystemClockDescriptor> for SystemClockDescriptor {
     fn descriptor_tag(&self) -> u8 {
         self.header.descriptor_tag.to_u8()

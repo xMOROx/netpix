@@ -50,6 +50,30 @@ pub enum HierarchyType {
     AuxiliaryPictureLayer,
     BaseLayerOrOtherType,
 }
+impl std::fmt::Display for HierarchyDescriptor {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "No View Scalability Flag: {}\nNo Temporal Scalability Flag: {}\nNo Spatial Scalability Flag: {}\nNo Quality Scalability Flag: {}\nHierarchy Type: {}\nHierarchy Layer Index: {}\nTref Present Flag: {}\nHierarchy Embedded Layer Index: {}\nHierarchy Channel: {}", self.no_view_scalability_flag, self.no_temporal_scalability_flag, self.no_spatial_scalability_flag, self.no_quality_scalability_flag, self.hierarchy_type, self.hierarchy_layer_index, self.tref_present_flag, self.hierarchy_embedded_layer_index, self.hierarchy_channel)
+    }
+}
+
+impl std::fmt::Display for HierarchyType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            HierarchyType::Reserved => write!(f, "Reserved"),
+            HierarchyType::SpatialScalability => write!(f, "Spatial Scalability"),
+            HierarchyType::SNRScalability => write!(f, "SNR Scalability"),
+            HierarchyType::TemporalScalability => write!(f, "Temporal Scalability"),
+            HierarchyType::DataPartitioning => write!(f, "Data Partitioning"),
+            HierarchyType::ExtensionBitstream => write!(f, "Extension Bitstream"),
+            HierarchyType::PrivateStream => write!(f, "Private Stream"),
+            HierarchyType::MultiViewProfile => write!(f, "Multi View Profile"),
+            HierarchyType::CombinedScalabilityOrMvHevcSubpartition => write!(f, "Combined Scalability or MV HEVC Subpartition"),
+            HierarchyType::MvcVideoSubBitstreamOrMvcdVideoSubBitstream => write!(f, "MVC Video Sub Bitstream or MVCD Video Sub Bitstream"),
+            HierarchyType::AuxiliaryPictureLayer => write!(f, "Auxiliary Picture Layer"),
+            HierarchyType::BaseLayerOrOtherType => write!(f, "Base Layer or Other Type"),
+        }
+    }
+}
 
 impl ParsableDescriptor<HierarchyDescriptor> for HierarchyDescriptor {
     fn descriptor_tag(&self) -> u8 {

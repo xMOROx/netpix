@@ -22,6 +22,12 @@ pub struct VideoWindowDescriptor {
     pub window_priority: u8,
 }
 
+impl std::fmt::Display for VideoWindowDescriptor {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "Horizontal Offset: {}, Vertical Offset: {}, Window Priority: {}", self.horizontal_offset, self.vertical_offset, self.window_priority)
+    }
+}
+
 impl PartialEq for VideoWindowDescriptor {
     fn eq(&self, other: &Self) -> bool {
         self.header == other.header &&

@@ -48,6 +48,12 @@ impl ParsableDescriptor<AudioStreamDescriptor> for AudioStreamDescriptor {
     }
 }
 
+impl std::fmt::Display for AudioStreamDescriptor {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "Free Format Flag: {}\nID: {}\nLayer: {}\nVariable Rate Audio Indicator: {}", self.free_format_flag, self.id, self.layer, self.variable_rate_audio_indicator)
+    }
+}
+
 impl PartialEq for AudioStreamDescriptor {
     fn eq(&self, other: &Self) -> bool {
         self.header == other.header

@@ -22,6 +22,12 @@ pub struct TargetBackgroundGridDescriptor {
     pub aspect_ratio_information: u8,
 }
 
+impl std::fmt::Display for TargetBackgroundGridDescriptor {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "Horizontal Size: {}, Vertical Size: {}, Aspect Ratio Information: {}", self.horizontal_size, self.vertical_size, self.aspect_ratio_information)
+    }
+}
+
 impl PartialEq for TargetBackgroundGridDescriptor {
     fn eq(&self, other: &Self) -> bool {
         self.header == other.header &&

@@ -86,6 +86,12 @@ impl ParsableDescriptor<AvcVideoDescriptor> for AvcVideoDescriptor {
     }
 }
 
+impl std::fmt::Display for AvcVideoDescriptor {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "Profile IDC: {}\nConstraint Set 0 Flag: {}\nConstraint Set 1 Flag: {}\nConstraint Set 2 Flag: {}\nConstraint Set 3 Flag: {}\nConstraint Set 4 Flag: {}\nConstraint Set 5 Flag: {}\nAVC Compatible Flags: {}\nLevel IDC: {}\nAVC Still Present: {}\nAVC 24 Hour Picture Flag: {}\nFrame Packing SEI Flag: {}", self.profile_idc, self.constraint_set0_flag, self.constraint_set1_flag, self.constraint_set2_flag, self.constraint_set3_flag, self.constraint_set4_flag, self.constraint_set5_flag, self.avc_compatible_flags, self.level_idc, self.avc_still_present, self.avc_24_hour_picture_flag, self.frame_packing_sei_flag)
+    }
+}
+
 impl PartialEq for AvcVideoDescriptor {
     fn eq(&self, other: &Self) -> bool {
         self.header == other.header

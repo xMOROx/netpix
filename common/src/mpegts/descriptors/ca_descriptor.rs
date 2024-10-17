@@ -34,6 +34,12 @@ impl ParsableDescriptor<CaDescriptor> for CaDescriptor {
     }
 }
 
+impl std::fmt::Display for CaDescriptor {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "CA System ID: {}\nCA PID: {}\nPrivate Data: {:?}", self.ca_system_id, self.ca_pid, self.private_data)
+    }
+}
+
 impl PartialEq for CaDescriptor {
     fn eq(&self, other: &Self) -> bool {
         self.header == other.header &&

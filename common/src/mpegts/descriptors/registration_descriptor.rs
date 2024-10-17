@@ -8,6 +8,13 @@ pub struct RegistrationDescriptor {
     pub additional_identification_info: Vec<u8>,
 }
 
+impl std::fmt::Display for RegistrationDescriptor {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "Format Identifier: {}\nAdditional Identification Info: {:?}",
+            self.format_identifier, self.additional_identification_info)
+    }
+}
+
 impl PartialEq for RegistrationDescriptor {
     fn eq(&self, other: &Self) -> bool {
         self.format_identifier == other.format_identifier

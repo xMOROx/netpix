@@ -57,6 +57,12 @@ impl ParsableDescriptor<MultiplexBufferUtilizationDescriptor> for MultiplexBuffe
     }
 }
 
+impl std::fmt::Display for MultiplexBufferUtilizationDescriptor {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "Bound Valid Flag: {}\nLTW Offset Lower Bound: {:?}\nLTW Offset Upper Bound: {:?}", self.bound_valid_flag, self.ltw_offset_lower_bound, self.ltw_offset_upper_bound)
+    }
+}
+
 impl PartialEq for MultiplexBufferUtilizationDescriptor {
     fn eq(&self, other: &Self) -> bool {
         self.header == other.header &&

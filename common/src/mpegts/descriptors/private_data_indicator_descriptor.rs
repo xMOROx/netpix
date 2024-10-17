@@ -27,6 +27,12 @@ impl ParsableDescriptor<PrivateDataIndicatorDescriptor> for PrivateDataIndicator
     }
 }
 
+impl std::fmt::Display for PrivateDataIndicatorDescriptor {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "Private Data Indicator: {}", self.private_data_indicator)
+    }
+}
+
 impl PartialEq for PrivateDataIndicatorDescriptor {
     fn eq(&self, other: &Self) -> bool {
         self.header == other.header &&

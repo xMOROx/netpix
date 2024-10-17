@@ -29,6 +29,13 @@ impl ParsableDescriptor<CopyrightDescriptor> for CopyrightDescriptor {
     }
 }
 
+impl std::fmt::Display for CopyrightDescriptor {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "Copyright Identifier: {}\nAdditional Copyright Info: {:?}",
+            self.copyright_identifier, self.additional_copyright_info)
+    }
+}
+
 impl PartialEq for CopyrightDescriptor {
     fn eq(&self, other: &Self) -> bool {
         self.header == other.header &&

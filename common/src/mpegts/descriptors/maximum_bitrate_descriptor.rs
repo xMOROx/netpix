@@ -35,6 +35,12 @@ impl ParsableDescriptor<MaximumBitrateDescriptor> for MaximumBitrateDescriptor {
     }
 }
 
+impl std::fmt::Display for MaximumBitrateDescriptor {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "Maximum Bitrate: {} kbps", self.maximum_bitrate * BITRATE_PER_SECOND as u32)
+    }
+}
+
 impl PartialEq for MaximumBitrateDescriptor {
     fn eq(&self, other: &Self) -> bool {
         self.header == other.header
