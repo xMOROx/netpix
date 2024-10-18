@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 use crate::mpegts::descriptors::{DescriptorHeader, ParsableDescriptor};
-#[cfg(not(target_arch = "wasm32"))]
+
 const LEAK_VALID_FLAG: u8 = 0b0000_0001;
 #[derive(Serialize, Deserialize, Debug, Clone, Ord, PartialOrd, Eq)]
 pub struct StdDescriptor {

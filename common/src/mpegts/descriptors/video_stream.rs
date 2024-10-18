@@ -1,20 +1,20 @@
 use serde::{Deserialize, Serialize};
 use crate::mpegts::descriptors::{DescriptorHeader, ParsableDescriptor};
-#[cfg(not(target_arch = "wasm32"))]
+
 const MULTIPLE_FRAME_RATE_FLAG: u8 = 0b1000_0000;
-#[cfg(not(target_arch = "wasm32"))]
+
 const FRAME_RATE_CODE: u8 = 0b0111_1000;
-#[cfg(not(target_arch = "wasm32"))]
+
 const MPEG_1_ONLY_FLAG: u8 = 0b0000_0100;
-#[cfg(not(target_arch = "wasm32"))]
+
 const CONSTRAINED_PARAMETER_FLAG: u8 = 0b0000_0010;
-#[cfg(not(target_arch = "wasm32"))]
+
 const STILL_PICTURE_FLAG: u8 = 0b0000_0001;
-#[cfg(not(target_arch = "wasm32"))]
+
 const CHROMA_FORMAT: u8 = 0b1100_0000;
-#[cfg(not(target_arch = "wasm32"))]
+
 const FRAME_RATE_EXTENSION_FLAG: u8 = 0b0010_0000;
-#[cfg(not(target_arch = "wasm32"))]
+
 const MAX_DESCRIPTOR_LENGTH: usize = 3;
 
 #[derive(Serialize, Deserialize, Debug, Clone, Ord, PartialOrd, Eq)]

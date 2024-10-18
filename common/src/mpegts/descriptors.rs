@@ -14,7 +14,7 @@ pub mod ca_descriptor;
 pub mod system_clock_descriptor;
 pub mod copyright_descriptor;
 pub mod private_data_indicator_descriptor;
-mod std_descriptor;
+pub mod std_descriptor;
 
 use std::fmt::Debug;
 use serde::{Deserialize, Serialize};
@@ -36,7 +36,6 @@ use crate::mpegts::descriptors::target_background_grid_descriptor::TargetBackgro
 use crate::mpegts::descriptors::video_stream::VideoStreamDescriptor;
 use crate::mpegts::descriptors::video_window_descriptor::VideoWindowDescriptor;
 
-#[cfg(not(target_arch = "wasm32"))]
 const HEADER_SIZE: u8 = 2;
 
 pub trait ParsableDescriptor<T>: Debug {

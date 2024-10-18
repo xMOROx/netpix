@@ -3,28 +3,28 @@ pub mod pmt_buffer;
 mod stream_types;
 
 use serde::{Deserialize, Serialize};
-use crate::mpegts::descriptors::{Descriptors, DescriptorHeader};
+use crate::mpegts::descriptors::Descriptors;
 use crate::mpegts::psi::pmt::stream_types::StreamTypes;
 
-#[cfg(not(target_arch = "wasm32"))]
+
 pub const HEADER_AFTER_SECTION_LENGTH_SIZE: usize = 9;
-#[cfg(not(target_arch = "wasm32"))]
+
 pub const HEADER_SIZE: usize = 3;
-#[cfg(not(target_arch = "wasm32"))]
+
 pub const PCR_PID_UPPER_MASK: usize = 0x1F;
-#[cfg(not(target_arch = "wasm32"))]
+
 pub const PCR_PID_LOWER_MASK: usize = 0xFF;
-#[cfg(not(target_arch = "wasm32"))]
+
 pub const PROGRAM_INFO_LENGTH_UPPER_MASK: usize = 0x0F;
-#[cfg(not(target_arch = "wasm32"))]
+
 pub const PROGRAM_INFO_LENGTH_LOWER_MASK: usize = 0xFF;
-#[cfg(not(target_arch = "wasm32"))]
+
 pub const ELEMENTARY_PID_UPPER_MASK: usize = 0x1F;
-#[cfg(not(target_arch = "wasm32"))]
+
 pub const ELEMENTARY_PID_LOWER_MASK: usize = 0xFF;
-#[cfg(not(target_arch = "wasm32"))]
+
 pub const ES_INFO_LENGTH_UPPER_MASK: usize = 0x0F;
-#[cfg(not(target_arch = "wasm32"))]
+
 pub const STREAM_LENGTH: usize = 5;
 
 #[derive(Serialize, Deserialize, Debug, Clone, Ord, PartialOrd, Eq)]

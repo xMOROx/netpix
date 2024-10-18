@@ -1,13 +1,11 @@
 use serde::{Deserialize, Serialize};
 use crate::mpegts::descriptors::{DescriptorHeader, ParsableDescriptor};
 
-#[cfg(not(target_arch = "wasm32"))]
-const MAXIMUM_BITRATE: u8 = 0b00111111;
-#[cfg(not(target_arch = "wasm32"))]
+
 const BOUND_VALID_FLAG: u8 = 0b10000000;
-#[cfg(not(target_arch = "wasm32"))]
+
 const LTW_OFFSET_LOWER_BOUND: u8 = 0b01111111;
-#[cfg(not(target_arch = "wasm32"))]
+
 const LTW_OFFSET_UPPER_BOUND: u8 = 0b01111111;
 
 

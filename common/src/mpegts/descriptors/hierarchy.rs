@@ -2,23 +2,23 @@ use serde::{Deserialize, Serialize};
 use crate::mpegts::descriptors::{DescriptorHeader, ParsableDescriptor};
 
 
-#[cfg(not(target_arch = "wasm32"))]
+
 const NO_VIEW_SCALABILITY_FLAG: u8 = 0b1000_0000;
-#[cfg(not(target_arch = "wasm32"))]
+
 const NO_TEMPORAL_SCALABILITY_FLAG: u8 = 0b0100_0000;
-#[cfg(not(target_arch = "wasm32"))]
+
 const NO_SPATIAL_SCALABILITY_FLAG: u8 = 0b0010_0000;
-#[cfg(not(target_arch = "wasm32"))]
+
 const NO_QUALITY_SCALABILITY_FLAG: u8 = 0b0001_0000;
-#[cfg(not(target_arch = "wasm32"))]
+
 const HIERARCHY_TYPE: u8 = 0b0000_1111;
-#[cfg(not(target_arch = "wasm32"))]
+
 const HIERARCHY_LAYER_INDEX: u8 = 0b0011_1111;
-#[cfg(not(target_arch = "wasm32"))]
+
 const TREF_PRESENT_FLAG: u8 = 0b1000_0000;
-#[cfg(not(target_arch = "wasm32"))]
+
 const HIERARCHY_EMBEDDED_LAYER_INDEX: u8 = 0b0011_1111;
-#[cfg(not(target_arch = "wasm32"))]
+
 const HIERARCHY_CHANNEL: u8 = 0b0011_1111;
 
 #[derive(Serialize, Deserialize, Debug, Clone, Ord, PartialOrd, Eq)]

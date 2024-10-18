@@ -1,17 +1,17 @@
 use serde::{Deserialize, Serialize};
 use crate::mpegts::descriptors::{DescriptorHeader, ParsableDescriptor};
 
-#[cfg(not(target_arch = "wasm32"))]
+
 const HORIZONTAL_SIZE: u8 = 0b11111100;
-#[cfg(not(target_arch = "wasm32"))]
+
 const VERTICAL_SIZE_UP: u8 = 0b11000000;
-#[cfg(not(target_arch = "wasm32"))]
+
 const VERTICAL_SIZE_MIDDLE_1: u8 = 0b11111100;
-#[cfg(not(target_arch = "wasm32"))]
+
 const VERTICAL_SIZE_MIDDLE_2: u8 = 0b00000011;
-#[cfg(not(target_arch = "wasm32"))]
+
 const VERTICAL_SIZE_DOWN: u8 = 0b11110000;
-#[cfg(not(target_arch = "wasm32"))]
+
 const ASPECT_RATIO_INFORMATION: u8 = 0b00001111;
 
 #[derive(Serialize, Deserialize, Debug, Clone, Ord, PartialOrd, Eq)]

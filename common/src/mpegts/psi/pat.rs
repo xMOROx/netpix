@@ -2,13 +2,13 @@ pub mod fragmentary_pat;
 pub mod pat_buffer;
 
 use serde::{Deserialize, Serialize};
-#[cfg(not(target_arch = "wasm32"))]
+
 const HEADER_SIZE: usize = 3;
-#[cfg(not(target_arch = "wasm32"))]
+
 const HEADER_AFTER_SECTION_LENGTH_SIZE: usize = 5;
-#[cfg(not(target_arch = "wasm32"))]
+
 const PROGRAM_SECTION_SIZE: usize = 4;
-#[cfg(not(target_arch = "wasm32"))]
+
 const PROGRAM_PID_UPPER_MASK: u8 = 0x1F;
 
 #[derive(Serialize, Deserialize, Debug, Clone, Ord, PartialOrd, Eq)]

@@ -1,17 +1,17 @@
 use serde::{Deserialize, Serialize};
 use crate::mpegts::descriptors::{DescriptorHeader, ParsableDescriptor};
 
-#[cfg(not(target_arch = "wasm32"))]
+
 const HORIZONTAL_OFFSET: u8 = 0b11111100;
-#[cfg(not(target_arch = "wasm32"))]
+
 const VERTICAL_OFFSET_UP: u8 = 0b11000000;
-#[cfg(not(target_arch = "wasm32"))]
+
 const VERTICAL_OFFSET_MIDDLE_1: u8 = 0b11111100;
-#[cfg(not(target_arch = "wasm32"))]
+
 const VERTICAL_OFFSET_MIDDLE_2: u8 = 0b00000011;
-#[cfg(not(target_arch = "wasm32"))]
+
 const VERTICAL_OFFSET_DOWN: u8 = 0b11110000;
-#[cfg(not(target_arch = "wasm32"))]
+
 const WINDOW_PRIORITY: u8 = 0b00001111;
 
 #[derive(Serialize, Deserialize, Debug, Clone, Ord, PartialOrd, Eq)]

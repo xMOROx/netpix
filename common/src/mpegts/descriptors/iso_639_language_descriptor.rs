@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 use crate::mpegts::descriptors::{DescriptorHeader, ParsableDescriptor};
 
-#[cfg(not(target_arch = "wasm32"))]
+
 const SECTION_LENGTH: u8 = 4;
 
 #[derive(Serialize, Deserialize, Debug, Clone, Ord, PartialOrd, Eq)]

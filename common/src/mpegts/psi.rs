@@ -6,7 +6,7 @@ pub mod nit;
 pub mod cat;
 pub mod tsdt;
 pub mod ps;
-mod psi_buffer;
+pub mod psi_buffer;
 
 pub const MAX_SECTION_LENGTH: u16 = 0x3FD;
 pub const SECTION_SYNTAX_INDICATOR_MASK: u8 = 0x80;

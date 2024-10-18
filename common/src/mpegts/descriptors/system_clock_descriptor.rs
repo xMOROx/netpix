@@ -1,12 +1,12 @@
 use serde::{Deserialize, Serialize};
 use crate::mpegts::descriptors::{DescriptorHeader, ParsableDescriptor};
 
-#[cfg(not(target_arch = "wasm32"))]
+
 const EXTERNAL_CLOCK_REFERENCE_INDICATOR: u8 = 0b1000_0000;
 
-#[cfg(not(target_arch = "wasm32"))]
+
 const CLOCK_ACCURACY_INTEGER: u8 = 0b0011_1111;
-#[cfg(not(target_arch = "wasm32"))]
+
 const CLOCK_ACCURACY_EXPONENT: u8 = 0b1110_0000;
 
 

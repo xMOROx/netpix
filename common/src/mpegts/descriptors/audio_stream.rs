@@ -1,13 +1,9 @@
 use serde::{Deserialize, Serialize};
 use crate::mpegts::descriptors::{DescriptorHeader, ParsableDescriptor};
 
-#[cfg(not(target_arch = "wasm32"))]
 const FREE_FORMAT_FLAG: u8 = 0b1000_0000;
-#[cfg(not(target_arch = "wasm32"))]
 const ID: u8 = 0b0100_0000;
-#[cfg(not(target_arch = "wasm32"))]
 const LAYER: u8 = 0b0011_0000;
-#[cfg(not(target_arch = "wasm32"))]
 const VARIABLE_RATE_AUDIO_INDICATOR: u8 = 0b0000_1000;
 
 #[derive(Serialize, Deserialize, Debug, Clone, Ord, PartialOrd, Eq)]

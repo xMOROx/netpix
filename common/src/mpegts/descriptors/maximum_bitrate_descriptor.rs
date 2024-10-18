@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 use crate::mpegts::descriptors::{DescriptorHeader, ParsableDescriptor};
 
-#[cfg(not(target_arch = "wasm32"))]
+
 const MAXIMUM_BITRATE: u8 = 0b00111111;
 const BITRATE_PER_SECOND: usize = 50;
 

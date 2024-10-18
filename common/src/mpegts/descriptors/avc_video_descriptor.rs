@@ -1,25 +1,20 @@
 use serde::{Deserialize, Serialize};
 use crate::mpegts::descriptors::{DescriptorHeader, ParsableDescriptor};
 
-#[cfg(not(target_arch = "wasm32"))]
 const CONSTRAINED_SET0_FLAG: u8 = 0b1000_0000;
-#[cfg(not(target_arch = "wasm32"))]
 const CONSTRAINED_SET1_FLAG: u8 = 0b0100_0000;
-#[cfg(not(target_arch = "wasm32"))]
 const CONSTRAINED_SET2_FLAG: u8 = 0b0010_0000;
-#[cfg(not(target_arch = "wasm32"))]
 const CONSTRAINED_SET3_FLAG: u8 = 0b0001_0000;
-#[cfg(not(target_arch = "wasm32"))]
 const CONSTRAINED_SET4_FLAG: u8 = 0b0000_1000;
-#[cfg(not(target_arch = "wasm32"))]
+
 const CONSTRAINED_SET5_FLAG: u8 = 0b0000_0100;
-#[cfg(not(target_arch = "wasm32"))]
+
 const AVC_COMPATIBLE_FLAGS_MASK: u8 = 0b0000_0011;
-#[cfg(not(target_arch = "wasm32"))]
+
 const AVC_STILL_PRESENT_FLAG: u8 = 0b1000_0000;
-#[cfg(not(target_arch = "wasm32"))]
+
 const AVC_24_HOUR_PICTURE_FLAG: u8 = 0b0100_0000;
-#[cfg(not(target_arch = "wasm32"))]
+
 const FRAME_PACKING_SEI_FLAG: u8 = 0b0010_0000;
 
 
