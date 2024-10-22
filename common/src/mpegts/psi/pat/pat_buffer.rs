@@ -1,5 +1,6 @@
 use crate::mpegts::psi::pat::fragmentary_pat::FragmentaryProgramAssociationTable;
 use crate::mpegts::psi::pat::ProgramAssociationTable;
+use crate::mpegts::psi::psi_buffer::PsiBuffer;
 
 pub struct PatBuffer {
     last_section_number: u8,
@@ -7,41 +8,49 @@ pub struct PatBuffer {
 }
 
 
-impl PatBuffer {
-    pub fn new(last_section_number: u8) -> Self {
+impl PsiBuffer<ProgramAssociationTable, FragmentaryProgramAssociationTable> for PatBuffer {
+    fn new(last_section_number: u8) -> Self {
         PatBuffer {
             last_section_number,
             pat_fragments: Vec::new(),
         }
     }
 
-    pub fn add_fragment(&mut self, fragment: FragmentaryProgramAssociationTable) {
-        self.pat_fragments.push(fragment);
-    }
-
-    pub fn is_complete(&self) -> bool {
+    fn is_complete(&self) -> bool {
         self.pat_fragments.len() as u8 == self.last_section_number + 1
     }
 
-    pub fn build(&self) -> Option<ProgramAssociationTable> {
+    fn last_section_number(&self) -> u8 {
+        self.last_section_number
+    }
+
+    fn add_fragment(&mut self, fragment: FragmentaryProgramAssociationTable) {
+        self.pat_fragments.push(fragment);
+    }
+
+    fn get_fragments(&self) -> &Vec<FragmentaryProgramAssociationTable> {
+        &self.pat_fragments
+    }
+
+    fn build(&self) -> Option<ProgramAssociationTable> {
         if !self.is_complete() {
             return None;
         }
 
-        let cumulated_payload = self.pat_fragments.iter().fold(Vec::new(), |mut acc, fragment| {
+        let accumulated_payload = self.pat_fragments.iter().fold(Vec::new(), |mut acc, fragment| {
             acc.extend_from_slice(&fragment.payload);
             acc
         });
 
-        ProgramAssociationTable::build(self.pat_fragments[0].transport_stream_id, &cumulated_payload)
+        ProgramAssociationTable::build(self.pat_fragments[0].transport_stream_id, &accumulated_payload)
     }
 }
-
 
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::mpegts::psi::pat::ProgramAssociationItem;
+    use crate::mpegts::psi::psi_buffer::FragmentaryPsi;
 
     #[test]
     fn test_pat_buffer_with_one_fragment() {

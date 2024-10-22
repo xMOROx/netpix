@@ -3,6 +3,7 @@ pub mod adaptation_field;
 pub mod payload;
 pub mod psi;
 pub mod pes;
+pub mod descriptors;
 
 use serde::{Deserialize, Serialize};
 use crate::mpegts::adaptation_field::AdaptationField;
@@ -35,6 +36,7 @@ const TSC_MASK: u8 = 0xC0;
 const AFC_MASK: u8 = 0x30;
 #[cfg(not(target_arch = "wasm32"))]
 const CC_MASK: u8 = 0x0F;
+const PADDING_BYTE: u8 = 0xFF;
 
 
 #[derive(Serialize, Deserialize, Debug, Clone)]

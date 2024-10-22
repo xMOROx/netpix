@@ -1,15 +1,15 @@
 use serde::{Deserialize, Serialize};
 use crate::mpegts::MpegtsFragment;
 
-#[cfg(not(target_arch = "wasm32"))]
+
 const SCRAMBLING_MASK: u8 = 0x30;
-#[cfg(not(target_arch = "wasm32"))]
+
 const PRIORITY_MASK: u8 = 0x08;
-#[cfg(not(target_arch = "wasm32"))]
+
 const DATA_ALIGNMENT_MASK: u8 = 0x04;
-#[cfg(not(target_arch = "wasm32"))]
+
 const COPYRIGHT_MASK: u8 = 0x02;
-#[cfg(not(target_arch = "wasm32"))]
+
 const ORIGINAL_MASK: u8 = 0x01;
 
 

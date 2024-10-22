@@ -6,10 +6,19 @@ pub mod nit;
 pub mod cat;
 pub mod tsdt;
 pub mod ps;
+pub mod psi_buffer;
 
-pub const MAX_SECTION_LENGTH: usize = 0x3FD;
+pub const MAX_SECTION_LENGTH: u16 = 0x3FD;
+pub const SECTION_SYNTAX_INDICATOR_MASK: u8 = 0x80;
+pub const SECTION_LENGTH_UPPER_MASK: u8 = 0x0F;
+pub const VERSION_NUMBER_MASK: u8 = 0x3E;
+pub const CURRENT_NEXT_INDICATOR_MASK: u8 = 0x01;
 
-///  11, 12 bits are reserved
+pub trait ProgramSpecificInformation {
+    fn get_header(&self) -> &ProgramSpecificInformationHeader;
+    fn get_table_id(&self) -> TableId;
+}
+
 #[derive(Serialize, Deserialize, Debug, Clone, Ord, PartialOrd, Eq)]
 pub struct ProgramSpecificInformationHeader {
     pub table_id: u8,
@@ -20,6 +29,7 @@ pub struct ProgramSpecificInformationHeader {
     pub section_number: u8,
     pub last_section_number: u8,
 }
+
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub enum PsiTypes {
@@ -62,6 +72,16 @@ impl PartialEq for ProgramSpecificInformationHeader {
     }
 }
 
+impl ProgramSpecificInformation for ProgramSpecificInformationHeader {
+    fn get_header(&self) -> &ProgramSpecificInformationHeader {
+        self
+    }
+
+    fn get_table_id(&self) -> TableId {
+        self.table_id.into()
+    }
+}
+
 impl From<u8> for TableId {
     fn from(table_id: u8) -> Self {
         match table_id {
@@ -79,7 +99,7 @@ impl From<u8> for TableId {
             0x0B..=0x37 => TableId::RecItuTH222_0IsoIec13818_1Reserved,
             0x38..=0x3F => TableId::DefinedInIsoIec13818_6,
             0x40..=0xFE => TableId::UserPrivate,
-            0xFF => TableId::Forbidden,
+            _ => TableId::Forbidden,
         }
     }
 }
@@ -106,5 +126,30 @@ mod tests {
         assert_eq!(TableId::from(0x3F), TableId::DefinedInIsoIec13818_6);
         assert_eq!(TableId::from(0x41), TableId::UserPrivate);
         assert_eq!(TableId::from(0xFF), TableId::Forbidden);
+    }
+
+    #[test]
+    fn test_psi_header_eq() {
+        let header1 = ProgramSpecificInformationHeader {
+            table_id: 0,
+            section_syntax_indicator: true,
+            section_length: 49,
+            version_number: 0,
+            current_next_indicator: true,
+            section_number: 0,
+            last_section_number: 0,
+        };
+
+        let header2 = ProgramSpecificInformationHeader {
+            table_id: 0,
+            section_syntax_indicator: true,
+            section_length: 49,
+            version_number: 0,
+            current_next_indicator: true,
+            section_number: 0,
+            last_section_number: 0,
+        };
+
+        assert_eq!(header1, header2);
     }
 }
