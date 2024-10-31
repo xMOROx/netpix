@@ -87,7 +87,7 @@ pub struct PesHeader {
 
 impl PesHeader {
     pub fn build(data: &Vec<u8>, stream_type: StreamType) -> Option<Self> {
-        if stream_type != StreamType::ProgramStreamMap
+        return if stream_type != StreamType::ProgramStreamMap
             && stream_type != StreamType::PaddingStream
             && stream_type != StreamType::PrivateStream2
             && stream_type != StreamType::ECMStream
@@ -98,22 +98,22 @@ impl PesHeader {
             let Some(header) = Self::unmarshall(data) else {
                 return None;
             };
-            return Some(header);
+            Some(header)
         } else {
-            return None;
-        }
+            None
+        };
     }
 
     fn unmarshall(data: &Vec<u8>) -> Option<Self> {
         if (data[6] & 0xc0) != 0x80 {
             return None;
         }
-        let scrambling_control = data[6] & SCRAMBLING_MASK;
+        let scrambling_control = (data[6] & SCRAMBLING_MASK) >> 4;
         let priority = (data[6] & PRIORITY_MASK) >> 3 == 1;
         let data_alignment_indicator = (data[6] & DATA_ALIGNMENT_MASK) >> 2 == 1;
         let copyright = (data[6] & COPYRIGHT_MASK) >> 1 == 1;
         let original = data[6] & ORIGINAL_MASK == 1;
-        let pts_dts_flags = data[7] & PTS_DTS_FLAGS_MASK >> 6;
+        let pts_dts_flags = (data[7] & PTS_DTS_FLAGS_MASK )>> 6;
         let escr_flag = (data[7] & ESCR_FLAG_MASK) >> 5 == 1;
         let es_rate_flag = (data[7] & ES_RATE_FLAG_MASK) >> 4 == 1;
         let dsm_trick_mode_flag = (data[7] & DSM_TRICK_MODE_FLAG_MASK) >> 3 == 1;
@@ -504,5 +504,123 @@ impl From<u8> for StreamType {
     }
 }
 
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::mpegts::pes::pes_buffer::PesPacketPayload;
 
+    #[test]
+    fn test_packetized_elementary_stream_initialization() {
+        let pes = PacketizedElementaryStream {
+            packet_start_code_prefix: 0x000001,
+            stream_id: 0xE0,
+            pes_packet_length: 0,
+            header: None,
+        };
+        assert_eq!(pes.packet_start_code_prefix, 0x000001);
+        assert_eq!(pes.stream_id, 0xE0);
+        assert_eq!(pes.pes_packet_length, 0);
+        assert!(pes.header.is_none());
+    }
+
+    #[test]
+    fn test_pes_header_initialization() {
+        let header = PesHeader {
+            scrambling_control: 0,
+            priority: false,
+            data_alignment_indicator: false,
+            copyright: false,
+            original: false,
+            pts_dts_flags: 0,
+            escr_flag: false,
+            es_rate_flag: false,
+            dsm_trick_mode_flag: false,
+            additional_copy_info_flag: false,
+            pes_crc_flag: false,
+            pes_extension_flag: false,
+            pes_header_data_length: 0,
+            optional_fields: None,
+        };
+        assert_eq!(header.scrambling_control, 0);
+        assert!(!header.priority);
+        assert!(!header.data_alignment_indicator);
+        assert!(!header.copyright);
+        assert!(!header.original);
+        assert_eq!(header.pts_dts_flags, 0);
+        assert!(!header.escr_flag);
+        assert!(!header.es_rate_flag);
+        assert!(!header.dsm_trick_mode_flag);
+        assert!(!header.additional_copy_info_flag);
+        assert!(!header.pes_crc_flag);
+        assert!(!header.pes_extension_flag);
+        assert_eq!(header.pes_header_data_length, 0);
+        assert!(header.optional_fields.is_none());
+    }
+
+    #[test]
+    fn test_packetized_elementary_stream_unmarshall() {
+        let data = vec![
+            0x00, 0x00, 0x01, 0xE0, 0x00, 0x00, 0x80, 0x80, 0x05, 0x21, 0x00, 0x01, 0x00, 0x01,
+        ];
+        let pes = PacketizedElementaryStream::unmarshall(&data).unwrap();
+        assert_eq!(pes.packet_start_code_prefix, 0x000001);
+        assert_eq!(pes.stream_id, 0xE0);
+        assert_eq!(pes.pes_packet_length, 0);
+        assert!(pes.header.is_some());
+    }
+
+    #[test]
+    fn test_pes_header_unmarshall() {
+        let data = vec![
+            0x00, 0x00, 0x01, 0xE0, 0x00, 0x00, 0xBC, 0xC0, 0x05
+        ];
+        let header = PesHeader::unmarshall(&data).unwrap();
+        assert_eq!(header.scrambling_control, 3);
+        assert!(header.priority);
+        assert!(header.data_alignment_indicator);
+        assert!(!header.copyright);
+        assert!(!header.original);
+        assert_eq!(header.pts_dts_flags, 3);
+        assert!(!header.escr_flag);
+        assert!(!header.es_rate_flag);
+        assert!(!header.dsm_trick_mode_flag);
+        assert!(!header.additional_copy_info_flag);
+        assert!(!header.pes_crc_flag);
+        assert!(!header.pes_extension_flag);
+        assert_eq!(header.pes_header_data_length, 5);
+        assert!(header.optional_fields.is_none());
+    }
+
+    #[test]
+    fn test_packetized_elementary_stream_build() {
+        let payload = PesPacketPayload {
+            data: vec![
+                0x00, 0x00, 0x01, 0xE0, 0x00, 0x00, 0x80, 0x80, 0x05, 0x21, 0x00, 0x01, 0x00, 0x01,
+            ],
+            is_complete: true,
+        };
+        let pes = PacketizedElementaryStream::build(&payload).unwrap();
+        assert_eq!(pes.packet_start_code_prefix, 0x000001);
+        assert_eq!(pes.stream_id, 0xE0);
+        assert_eq!(pes.pes_packet_length, 0);
+        assert!(pes.header.is_some());
+    }
+
+    #[test]
+    fn test_packetized_elementary_stream_empty_payload() {
+        let payload = PesPacketPayload {
+            data: vec![],
+            is_complete: true,
+        };
+        let pes = PacketizedElementaryStream::build(&payload);
+        assert!(pes.is_none());
+    }
+
+    #[test]
+    fn test_packetized_elementary_stream_invalid_data() {
+        let data = vec![0x00, 0x00, 0x02, 0xE0, 0x00, 0x00];
+        let pes = PacketizedElementaryStream::unmarshall(&data);
+        assert!(pes.is_none());
+    }
+}
 
