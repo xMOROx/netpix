@@ -1,11 +1,11 @@
 use serde::{Deserialize, Serialize};
-use crate::mpegts::pes::PesPacketHeader;
+use crate::mpegts::pes::PacketizedElementaryStream;
 use crate::mpegts::psi::PsiTypes;
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub enum PayloadType {
     PSI(PsiTypes),
-    PES(PesPacketHeader),
+    PES(PacketizedElementaryStream),
     Unknown,
 }
 

@@ -17,22 +17,22 @@ pub trait FragmentaryPsi {
         Self: Sized;
     fn unmarshall_header(data: &[u8]) -> Option<ProgramSpecificInformationHeader>;
 
-fn determine_last_byte(data: &[u8]) -> usize {
-    let mut last_byte = data.len();
-    let mut padding_count = 0;
+    fn determine_last_byte(data: &[u8]) -> usize {
+        let mut last_byte = data.len();
+        let mut padding_count = 0;
 
-    for i in 0..data.len() {
-        if data[i] == mpegts::PADDING_BYTE {
-            padding_count += 1;
-            if padding_count == 3 {
-                last_byte = i - 2;
-                break;
+        for i in 0..data.len() {
+            if data[i] == mpegts::PADDING_BYTE {
+                padding_count += 1;
+                if padding_count == 3 {
+                    last_byte = i - 2;
+                    break;
+                }
+            } else {
+                padding_count = 0;
             }
-        } else {
-            padding_count = 0;
         }
-    }
 
-    last_byte
-}
+        last_byte
+    }
 }
