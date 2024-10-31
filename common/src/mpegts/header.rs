@@ -35,6 +35,20 @@ pub enum AdaptationFieldControl {
     AdaptationFieldAndPaylod,
 }
 
+impl std::fmt::Display for PIDTable {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            PIDTable::NullPacket => write!(f, "Null Packet"),
+            PIDTable::ProgramAssociation => write!(f, "Program Association"),
+            PIDTable::ConditionalAccess => write!(f, "Conditional Access"),
+            PIDTable::TransportStreamDescription => write!(f, "Transport Stream Description"),
+            PIDTable::IPMPControlInformation => write!(f, "IPMP Control Information"),
+            PIDTable::AdaptiveStreamingInformation => write!(f, "Adaptive Streaming Information"),
+            PIDTable::PID(val) => write!(f, "PID: {:#X}", val),
+        }
+    }
+}
+
 impl From<u16> for PIDTable {
     fn from(pid: u16) -> Self {
         match pid {

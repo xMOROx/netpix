@@ -5,10 +5,15 @@ use serde::{Deserialize, Serialize};
 use crate::mpegts::MpegtsFragment;
 use crate::mpegts::pes::pes_buffer::PesPacketPayload;
 
+
 const SCRAMBLING_MASK: u8 = 0x30;
+
 const PRIORITY_MASK: u8 = 0x08;
+
 const DATA_ALIGNMENT_MASK: u8 = 0x04;
+
 const COPYRIGHT_MASK: u8 = 0x02;
+
 const ORIGINAL_MASK: u8 = 0x01;
 const PTS_DTS_FLAGS_MASK: u8 = 0xC0;
 const ESCR_FLAG_MASK: u8 = 0x20;
