@@ -23,6 +23,12 @@ impl PsiBuffer<ProgramMapTable, FragmentaryProgramMapTable> for PmtBuffer {
         self.last_section_number
     }
 
+    fn set_last_section_number(&mut self, last_section_number: u8) {
+        if self.last_section_number == 0 {
+            self.last_section_number = last_section_number;
+        }
+    }
+
     fn add_fragment(&mut self, fragment: FragmentaryProgramMapTable) {
         self.pmt_fragments.push(fragment);
     }
