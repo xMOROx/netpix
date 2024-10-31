@@ -24,6 +24,12 @@ impl PsiBuffer<ProgramAssociationTable, FragmentaryProgramAssociationTable> for 
         self.last_section_number
     }
 
+    fn set_last_section_number(&mut self, last_section_number: u8) {
+        if self.last_section_number == 0 {
+            self.last_section_number = last_section_number;
+        }
+    }
+
     fn add_fragment(&mut self, fragment: FragmentaryProgramAssociationTable) {
         self.pat_fragments.push(fragment);
     }

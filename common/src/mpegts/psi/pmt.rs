@@ -24,6 +24,7 @@ pub const ELEMENTARY_PID_UPPER_MASK: usize = 0x1F;
 pub const ELEMENTARY_PID_LOWER_MASK: usize = 0xFF;
 
 pub const ES_INFO_LENGTH_UPPER_MASK: usize = 0x0F;
+pub const ES_INFO_LENGTH_LOWER_MASK: usize = 0xFF;
 
 pub const STREAM_LENGTH: usize = 5;
 
@@ -101,18 +102,15 @@ impl ProgramMapTable {
         let mut elementary_streams_info = Vec::new();
         let mut index = 0;
 
-        while index < data.len() - 4 { // Skip CRC-32
+        while index + STREAM_LENGTH <= data.len() - 4 { // Skip CRC-32
             let stream_type = data[index];
             let elementary_pid = (((data[index + 1] & ELEMENTARY_PID_UPPER_MASK as u8) as u16) << 8) | (data[index + 2] & ELEMENTARY_PID_LOWER_MASK as u8) as u16;
-            let es_info_length = (((data[index + 3] & ES_INFO_LENGTH_UPPER_MASK as u8) as u16) << 8) | (data[index + 4] & ELEMENTARY_PID_LOWER_MASK as u8) as u16;
-            let descriptors = Descriptors::unmarshall_many(&data[index + STREAM_LENGTH..index + STREAM_LENGTH + es_info_length as usize]);
-
-
+            let es_info_length = (((data[index + 3] & ES_INFO_LENGTH_UPPER_MASK as u8) as u16) << 8) | (data[index + 4] & ES_INFO_LENGTH_LOWER_MASK as u8) as u16;
             elementary_streams_info.push(ElementaryStreamInfo {
                 stream_type: StreamTypes::from(stream_type),
                 elementary_pid,
                 es_info_length,
-                descriptors,
+                descriptors: Descriptors::unmarshall_many(&data[index + STREAM_LENGTH..index + STREAM_LENGTH + es_info_length as usize]),
             });
 
             index += STREAM_LENGTH + es_info_length as usize;
