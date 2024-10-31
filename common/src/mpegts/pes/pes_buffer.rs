@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use log::warn;
 
 use crate::mpegts::MpegtsFragment;
 
@@ -42,7 +43,7 @@ impl PesBuffer {
         if let Some(pes) = self.packets.get_mut(&pid) {
             pes.append(&packet.payload.as_ref().unwrap().data);
         } else {
-            println!("Warning: packet with pid {} not found", pid);
+            warn!("Warning: packet with pid {} not found", pid);
         }
     }
 

@@ -2,7 +2,6 @@ mod pes_buffer;
 
 use std::cmp::PartialEq;
 use serde::{Deserialize, Serialize};
-use crate::mpegts::MpegtsFragment;
 use crate::mpegts::pes::pes_buffer::PesPacketPayload;
 
 
@@ -37,11 +36,8 @@ impl PacketizedElementaryStream {
         if packet.data.is_empty() {
             return None;
         }
-        let Some(payload) = &packet.data.as_ref() else {
-            return None;
-        };
 
-        let Some(pes) = Self::unmarshall(&payload) else {
+        let Some(pes) = Self::unmarshall(&packet.data) else {
             return None;
         };
 
@@ -66,7 +62,7 @@ impl PacketizedElementaryStream {
             packet_start_code_prefix,
             stream_id,
             pes_packet_length,
-            header
+            header,
         })
     }
 }
@@ -147,7 +143,7 @@ impl PesHeader {
             pes_crc_flag,
             pes_extension_flag,
             pes_header_data_length,
-            optional_fields
+            optional_fields,
         })
     }
 }
@@ -251,8 +247,8 @@ impl OptionalFields {
                 (((data[index + 4] & 0b11111000) as u64) >> 3));
             index += 4;
             escr_extension = Some((((data[index] & 0b00000011) as u16) << 7) |
-                ((data[index + 1] as u16)>> 1));
-            index +=2;
+                ((data[index + 1] as u16) >> 1));
+            index += 2;
         }
         if es_rate_flag {
             es_rate = Some((((data[index] as u32) & 0b01111111) << 15) |
@@ -278,7 +274,7 @@ impl OptionalFields {
             pack_header_field_flag = Some((data[index] & 0b01000000 >> 6) == 1);
             program_packet_sequence_counter_flag = Some((data[index] & 0b00100000 >> 5) == 1);
             p_std_buffer_flag = Some((data[index] & 0b00010000 >> 4) == 1);
-            pes_extension_flag_2 = Some((data[index] & 0b00000001 == 1));
+            pes_extension_flag_2 = Some(data[index] & 0b00000001 == 1);
             index += 1;
             if pes_private_data_flag.unwrap() {
                 pes_private_data = Some(u128::from_be_bytes([
@@ -305,7 +301,7 @@ impl OptionalFields {
                     // packet invalid
                 }
                 p_std_buffer_scale = Some((data[index] & 0b00100000) >> 5);
-                p_std_buffer_size = Some((((data[index] & 0b00011111) as u16 ) << 8) |
+                p_std_buffer_size = Some((((data[index] & 0b00011111) as u16) << 8) |
                     data[index + 1] as u16);
                 index += 2;
             }
