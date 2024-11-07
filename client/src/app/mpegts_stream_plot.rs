@@ -42,8 +42,7 @@ struct StreamText {
 }
 
 #[derive(Debug, PartialEq, Copy, Clone)]
-enum SettingsXAxis {
-}
+enum SettingsXAxis {}
 
 impl SettingsXAxis {
     fn all() -> Vec<Self> {
@@ -60,6 +59,7 @@ impl Display for SettingsXAxis {
 }
 
 pub struct MpegTsStreamPlot {
+    streams: RefStreams,
     points_data: Vec<PointData>,
     stream_separator_lines: Vec<StreamSeparatorLine>,
     stream_texts: Vec<StreamText>,
@@ -74,8 +74,9 @@ pub struct MpegTsStreamPlot {
 }
 
 impl MpegTsStreamPlot {
-    pub fn new() -> Self {
+    pub fn new(streams: RefStreams) -> Self {
         Self {
+            streams,
             points_data: Vec::new(),
             stream_separator_lines: Vec::new(),
             stream_texts: Vec::new(),
@@ -104,20 +105,13 @@ impl MpegTsStreamPlot {
         });
     }
 
-    fn build_help_section(ui: &mut Ui) {
-        
-    }
+    fn build_help_section(ui: &mut Ui) {}
 
-    fn options_ui(&mut self, ui: &mut Ui) {
+    fn options_ui(&mut self, ui: &mut Ui) {}
 
-    }
+    fn plot_bounds_ui_options(&mut self, ui: &mut Ui) {}
 
-    fn plot_bounds_ui_options(&mut self, ui: &mut Ui) {
-    }
-
-    fn axis_settings(&mut self, ui: &mut Ui) {
-        
-    }
+    fn axis_settings(&mut self, ui: &mut Ui) {}
 
     fn reset_button(&mut self, ui: &mut Ui) {
         if ui.button("Reset to initial state").clicked() {
@@ -125,14 +119,10 @@ impl MpegTsStreamPlot {
         }
     }
 
-    fn plot_ui(&mut self, ui: &mut Ui) {
-        
-    }
+    fn plot_ui(&mut self, ui: &mut Ui) {}
 
 
-    fn draw_points(&mut self, plot_ui: &mut PlotUi) {
-        
-    }
+    fn draw_points(&mut self, plot_ui: &mut PlotUi) {}
 
     fn refresh_points(&mut self) {
         self.points_data.clear();
@@ -153,7 +143,7 @@ fn get_highest_y(
     settings_x_axis: SettingsXAxis,
     this_stream_y_baseline: f64,
 ) -> f64 {
-    0.0 
+    0.0
 }
 
 

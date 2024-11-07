@@ -106,10 +106,10 @@ impl App {
         let rtp_streams_plot = RtpStreamsPlot::new(streams.clone());
 
         // TODO: Pass args to the new functions
-        let mpegts_packets_table = MpegTsPacketsTable::new();
-        let mpegts_streams_table = MpegTsStreamsTable::new();
-        let mpegts_info_table = MpegTsInformationsTable::new();
-        let mpegts_plot = MpegTsStreamPlot::new();
+        let mpegts_packets_table = MpegTsPacketsTable::new(streams.clone());
+        let mpegts_streams_table = MpegTsStreamsTable::new(streams.clone(), ws_sender.clone());
+        let mpegts_info_table = MpegTsInformationsTable::new(streams.clone(), ws_sender.clone());
+        let mpegts_plot = MpegTsStreamPlot::new(streams.clone());
 
         let (tab, selected_source) = get_initial_state(cc);
 
@@ -299,7 +299,7 @@ impl App {
                 }
                 Response::Sdp(stream_key, sdp) => {
                     let mut streams = self.streams.borrow_mut();
-                    if let Some(stream) = streams.streams.get_mut(&stream_key) {
+                    if let Some(stream) = streams.rtp_streams.get_mut(&stream_key) {
                         stream.add_sdp(sdp);
                     }
                 }

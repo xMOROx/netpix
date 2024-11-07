@@ -1,14 +1,18 @@
-use egui::plot::{Line, Plot, PlotPoints};
-use egui::{TextEdit, Vec2};
 use egui_extras::{Column, TableBody, TableBuilder};
-use ewebsock::{WsMessage, WsSender};
-use rtpeeker_common::{Request, StreamKey};
+use ewebsock::{WsSender};
+use crate::streams::RefStreams;
 
-pub struct MpegTsStreamsTable {}
+pub struct MpegTsStreamsTable {
+    streams: RefStreams,
+    ws_sender: WsSender,
+}
 
 impl MpegTsStreamsTable {
-    pub fn new() -> Self {
-        Self {}
+    pub fn new(streams: RefStreams, ws_sender: WsSender) -> Self {
+        Self {
+            streams,
+            ws_sender,
+        }
     }
 
     pub fn ui(&mut self, ctx: &egui::Context) {

@@ -1,49 +1,53 @@
-
+use std::collections::HashMap;
 use super::is_stream_visible;
 use crate::streams::RefStreams;
-use eframe::epaint::Color32;
-use egui::RichText;
 use egui_extras::{Column, TableBody, TableBuilder};
-use rtpeeker_common::packet::SessionPacket;
+use ewebsock::WsSender;
 use rtpeeker_common::StreamKey;
-use std::collections::HashMap;
 
-pub struct MpegTsInformationsTable {}
+pub struct MpegTsInformationsTable {
+    streams: RefStreams,
+    ws_sender: WsSender,
+    streams_visibility: HashMap<StreamKey, bool>,
+}
 
 impl MpegTsInformationsTable {
-    pub fn new() -> Self {
-        Self {}
+    pub fn new(streams: RefStreams, ws_sender: WsSender) -> Self {
+        Self {
+            streams,
+            ws_sender,
+            streams_visibility: HashMap::default(),
+        }
     }
 
     pub fn ui(&mut self, ctx: &egui::Context) {
         egui::CentralPanel::default().show(ctx, |ui| {
-            // self.options_ui(ui);
+            self.options_ui(ui);
             self.build_table(ui);
         });
     }
-    // TODO: implement when fields will be available
-    // fn options_ui(&mut self, ui: &mut egui::Ui) {
-    //     let mut aliases = Vec::new();
-    //     let streams = &self.streams.borrow().streams;
-    //     let keys: Vec<_> = streams.keys().collect();
+    fn options_ui(&mut self, ui: &mut egui::Ui) {
+        let mut aliases = Vec::new();
+        let streams = &self.streams.borrow().mpeg_ts_streams;
+        let keys: Vec<_> = streams.keys().collect();
 
-    //     keys.iter().for_each(|&key| {
-    //         let alias = streams.get(key).unwrap().alias.to_string();
-    //         aliases.push((*key, alias));
-    //     });
-    //     aliases.sort_by(|(_, a), (_, b)| a.cmp(b));
+        keys.iter().for_each(|&key| {
+            let alias = streams.get(key).unwrap().alias.to_string();
+            aliases.push((*key, alias));
+        });
+        aliases.sort_by(|(_, a), (_, b)| a.cmp(b));
 
-    //     ui.horizontal_wrapped(|ui| {
-    //         ui.label("Filter by: ");
-    //         aliases.iter().for_each(|(key, alias)| {
-    //             let selected = is_stream_visible(&mut self.streams_visibility, *key);
-    //             ui.checkbox(selected, alias);
-    //         });
-    //     });
-    //     ui.vertical(|ui| {
-    //         ui.add_space(5.0);
-    //     });
-    // }
+        ui.horizontal_wrapped(|ui| {
+            ui.label("Filter by: ");
+            aliases.iter().for_each(|(key, alias)| {
+                let selected = is_stream_visible(&mut self.streams_visibility, *key);
+                ui.checkbox(selected, alias);
+            });
+        });
+        ui.vertical(|ui| {
+            ui.add_space(5.0);
+        });
+    }
 
     fn build_table(&mut self, ui: &mut egui::Ui) {
         let header_labels = [

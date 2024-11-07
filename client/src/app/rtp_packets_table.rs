@@ -29,7 +29,7 @@ impl RtpPacketsTable {
 
     fn options_ui(&mut self, ui: &mut egui::Ui) {
         let mut aliases = Vec::new();
-        let streams = &self.streams.borrow().streams;
+        let streams = &self.streams.borrow().rtp_streams;
         let keys: Vec<_> = streams.keys().collect();
 
         keys.iter().for_each(|&key| {
@@ -116,7 +116,7 @@ impl RtpPacketsTable {
         }
 
         let mut ssrc_to_display_name: HashMap<StreamKey, String> = HashMap::default();
-        streams.streams.iter().for_each(|(key, stream)| {
+        streams.rtp_streams.iter().for_each(|(key, stream)| {
             ssrc_to_display_name.insert(*key, stream.alias.to_string());
         });
 
