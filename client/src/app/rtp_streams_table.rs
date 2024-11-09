@@ -112,11 +112,11 @@ impl RtpStreamsTable {
 
     fn build_table_body(&mut self, body: TableBody) {
         let mut streams = self.streams.borrow_mut();
-        let keys: Vec<_> = streams.streams.keys().cloned().collect();
+        let keys: Vec<_> = streams.rtp_streams.keys().cloned().collect();
 
-        body.rows(100.0, streams.streams.len(), |id, mut row| {
+        body.rows(100.0, streams.rtp_streams.len(), |id, mut row| {
             let key = keys.get(id).unwrap();
-            let stream = streams.streams.get_mut(key).unwrap();
+            let stream = streams.rtp_streams.get_mut(key).unwrap();
 
             row.col(|ui| {
                 let text_edit = TextEdit::singleline(&mut stream.alias).frame(false);

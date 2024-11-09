@@ -10,6 +10,12 @@ use packets_table::PacketsTable;
 use rtcp_packets_table::RtcpPacketsTable;
 use rtp_packets_table::RtpPacketsTable;
 use rtp_streams_table::RtpStreamsTable;
+
+use mpegts_info_table::MpegTsInformationsTable;
+use mpegts_packets_table::MpegTsPacketsTable;
+use mpegts_stream_plot::MpegTsStreamPlot;
+use mpegts_streams_table::MpegTsStreamsTable;
+
 use tab::Tab;
 
 use crate::streams::RefStreams;
@@ -20,6 +26,12 @@ mod rtcp_packets_table;
 mod rtp_packets_table;
 mod rtp_streams_plot;
 mod rtp_streams_table;
+
+mod mpegts_info_table;
+mod mpegts_packets_table;
+mod mpegts_stream_plot;
+mod mpegts_streams_table;
+
 mod tab;
 
 const SOURCE_KEY: &str = "source";
@@ -42,6 +54,11 @@ pub struct App {
     rtcp_packets_table: RtcpPacketsTable,
     rtp_streams_table: RtpStreamsTable,
     rtp_streams_plot: RtpStreamsPlot,
+
+    mpegts_packets_table: MpegTsPacketsTable,
+    mpegts_streams_table: MpegTsStreamsTable,
+    mpegts_info_table: MpegTsInformationsTable,
+    mpegts_plot: MpegTsStreamPlot,
 }
 
 impl eframe::App for App {
@@ -56,10 +73,16 @@ impl eframe::App for App {
 
         match self.tab {
             Tab::Packets => self.packets_table.ui(ctx),
+            // RTP Group
             Tab::RtpPackets => self.rtp_packets_table.ui(ctx),
             Tab::RtcpPackets => self.rtcp_packets_table.ui(ctx),
-            Tab::Streams => self.rtp_streams_table.ui(ctx),
-            Tab::Plot => self.rtp_streams_plot.ui(ctx),
+            Tab::RtpStreams => self.rtp_streams_table.ui(ctx),
+            Tab::RtpPlot => self.rtp_streams_plot.ui(ctx),
+            // MPEG-TS Group
+            Tab::MpegTsPackets => self.mpegts_packets_table.ui(ctx),
+            Tab::MpegTsStreams => self.mpegts_streams_table.ui(ctx),
+            Tab::MpegTsInformations => self.mpegts_info_table.ui(ctx),
+            Tab::MpegTsPlot => self.mpegts_plot.ui(ctx),
         };
     }
 }
@@ -82,6 +105,12 @@ impl App {
         let rtp_streams_table = RtpStreamsTable::new(streams.clone(), ws_sender.clone());
         let rtp_streams_plot = RtpStreamsPlot::new(streams.clone());
 
+        // TODO: Pass args to the new functions
+        let mpegts_packets_table = MpegTsPacketsTable::new(streams.clone());
+        let mpegts_streams_table = MpegTsStreamsTable::new(streams.clone(), ws_sender.clone());
+        let mpegts_info_table = MpegTsInformationsTable::new(streams.clone(), ws_sender.clone());
+        let mpegts_plot = MpegTsStreamPlot::new(streams.clone());
+
         let (tab, selected_source) = get_initial_state(cc);
 
         Self {
@@ -97,6 +126,10 @@ impl App {
             rtcp_packets_table,
             rtp_streams_table,
             rtp_streams_plot,
+            mpegts_packets_table,
+            mpegts_streams_table,
+            mpegts_info_table,
+            mpegts_plot,
         }
     }
 
@@ -157,6 +190,7 @@ impl App {
                 });
             });
     }
+
     fn build_top_bar(&mut self, ctx: &egui::Context, frame: &mut eframe::Frame) {
         egui::TopBottomPanel::top("top_panel").show(ctx, |ui| {
             egui::menu::bar(ui, |ui| {
@@ -265,7 +299,7 @@ impl App {
                 }
                 Response::Sdp(stream_key, sdp) => {
                     let mut streams = self.streams.borrow_mut();
-                    if let Some(stream) = streams.streams.get_mut(&stream_key) {
+                    if let Some(stream) = streams.rtp_streams.get_mut(&stream_key) {
                         stream.add_sdp(sdp);
                     }
                 }

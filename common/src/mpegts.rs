@@ -12,31 +12,19 @@ use crate::mpegts::payload::RawPayload;
 #[cfg(not(target_arch = "wasm32"))]
 use crate::mpegts::header::{AdaptationFieldControl, PIDTable, TransportScramblingControl};
 
-#[cfg(not(target_arch = "wasm32"))]
-const PAYLOAD_LENGTH: usize = 1316;
-#[cfg(not(target_arch = "wasm32"))]
-const FRAGMENT_SIZE: usize = 188;
-#[cfg(not(target_arch = "wasm32"))]
-const HEADER_SIZE: usize = 4;
-#[cfg(not(target_arch = "wasm32"))]
-const SYNC_BYTE: u8 = 0x47;
-#[cfg(not(target_arch = "wasm32"))]
-const SYNC_BYTE_MASK: u8 = 0xFF;
-#[cfg(not(target_arch = "wasm32"))]
-const TEI_MASK: u8 = 0x80;
-#[cfg(not(target_arch = "wasm32"))]
-const PUSI_MASK: u8 = 0x40;
-#[cfg(not(target_arch = "wasm32"))]
-const TP_MASK: u8 = 0x20;
-#[cfg(not(target_arch = "wasm32"))]
-const PID_MASK_UPPER: u8 = 0x1F;
-#[cfg(not(target_arch = "wasm32"))]
-const TSC_MASK: u8 = 0xC0;
-#[cfg(not(target_arch = "wasm32"))]
-const AFC_MASK: u8 = 0x30;
-#[cfg(not(target_arch = "wasm32"))]
-const CC_MASK: u8 = 0x0F;
-const PADDING_BYTE: u8 = 0xFF;
+pub const PAYLOAD_LENGTH: usize = 1316;
+pub const FRAGMENT_SIZE: usize = 188;
+pub const HEADER_SIZE: usize = 4;
+pub const SYNC_BYTE: u8 = 0x47;
+pub const SYNC_BYTE_MASK: u8 = 0xFF;
+pub const TEI_MASK: u8 = 0x80;
+pub const PUSI_MASK: u8 = 0x40;
+pub const TP_MASK: u8 = 0x20;
+pub const PID_MASK_UPPER: u8 = 0x1F;
+pub const TSC_MASK: u8 = 0xC0;
+pub const AFC_MASK: u8 = 0x30;
+pub const CC_MASK: u8 = 0x0F;
+pub const PADDING_BYTE: u8 = 0xFF;
 
 
 #[derive(Serialize, Deserialize, Debug, Clone)]

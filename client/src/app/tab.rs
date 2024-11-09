@@ -5,8 +5,12 @@ pub enum Tab {
     Packets,
     RtpPackets,
     RtcpPackets,
-    Streams,
-    Plot,
+    RtpStreams,
+    RtpPlot,
+    MpegTsPackets,
+    MpegTsStreams,
+    MpegTsInformations,
+    MpegTsPlot,
 }
 
 impl Tab {
@@ -15,8 +19,12 @@ impl Tab {
             Self::Packets,
             Self::RtpPackets,
             Self::RtcpPackets,
-            Self::Streams,
-            Self::Plot,
+            Self::RtpStreams,
+            Self::RtpPlot,
+            Self::MpegTsPackets,
+            Self::MpegTsStreams,
+            Self::MpegTsInformations,
+            Self::MpegTsPlot,
         ]
     }
 
@@ -33,8 +41,12 @@ impl fmt::Display for Tab {
             Self::Packets => "📦 All Packets",
             Self::RtpPackets => "🔈RTP Packets",
             Self::RtcpPackets => "📃 RTCP Packets",
-            Self::Streams => "🔴 Streams",
-            Self::Plot => "📈 Plot",
+            Self::RtpStreams => "🔴 RTP Streams",
+            Self::RtpPlot => "📈 RTP Plot",
+            Self::MpegTsPackets => "📺 MPEG-TS Packets",
+            Self::MpegTsStreams => "🎥 MPEG-TS Streams",
+            Self::MpegTsInformations => "ℹ️ MPEG-TS Info",
+            Self::MpegTsPlot => "📊 MPEG-TS Plot",
         };
 
         write!(f, "{}", ret)

@@ -199,7 +199,7 @@ impl RtpStreamsPlot {
     fn toggle_streams(&mut self, ui: &mut Ui) {
         ui.horizontal_wrapped(|ui| {
             let mut aliases = Vec::new();
-            let streams = &self.streams.borrow().streams;
+            let streams = &self.streams.borrow().rtp_streams;
             let keys: Vec<_> = streams.keys().collect();
 
             keys.iter().for_each(|&key| {
@@ -269,7 +269,7 @@ impl RtpStreamsPlot {
     fn number_of_rtp_packets(&mut self) -> usize {
         self.streams
             .borrow()
-            .streams
+            .rtp_streams
             .values()
             .map(|stream| stream.rtp_packets.len())
             .sum()
@@ -358,7 +358,7 @@ impl RtpStreamsPlot {
         let mut previous_stream_height = 0.0;
 
         let mut stream_separator_length = 0.0;
-        streams.streams.iter().for_each(|(_, stream)| {
+        streams.rtp_streams.iter().for_each(|(_, stream)| {
             let rtp_packets = &stream.rtp_packets;
             let first_rtp_id = rtp_packets.first().unwrap();
             let first_packet = streams.packets.get(first_rtp_id.id).unwrap();
@@ -386,7 +386,7 @@ impl RtpStreamsPlot {
         });
 
         streams
-            .streams
+            .rtp_streams
             .iter()
             .enumerate()
             .for_each(|(i, (key, stream))| {
