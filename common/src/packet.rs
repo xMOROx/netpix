@@ -1,7 +1,9 @@
-use super::{RtcpPacket, RtpPacket, MpegtsPacket};
+use super::{MpegtsPacket, RtcpPacket, RtpPacket};
 use serde::{Deserialize, Serialize};
+use std::cell::RefCell;
 use std::fmt;
 use std::net::SocketAddr;
+use std::rc::Rc;
 use std::time::Duration;
 
 #[cfg(not(target_arch = "wasm32"))]
@@ -11,7 +13,6 @@ use etherparse::{
     TransportHeader::{self, Tcp, Udp},
     UdpHeader,
 };
-
 
 #[derive(Serialize, Deserialize, PartialEq, Debug, Copy, Clone)]
 pub enum SessionProtocol {
@@ -62,7 +63,7 @@ pub enum SessionPacket {
     Unknown,
     Rtp(RtpPacket),
     Rtcp(Vec<RtcpPacket>),
-    Mpegts(MpegtsPacket)
+    Mpegts(MpegtsPacket),
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -89,9 +90,9 @@ impl Packet {
             transport: Some(transport),
             ..
         } = packet
-            else {
-                return None;
-            };
+        else {
+            return None;
+        };
 
         let transport_protocol = get_transport_protocol(&transport)?;
         let (source_addr, destination_addr) = convert_addr(&ip, &transport)?;
@@ -125,7 +126,6 @@ impl Packet {
             self.contents = SessionPacket::Mpegts(mpegts);
             return;
         }
-
 
         if let Some(rtcp) = RtcpPacket::build(self) {
             if is_rtcp(&rtcp) {
@@ -173,12 +173,6 @@ impl Packet {
         }
     }
 }
-
-// Don't know if this is needed
-// #[cfg(not(target_arch = "wasm32"))]
-// fn is_mpegts(_packet: &MpegtsPacket) -> bool {
-//     TODO: implement
-// }
 
 #[cfg(not(target_arch = "wasm32"))]
 fn is_rtp(packet: &RtpPacket) -> bool {
@@ -251,15 +245,15 @@ fn convert_addr(
 
     let (source_port, dest_port) = match *transport {
         Udp(UdpHeader {
-                source_port,
-                destination_port,
-                ..
-            })
+            source_port,
+            destination_port,
+            ..
+        })
         | Tcp(TcpHeader {
-                  source_port,
-                  destination_port,
-                  ..
-              }) => (source_port, destination_port),
+            source_port,
+            destination_port,
+            ..
+        }) => (source_port, destination_port),
         _ => return None,
     };
 

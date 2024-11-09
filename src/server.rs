@@ -4,7 +4,7 @@ use futures_util::{
     SinkExt, StreamExt, TryFutureExt,
 };
 use log::{error, info, warn};
-use rtpeeker_common::packet::{SessionPacket, SessionProtocol};
+use rtpeeker_common::packet::SessionProtocol;
 use rtpeeker_common::{Request, Response, Sdp};
 use rtpeeker_common::{Source, StreamKey};
 use rust_embed::RustEmbed;
@@ -14,11 +14,6 @@ use std::sync::{
     atomic::{AtomicUsize, Ordering},
     Arc,
 };
-use rtpeeker_common::mpegts::header::PIDTable;
-use rtpeeker_common::mpegts::psi::pat::fragmentary_pat::FragmentaryProgramAssociationTable;
-use rtpeeker_common::mpegts::psi::pat::pat_buffer::PatBuffer;
-use rtpeeker_common::mpegts::psi::psi_buffer::FragmentaryPsi;
-use rtpeeker_common::mpegts::psi::psi_buffer::PsiBuffer;
 use tokio::sync::{mpsc, mpsc::UnboundedSender, RwLock};
 use warp::ws::{Message, WebSocket};
 use warp::{http::header::HeaderValue, path::Tail, reply};

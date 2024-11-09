@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq)]
 pub struct Header {
     pub transport_error_indicator: bool,
     pub payload_unit_start_indicator: bool,
@@ -11,7 +11,7 @@ pub struct Header {
     pub continuity_counter: u8,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, Hash)]
 pub enum PIDTable {
     ProgramAssociation,
     ConditionalAccess,
@@ -22,13 +22,13 @@ pub enum PIDTable {
     NullPacket,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq)]
 pub enum TransportScramblingControl {
     NotScrambled,
     UserDefined(u8),
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq)]
 pub enum AdaptationFieldControl {
     PayloadOnly,
     AdaptationFieldOnly,

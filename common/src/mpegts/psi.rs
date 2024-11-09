@@ -31,7 +31,7 @@ pub struct ProgramSpecificInformationHeader {
 }
 
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq)]
 pub enum PsiTypes {
     PAT(pat::ProgramAssociationTable),
     PMT(pmt::ProgramMapTable),

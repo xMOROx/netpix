@@ -1,4 +1,11 @@
+use std::borrow::BorrowMut;
+use log::{log, warn};
+use mpeg_ts_streams::MpegTsStream;
 use packets::Packets;
+use rtpStream::RtpStream;
+use rtpeeker_common::mpegts::header::PIDTable;
+use rtpeeker_common::mpegts::psi::pat::fragmentary_pat::FragmentaryProgramAssociationTable;
+use rtpeeker_common::mpegts::psi::psi_buffer::FragmentaryPsi;
 use rtpeeker_common::packet::SessionPacket;
 use rtpeeker_common::StreamKey;
 use rtpeeker_common::{packet::TransportProtocol, Packet, RtcpPacket};
@@ -6,12 +13,9 @@ use std::cell::RefCell;
 use std::collections::HashMap;
 use std::net::SocketAddr;
 use std::rc::Rc;
-use log::{log, warn};
-use rtpStream::RtpStream;
-use mpeg_ts_streams::MpegTsStream;
 
-mod packets;
 pub mod mpeg_ts_streams;
+mod packets;
 pub mod rtpStream;
 
 pub type RefStreams = Rc<RefCell<Streams>>;
@@ -30,7 +34,7 @@ impl Streams {
         self.mpeg_ts_streams.clear();
     }
 
-    pub fn add_packet(&mut self, packet: Packet) {
+    pub fn add_packet(&mut self, mut packet: Packet) {
         let is_new = self.packets.is_new(&packet);
 
         if is_new {
@@ -50,9 +54,9 @@ impl Streams {
         let mut new_rtp_streams = HashMap::new();
         let mut new_mpegts_streams = HashMap::new();
 
-        self.packets
-            .values()
-            .for_each(|packet| handle_packet(&mut new_rtp_streams, &mut new_mpegts_streams, packet));
+        self.packets.values().for_each(|mut packet| {
+            handle_packet(&mut new_rtp_streams, &mut new_mpegts_streams, packet)
+        });
 
         self.rtp_streams = new_rtp_streams;
         self.mpeg_ts_streams = new_mpegts_streams;
@@ -61,21 +65,50 @@ impl Streams {
 
 // this function need to take streams as an argument as opposed to methods on `Streams`
 // to make `Streams::recalculate` work, dunno if there's a better way
-fn handle_packet(rtp_streams: &mut HashMap<StreamKey, RtpStream>, mpegts_streams: &mut HashMap<StreamKey, MpegTsStream>, packet: &Packet) {
+fn handle_packet(
+    rtp_streams: &mut HashMap<StreamKey, RtpStream>,
+    mpegts_streams: &mut HashMap<StreamKey, MpegTsStream>,
+    packet: &Packet,
+) {
     match packet.contents {
         SessionPacket::Mpegts(ref mpegts) => {
-            let stream_key = (
-                packet.source_addr,
-                packet.destination_addr,
-                packet.transport_protocol,
-                0 // TODO: implement real
-            );
-            if let Some(stream) = mpegts_streams.get_mut(&stream_key) {
-                stream.add_mpegts_packet(packet, mpegts);
-            } else {
-                let new_stream = MpegTsStream::new(packet, mpegts, int_to_letter(rtp_streams.len()));
-                mpegts_streams.insert(stream_key, new_stream);
-            }
+            mpegts.fragments.iter().for_each(|fragment| {
+                if PIDTable::ProgramAssociation == fragment.header.pid {
+                    let payload = fragment.payload.clone();
+                    if payload.is_none() {
+                        return;
+                    }
+
+                    let fragmentary_pat = FragmentaryProgramAssociationTable::unmarshall(
+                        &*payload.unwrap().data,
+                        fragment.header.payload_unit_start_indicator,
+                    );
+
+                    if fragmentary_pat.is_none() {
+                        return;
+                    }
+
+                    let transport_stream_id = fragmentary_pat.unwrap().transport_stream_id as u32;
+                    let stream_key = (
+                        packet.source_addr,
+                        packet.destination_addr,
+                        packet.transport_protocol,
+                        transport_stream_id,
+                    );
+
+                    if let Some(stream) = mpegts_streams.get_mut(&stream_key) {
+                        stream.add_mpegts_packet(packet, mpegts);
+                    } else {
+                        let new_stream = MpegTsStream::new(
+                            packet,
+                            mpegts,
+                            int_to_letter(mpegts_streams.len()),
+                            transport_stream_id,
+                        );
+                        mpegts_streams.insert(stream_key, new_stream);
+                    }
+                }
+            });
         }
         SessionPacket::Rtp(ref rtp) => {
             let stream_key = (
