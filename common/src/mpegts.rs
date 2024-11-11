@@ -13,9 +13,9 @@ use crate::mpegts::header::{AdaptationFieldControl, PIDTable, TransportScramblin
 use crate::mpegts::payload::RawPayload;
 use serde::{Deserialize, Serialize};
 
-pub const PAYLOAD_LENGTH: usize = 1316;
 pub const FRAGMENT_SIZE: usize = 188;
 pub const HEADER_SIZE: usize = 4;
+pub const MAX_FRAGMENTS: usize = 7;
 pub const SYNC_BYTE: u8 = 0x47;
 pub const SYNC_BYTE_MASK: u8 = 0xFF;
 pub const TEI_MASK: u8 = 0x80;
@@ -54,33 +54,31 @@ impl MpegtsPacket {
     }
 
     fn unmarshall(buffer: &Vec<u8>) -> Option<Self> {
-        if buffer.len() != PAYLOAD_LENGTH {
+        if buffer.len() % FRAGMENT_SIZE != 0 || buffer.len() > FRAGMENT_SIZE * MAX_FRAGMENTS {
             return None;
         }
-        let mut number_of_fragments: usize = 0;
-        let mut fragments: Vec<MpegtsFragment> = vec![];
 
-        while (number_of_fragments * FRAGMENT_SIZE) < PAYLOAD_LENGTH
-            && (buffer[number_of_fragments * FRAGMENT_SIZE] & SYNC_BYTE_MASK) == SYNC_BYTE
-        {
-            let Some(fragment) = Self::get_fragment(
-                buffer,
-                number_of_fragments * FRAGMENT_SIZE,
-                number_of_fragments,
-            ) else {
-                break;
+        let expected_fragments = buffer.len() / FRAGMENT_SIZE;
+        let mut fragments: Vec<MpegtsFragment> = Vec::with_capacity(expected_fragments);
+
+        for fragment_index in 0..expected_fragments {
+            let start_index = fragment_index * FRAGMENT_SIZE;
+
+            if (buffer[start_index] & SYNC_BYTE_MASK) != SYNC_BYTE {
+                return None;
+            }
+
+            let Some(fragment) = Self::get_fragment(buffer, start_index, fragment_index) else {
+                return None;
             };
             fragments.push(fragment);
-            number_of_fragments += 1;
         }
-        match fragments.len() {
-            0 => None,
-            _ => Some(Self {
-                number_of_fragments,
-                fragments,
-                transport_stream_id: 0,
-            }),
-        }
+
+        (!fragments.is_empty()).then_some(Self {
+            number_of_fragments: fragments.len(),
+            fragments,
+            transport_stream_id: 0,
+        })
     }
 
     fn get_fragment(
@@ -180,15 +178,18 @@ mod tests {
     use super::*;
     use crate::mpegts::header::{AdaptationFieldControl, PIDTable, TransportScramblingControl};
 
-    fn create_test_buffer() -> Vec<u8> {
-        let mut buffer = vec![0; PAYLOAD_LENGTH];
-        for i in 0..7 {
+    fn create_test_buffer(num_fragments: usize) -> Vec<u8> {
+        assert!(num_fragments > 0 && num_fragments <= MAX_FRAGMENTS);
+        let mut buffer = vec![0; FRAGMENT_SIZE * num_fragments];
+
+        for i in 0..num_fragments {
             let start_index = i * FRAGMENT_SIZE;
             buffer[start_index] = SYNC_BYTE;
             buffer[start_index + 1] = 0x40; // Set PUSI
             buffer[start_index + 2] = 0x00; // PID 0x0000
             buffer[start_index + 3] = 0x10; // Payload only, CC = 0
-                                            // Fill the rest of the TS packet with dummy payload
+
+            // Fill payload
             for j in 4..FRAGMENT_SIZE {
                 buffer[start_index + j] = (j % 256) as u8;
             }
@@ -226,6 +227,41 @@ mod tests {
             first_fragment.payload.as_ref().unwrap().data.len(),
             FRAGMENT_SIZE - HEADER_SIZE
         );
+    }
+
+    #[test]
+    fn test_unmarshall_various_sizes() {
+        for num_fragments in 1..=MAX_FRAGMENTS {
+            let buffer = create_test_buffer(num_fragments);
+            let packet = MpegtsPacket::unmarshall(&buffer);
+
+            assert!(
+                packet.is_some(),
+                "Failed to unmarshall packet with {} fragments",
+                num_fragments
+            );
+            let packet = packet.unwrap();
+            assert_eq!(
+                packet.number_of_fragments, num_fragments,
+                "Incorrect number of fragments for size {}",
+                num_fragments
+            );
+        }
+    }
+
+    #[test]
+    fn test_unmarshall_invalid_sizes() {
+        // Test buffer size not multiple of FRAGMENT_SIZE
+        let invalid_buffer = vec![0; FRAGMENT_SIZE + 1];
+        assert!(MpegtsPacket::unmarshall(&invalid_buffer).is_none());
+
+        // Test empty buffer
+        let empty_buffer = vec![];
+        assert!(MpegtsPacket::unmarshall(&empty_buffer).is_none());
+
+        // Test too large buffer
+        let large_buffer = vec![0; FRAGMENT_SIZE * (MAX_FRAGMENTS + 1)];
+        assert!(MpegtsPacket::unmarshall(&large_buffer).is_none());
     }
 
     #[test]
