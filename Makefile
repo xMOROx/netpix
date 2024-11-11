@@ -9,3 +9,7 @@ clean:
 	cargo clean --manifest-path client/Cargo.toml
 	cargo clean --manifest-path common/Cargo.toml
 	rm -rf dist client/dist client/target
+
+tests: 
+	cargo test --manifest-path Cargo.toml
+	cargo test --manifest-path common/Cargo.toml
