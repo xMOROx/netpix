@@ -303,7 +303,7 @@ mod tests {
         let field = AdaptationField::unmarshall(&buffer).unwrap();
         assert_eq!(field.number_of_stuffing_bytes.unwrap(), 2);
 
-        // Length=2, no flags, no stuffing
+        // Length=2, no flags, 1 stuffing byte
         let buffer = vec![2, 0x00, 0xFF];
         let field = AdaptationField::unmarshall(&buffer).unwrap();
         assert_eq!(field.number_of_stuffing_bytes.unwrap(), 1);
