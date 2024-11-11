@@ -1,16 +1,31 @@
-use super::is_stream_visible;
 use crate::streams::RefStreams;
 use eframe::epaint::Color32;
 use egui::RichText;
-use egui_extras::{Column, TableBody, TableBuilder};
+use egui_extras::{TableBody, TableBuilder};
 use rtpeeker_common::mpegts::header::PIDTable;
 use rtpeeker_common::mpegts::FRAGMENT_SIZE;
 use rtpeeker_common::StreamKey;
 use std::collections::HashMap;
 
+const ROWS_PER_PAGE: usize = 100;
+#[derive(Clone)]
 pub struct MpegTsPacketsTable {
     streams: RefStreams,
     streams_visibility: HashMap<StreamKey, bool>,
+    cached_packets: Vec<CachedPacket>,
+    scroll_offset: usize,
+    needs_refresh: bool,
+}
+
+#[derive(Clone)]
+struct CachedPacket {
+    id: u64,
+    time: f64,
+    source_addr: String,
+    dest_addr: String,
+    alias: String,
+    fragments: Vec<String>,
+    payload_len: usize,
 }
 
 impl MpegTsPacketsTable {
@@ -18,15 +33,65 @@ impl MpegTsPacketsTable {
         Self {
             streams,
             streams_visibility: HashMap::default(),
+            cached_packets: Vec::new(),
+            scroll_offset: 0,
+            needs_refresh: true,
         }
     }
 
     pub fn ui(&mut self, ctx: &egui::Context) {
+        if self.needs_refresh {
+            self.update_cache();
+            self.needs_refresh = false;
+        }
+
         egui::CentralPanel::default().show(ctx, |ui| {
             self.options_ui(ui);
             self.build_table(ui);
         });
     }
+
+    fn update_cache(&mut self) {
+        let streams_visibility = &self.streams_visibility;
+        let streams = self.streams.borrow();
+
+        self.cached_packets = streams
+            .mpeg_ts_streams
+            .iter()
+            .flat_map(|(_key, stream)| {
+                let transport_stream_id = stream.transport_stream_id;
+
+                stream.mpegts_info.packets.iter().filter_map(move |packet| {
+                    let stream_key: StreamKey = (
+                        packet.source_addr,
+                        packet.destination_addr,
+                        packet.protocol,
+                        transport_stream_id,
+                    );
+
+                    if !is_stream_visible(streams_visibility, &stream_key) {
+                        return None;
+                    }
+
+                    Some(CachedPacket {
+                        id: packet.id as u64,
+                        time: packet.time.as_secs_f64(),
+                        source_addr: packet.source_addr.to_string(),
+                        dest_addr: packet.destination_addr.to_string(),
+                        alias: stream.alias.clone(),
+                        fragments: packet
+                            .content
+                            .fragments
+                            .iter()
+                            .map(|f| format_fragment(&f.header.pid))
+                            .collect(),
+                        payload_len: packet.content.number_of_fragments * FRAGMENT_SIZE,
+                    })
+                })
+            })
+            .collect();
+    }
+
     fn options_ui(&mut self, ui: &mut egui::Ui) {
         let mut aliases = Vec::new();
         let streams = &self.streams.borrow().mpeg_ts_streams;
@@ -41,8 +106,8 @@ impl MpegTsPacketsTable {
         ui.horizontal_wrapped(|ui| {
             ui.label("Filter by: ");
             aliases.iter().for_each(|(key, alias)| {
-                let selected = is_stream_visible(&mut self.streams_visibility, *key);
-                ui.checkbox(selected, alias);
+                let mut selected = is_stream_visible(&mut self.streams_visibility, key);
+                ui.checkbox(&mut selected, alias);
             });
         });
         ui.vertical(|ui| {
@@ -69,27 +134,52 @@ impl MpegTsPacketsTable {
             ("P7", "Packet No. 7"),
             ("Payload Length", "Mpegts payload length"),
         ];
+
+        let total_rows = self.cached_packets.len();
+        let visible_rows = ROWS_PER_PAGE.min(total_rows);
         TableBuilder::new(ui)
             .striped(true)
             .resizable(true)
             .stick_to_bottom(true)
-            .column(Column::remainder().at_least(40.0))
-            .column(Column::remainder().at_least(80.0))
-            .columns(Column::remainder().at_least(100.0), 2)
-            .column(Column::remainder().at_most(50.0))
-            .columns(Column::remainder().at_least(140.0), 7)
-            .column(Column::remainder().at_least(80.0))
-            .header(30.0, |mut header| {
-                header_labels.iter().for_each(|(label, desc)| {
-                    header.col(|ui| {
-                        ui.heading(label.to_string())
-                            .on_hover_text(desc.to_string());
+            .body(|body| {
+                let start = self.scroll_offset;
+                let end = (start + visible_rows).min(total_rows);
+
+                body.rows(25.0, end - start, |row_idx, mut row| {
+                    let packet = &self.cached_packets[start + row_idx];
+
+                    row.col(|ui| {
+                        ui.label(packet.id.to_string());
+                    });
+                    row.col(|ui| {
+                        ui.label(format!("{:.4}", packet.time));
+                    });
+                    row.col(|ui| {
+                        ui.label(&packet.source_addr);
+                    });
+                    row.col(|ui| {
+                        ui.label(&packet.dest_addr);
+                    });
+                    row.col(|ui| {
+                        ui.label(&packet.alias);
+                    });
+
+                    for fragment in &packet.fragments {
+                        row.col(|ui| {
+                            ui.label(format_colored_text(fragment));
+                        });
+                    }
+
+                    row.col(|ui| {
+                        ui.label(packet.payload_len.to_string());
                     });
                 });
-            })
-            .body(|body| {
-                self.build_table_body(body);
             });
+
+        if total_rows > ROWS_PER_PAGE {
+            let max_scroll = total_rows - ROWS_PER_PAGE;
+            ui.add(egui::Slider::new(&mut self.scroll_offset, 0..=max_scroll));
+        }
     }
 
     fn build_table_body(&mut self, body: TableBody) {
@@ -100,7 +190,7 @@ impl MpegTsPacketsTable {
             .flat_map(|(_, stream)| {
                 let transport_stream_id = stream.transport_stream_id;
                 stream.mpegts_info.packets.iter().map(move |packet| {
-                    let key = (
+                    let key:StreamKey = (
                         packet.source_addr,
                         packet.destination_addr,
                         packet.protocol,
@@ -109,7 +199,7 @@ impl MpegTsPacketsTable {
                     (packet, key)
                 })
             })
-            .filter(|(_, key)| *is_stream_visible(&mut self.streams_visibility, *key))
+            .filter(|(_, key)| is_stream_visible(&mut self.streams_visibility, key))
             .map(|(packet, _)| packet)
             .collect();
 
@@ -201,7 +291,7 @@ impl MpegTsPacketsTable {
                             format!("Program Map Table ({})", pid)
                         } else if es_pids.contains(&PIDTable::PID(pid)) {
                             format!("Elementary Stream ({})", pid)
-                        }else {
+                        } else {
                             format!("PID ({})", pid)
                         }
                     }
@@ -244,12 +334,34 @@ impl MpegTsPacketsTable {
     }
 }
 
+fn format_fragment(pid: &PIDTable) -> String {
+    match pid {
+        PIDTable::ProgramAssociation => "PAT".to_string(),
+        PIDTable::PID(pid) => format!("PID {}", pid),
+        _ => pid.to_string(),
+    }
+}
+
+fn format_colored_text(text: &str) -> RichText {
+    if text.contains("PAT") {
+        RichText::new(text).color(Color32::GREEN)
+    } else if text.contains("PMT") {
+        RichText::new(text).color(Color32::LIGHT_BLUE)
+    } else {
+        RichText::new(text)
+    }
+}
+
 fn format_text(value: String) -> RichText {
     if value.contains("Program Association Table") {
-        RichText::from(value).color(Color32::GREEN)
+        RichText::new(value).color(Color32::GREEN)
     } else if value.contains("Program Map Table") {
-        RichText::from(value).color(Color32::LIGHT_BLUE)
+        RichText::new(value).color(Color32::LIGHT_BLUE)
     } else {
-        RichText::from(value)
+        RichText::new(value)
     }
+}
+
+pub fn is_stream_visible(streams_visibility: &HashMap<StreamKey, bool>, key: &StreamKey) -> bool {
+    *streams_visibility.get(key).unwrap_or(&true)
 }
