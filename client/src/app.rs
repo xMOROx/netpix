@@ -85,6 +85,8 @@ impl eframe::App for App {
             Tab::MpegTsPlot => self.mpegts_plot.ui(ctx),
         };
     }
+    
+    
 }
 
 impl App {
@@ -216,9 +218,9 @@ impl App {
             None => "Select packets source...".to_string(),
         };
 
-        ComboBox::from_id_source("source_picker")
+        ComboBox::from_id_salt("source_picker")
             .width(300.0)
-            .wrap(false)
+            .wrap()
             .selected_text(selected)
             .show_ui(ui, |ui| {
                 let mut was_changed = false;
