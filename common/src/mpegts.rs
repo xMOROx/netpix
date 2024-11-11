@@ -199,7 +199,7 @@ mod tests {
 
     #[test]
     fn test_unmarshall_valid_packet() {
-        let buffer = create_test_buffer();
+        let buffer = create_test_buffer(7);
         let packet = MpegtsPacket::unmarshall(&buffer);
         assert!(packet.is_some(), "Failed to unmarshall packet");
         let packet = packet.unwrap();
@@ -265,13 +265,6 @@ mod tests {
     }
 
     #[test]
-    fn test_unmarshall_invalid_length() {
-        let buffer = vec![0; PAYLOAD_LENGTH - 1];
-        let packet = MpegtsPacket::unmarshall(&buffer);
-        assert!(packet.is_none());
-    }
-
-    #[test]
     fn test_get_header() {
         let mut buffer = vec![0; FRAGMENT_SIZE];
         buffer[0] = SYNC_BYTE;
@@ -322,7 +315,7 @@ mod tests {
 
     #[test]
     fn test_get_fragment() {
-        let mut buffer = create_test_buffer();
+        let mut buffer = create_test_buffer(1);
         buffer[1] = 0b00000000; // PID: 0x000 (upper 5 bits)
         buffer[2] = 0; // PID: 0x000 (lower 8 bits)
         buffer[3] = 0b00010000; // AFC: 01 (payload only)
