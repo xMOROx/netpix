@@ -1,4 +1,4 @@
-use log::warn;
+
 use rtpeeker_common::mpegts::aggregator::MpegtsAggregator;
 use rtpeeker_common::mpegts::header::PIDTable;
 use rtpeeker_common::mpegts::psi::pat::fragmentary_pat::FragmentaryProgramAssociationTable;

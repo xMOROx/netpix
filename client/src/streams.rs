@@ -1,5 +1,5 @@
-use std::borrow::BorrowMut;
-use log::{log, warn};
+
+
 use mpeg_ts_streams::MpegTsStream;
 use packets::Packets;
 use rtpStream::RtpStream;
@@ -34,7 +34,7 @@ impl Streams {
         self.mpeg_ts_streams.clear();
     }
 
-    pub fn add_packet(&mut self, mut packet: Packet) {
+    pub fn add_packet(&mut self, packet: Packet) {
         let is_new = self.packets.is_new(&packet);
 
         if is_new {
@@ -54,7 +54,7 @@ impl Streams {
         let mut new_rtp_streams = HashMap::new();
         let mut new_mpegts_streams = HashMap::new();
 
-        self.packets.values().for_each(|mut packet| {
+        self.packets.values().for_each(|packet| {
             handle_packet(&mut new_rtp_streams, &mut new_mpegts_streams, packet)
         });
 
