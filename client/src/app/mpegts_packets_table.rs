@@ -1,3 +1,4 @@
+use crate::app::is_stream_visible;
 use crate::streams::RefStreams;
 use eframe::epaint::Color32;
 use egui::RichText;
@@ -6,14 +7,12 @@ use rtpeeker_common::mpegts::header::PIDTable;
 use rtpeeker_common::mpegts::FRAGMENT_SIZE;
 use rtpeeker_common::StreamKey;
 use std::collections::HashMap;
-use crate::app::is_stream_visible;
 
 #[derive(Clone)]
 pub struct MpegTsPacketsTable {
     streams: RefStreams,
     streams_visibility: HashMap<StreamKey, bool>,
 }
-
 
 impl MpegTsPacketsTable {
     pub fn new(streams: RefStreams) -> Self {
@@ -158,7 +157,8 @@ impl MpegTsPacketsTable {
 
         let first_ts = mpegts_packets.first().unwrap().time;
 
-        body.rows(25.0, mpegts_packets.len(), |row_ix, mut row| {
+        body.rows(25.0, mpegts_packets.len(), |mut row| {
+            let row_ix = row.index();
             let mpegts_packet = mpegts_packets.get(row_ix).unwrap();
 
             let key = (
@@ -204,7 +204,7 @@ impl MpegTsPacketsTable {
                             format!("Program Map Table ({})", pid)
                         } else if es_pids.contains(&PIDTable::PID(pid)) {
                             format!("Elementary Stream ({})", pid)
-                        }else {
+                        } else {
                             format!("PID ({})", pid)
                         }
                     }

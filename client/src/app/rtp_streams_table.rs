@@ -1,5 +1,5 @@
 use crate::streams::{rtpStream::RtpStream, RefStreams};
-use egui::plot::{Line, Plot, PlotPoints};
+use egui_plot::{Line, Plot, PlotPoints};
 use egui::{TextEdit, Vec2};
 use egui_extras::{Column, TableBody, TableBuilder};
 use ewebsock::{WsMessage, WsSender};
@@ -114,7 +114,8 @@ impl RtpStreamsTable {
         let mut streams = self.streams.borrow_mut();
         let keys: Vec<_> = streams.rtp_streams.keys().cloned().collect();
 
-        body.rows(100.0, streams.rtp_streams.len(), |id, mut row| {
+        body.rows(100.0, streams.rtp_streams.len(), |mut row| {
+            let id = row.index();
             let key = keys.get(id).unwrap();
             let stream = streams.rtp_streams.get_mut(key).unwrap();
 
