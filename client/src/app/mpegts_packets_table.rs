@@ -1,4 +1,3 @@
-use super::is_stream_visible;
 use crate::streams::RefStreams;
 use eframe::epaint::Color32;
 use egui::RichText;
@@ -8,9 +7,25 @@ use rtpeeker_common::mpegts::FRAGMENT_SIZE;
 use rtpeeker_common::StreamKey;
 use std::collections::HashMap;
 
+const ROWS_PER_PAGE: usize = 100;
+#[derive(Clone)]
 pub struct MpegTsPacketsTable {
     streams: RefStreams,
     streams_visibility: HashMap<StreamKey, bool>,
+    cached_packets: Vec<CachedPacket>,
+    scroll_offset: usize,
+    needs_refresh: bool,
+}
+
+#[derive(Clone)]
+struct CachedPacket {
+    id: u64,
+    time: f64,
+    source_addr: String,
+    dest_addr: String,
+    alias: String,
+    fragments: Vec<String>,
+    payload_len: usize,
 }
 
 impl MpegTsPacketsTable {
@@ -18,15 +33,65 @@ impl MpegTsPacketsTable {
         Self {
             streams,
             streams_visibility: HashMap::default(),
+            cached_packets: Vec::new(),
+            scroll_offset: 0,
+            needs_refresh: true,
         }
     }
 
     pub fn ui(&mut self, ctx: &egui::Context) {
+        if self.needs_refresh {
+            self.update_cache();
+            self.needs_refresh = false;
+        }
+
         egui::CentralPanel::default().show(ctx, |ui| {
             self.options_ui(ui);
             self.build_table(ui);
         });
     }
+
+    fn update_cache(&mut self) {
+        let streams_visibility = &self.streams_visibility;
+        let streams = self.streams.borrow();
+
+        self.cached_packets = streams
+            .mpeg_ts_streams
+            .iter()
+            .flat_map(|(_key, stream)| {
+                let transport_stream_id = stream.transport_stream_id;
+
+                stream.mpegts_info.packets.iter().filter_map(move |packet| {
+                    let stream_key: StreamKey = (
+                        packet.source_addr,
+                        packet.destination_addr,
+                        packet.protocol,
+                        transport_stream_id,
+                    );
+
+                    if !is_stream_visible(streams_visibility, &stream_key) {
+                        return None;
+                    }
+
+                    Some(CachedPacket {
+                        id: packet.id as u64,
+                        time: packet.time.as_secs_f64(),
+                        source_addr: packet.source_addr.to_string(),
+                        dest_addr: packet.destination_addr.to_string(),
+                        alias: stream.alias.clone(),
+                        fragments: packet
+                            .content
+                            .fragments
+                            .iter()
+                            .map(|f| format_fragment(&f.header.pid))
+                            .collect(),
+                        payload_len: packet.content.number_of_fragments * FRAGMENT_SIZE,
+                    })
+                })
+            })
+            .collect();
+    }
+
     fn options_ui(&mut self, ui: &mut egui::Ui) {
         let mut aliases = Vec::new();
         let streams = &self.streams.borrow().mpeg_ts_streams;
@@ -41,8 +106,8 @@ impl MpegTsPacketsTable {
         ui.horizontal_wrapped(|ui| {
             ui.label("Filter by: ");
             aliases.iter().for_each(|(key, alias)| {
-                let selected = is_stream_visible(&mut self.streams_visibility, *key);
-                ui.checkbox(selected, alias);
+                let mut selected = is_stream_visible(&mut self.streams_visibility, key);
+                ui.checkbox(&mut selected, alias);
             });
         });
         ui.vertical(|ui| {
