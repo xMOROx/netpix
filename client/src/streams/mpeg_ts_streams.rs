@@ -12,7 +12,7 @@ use rtpeeker_common::{MpegtsPacket, Packet};
 use std::cmp::{max, min};
 use std::collections::HashMap;
 use std::net::SocketAddr;
-use std::time::Duration;
+use web_time::Duration;
 
 #[derive(Debug)]
 pub struct MpegTsPacketInfo {

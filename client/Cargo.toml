@@ -17,6 +17,7 @@ wasm-bindgen-futures = "0.4"
 ewebsock = "0.2"
 chrono = "0.4"
 web-sys = "0.3.72"
+web-time = "1.1.0"
 
 [profile.release]
 opt-level = 2 # fast and small wasm

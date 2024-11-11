@@ -5,7 +5,7 @@ use rtpeeker_common::rtp::payload_type::PayloadType;
 use rtpeeker_common::{Packet, RtcpPacket, RtpPacket, Sdp};
 use std::cmp::{max, min};
 use std::net::SocketAddr;
-use std::time::Duration;
+use web_time::Duration;
 
 #[derive(Debug)]
 pub struct RtcpInfo {
