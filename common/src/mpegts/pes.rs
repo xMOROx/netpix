@@ -23,7 +23,7 @@ const PES_CRC_FLAG_MASK: u8 = 0x02;
 const PES_EXTENSION_FLAG_MASK: u8 = 0x01;
 const PTS_DTS_MASK: u8 = 0xf0;
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq)]
 pub struct PacketizedElementaryStream {
     pub packet_start_code_prefix: u32,
     pub stream_id: u8,
@@ -67,7 +67,7 @@ impl PacketizedElementaryStream {
     }
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq)]
 pub struct PesHeader {
     pub scrambling_control: u8,
     pub priority: bool,
@@ -148,7 +148,7 @@ impl PesHeader {
     }
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq)]
 pub struct OptionalFields {
     pub pts: Option<u64>,
     pub dts: Option<u64>,
@@ -402,7 +402,7 @@ impl Into<u8> for TrickModeControlValues {
     }
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq)]
 pub struct TrickModeControl {
     pub trick_mode_control: TrickModeControlValues,
     pub field_id: u8,

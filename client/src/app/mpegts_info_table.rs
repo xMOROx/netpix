@@ -81,5 +81,5 @@ impl MpegTsInformationsTable {
             });
     }
 
-    fn build_table_body(&mut self, body: TableBody) {}
+    fn build_table_body(&mut self, _body: TableBody) {}
 }
