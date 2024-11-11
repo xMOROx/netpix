@@ -1,4 +1,5 @@
 build:
+	@rm -rf dist client/dist
 	@cd client && trunk build 
 	cd ../
 	@cp -r client/dist dist
