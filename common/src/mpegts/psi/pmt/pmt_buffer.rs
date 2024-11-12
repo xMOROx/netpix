@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 use crate::mpegts::psi::pmt::fragmentary_pmt::FragmentaryProgramMapTable;
 use crate::mpegts::psi::pmt::{PmtFields, ProgramMapTable};
 use crate::mpegts::psi::psi_buffer::PsiBuffer;
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct PmtBuffer {
     last_section_number: u8,
     pmt_fragments: Vec<FragmentaryProgramMapTable>,
@@ -39,7 +39,7 @@ impl PsiBuffer<ProgramMapTable, FragmentaryProgramMapTable> for PmtBuffer {
         &self.pmt_fragments
     }
 
-    fn build(&self) -> Option<ProgramMapTable> {
+    fn build(&mut self) -> Option<ProgramMapTable> {
         if !self.is_complete() {
             return None;
         }
@@ -51,7 +51,14 @@ impl PsiBuffer<ProgramMapTable, FragmentaryProgramMapTable> for PmtBuffer {
             program_info_length: self.pmt_fragments[0].fields.program_info_length,
         };
 
-        ProgramMapTable::build(fields, &cumulated_descriptors_payload, &cumulated_payload)
+        let pmt =
+            ProgramMapTable::build(fields, &cumulated_descriptors_payload, &cumulated_payload);
+        pmt
+    }
+
+    fn clear(&mut self) {
+        self.last_section_number = 0;
+        self.pmt_fragments.clear();
     }
 }
 
@@ -61,6 +68,9 @@ impl PmtBuffer {
     }
 
     pub fn is_fragment_inside(&self, fragment: &FragmentaryProgramMapTable) -> bool {
+        if self.pmt_fragments.is_empty() {
+            return false;
+        }
         (self.pmt_fragments.len() as u8) >= fragment.header.section_number
             && self.pmt_fragments[0].fields.program_number == fragment.fields.program_number
     }

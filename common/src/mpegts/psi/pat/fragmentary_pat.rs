@@ -41,7 +41,8 @@ impl FragmentaryPsi for FragmentaryProgramAssociationTable {
         if data.len() < HEADER_SIZE {
             return None;
         }
-
+        //TODO FIX: we are not taking into account last bytes of the previous section which resides imediately after ---> pointer_field | end of section n + 1 | new table_id | payload | ...
+        // https://tsduck.io/download/docs/mpegts-introduction.pdf - more details in section `Typical section packetization`
         let data = if is_pointer_field {
             let pointer_field = data[0] as usize;
             &data[pointer_field + 1..]

@@ -121,8 +121,7 @@ impl RtpPacketsTable {
         });
 
         let first_ts = rtp_packets.first().unwrap().timestamp;
-        body.rows(25.0, rtp_packets.len(), |mut row| {
-            let row_ix = row.index();
+        body.rows(25.0, rtp_packets.len(), |row_ix, mut row| {
             let packet = rtp_packets.get(row_ix).unwrap();
 
             let SessionPacket::Rtp(ref rtp_packet) = packet.contents else {
