@@ -7,7 +7,7 @@ use super::psi::pmt::fragmentary_pmt::FragmentaryProgramMapTable;
 use super::psi::psi_buffer::PsiBuffer;
 use super::psi::{pat::pat_buffer::PatBuffer, pmt::pmt_buffer::PmtBuffer};
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct MpegtsAggregator {
     pub pat_buffer: PatBuffer,
     pub pmt_buffers: HashMap<u16, PmtBuffer>,

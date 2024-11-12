@@ -1,7 +1,3 @@
-use eframe::wasm_bindgen::JsCast;
-use eframe::web_sys;
-use web_sys::window;
-
 #[cfg(target_arch = "wasm32")]
 mod app;
 mod streams;
@@ -16,26 +12,12 @@ fn main() {
 
     let web_options = eframe::WebOptions::default();
 
-    let document = web_sys::window()
-        .expect("No window")
-        .document()
-        .expect("No document");
-
-    let canvas = document
-        .get_element_by_id(CANVAS_ID)
-        .expect("Failed to find the_canvas_id")
-        .dyn_into::<web_sys::HtmlCanvasElement>()
-        .expect("the_canvas_id was not a HtmlCanvasElement");
-    canvas.
-        set_height(window().unwrap().inner_width().unwrap().as_f64().unwrap() as _);
-    canvas.set_width(window().unwrap().inner_width().unwrap().as_f64().unwrap() as _);
-
     wasm_bindgen_futures::spawn_local(async {
         eframe::WebRunner::new()
             .start(
-                canvas,
+                CANVAS_ID,
                 web_options,
-                Box::new(|cc| Ok(Box::new(app::App::new(cc)))),
+                Box::new(|cc| Box::new(app::App::new(cc))),
             )
             .await
             .expect("Error: failed to start eframe");

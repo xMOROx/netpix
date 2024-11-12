@@ -3,10 +3,10 @@ use crate::streams::RefStreams;
 use eframe::epaint::Color32;
 use egui::RichText;
 use egui_extras::{Column, TableBody, TableBuilder};
-use rtpeeker_common::mpegts::header::PIDTable;
-use rtpeeker_common::mpegts::FRAGMENT_SIZE;
+use rtpeeker_common::mpegts::header::{AdaptationFieldControl, PIDTable};
 use rtpeeker_common::StreamKey;
 use std::collections::HashMap;
+use std::time::Duration;
 
 #[derive(Clone)]
 pub struct MpegTsPacketsTable {
@@ -101,7 +101,7 @@ impl MpegTsPacketsTable {
             .iter()
             .flat_map(|(_, stream)| {
                 let transport_stream_id = stream.transport_stream_id;
-                stream.mpegts_info.packets.iter().map(move |packet| {
+                stream.mpegts_stream_info.packets.iter().map(move |packet| {
                     let key = (
                         packet.source_addr,
                         packet.destination_addr,
@@ -127,7 +127,7 @@ impl MpegTsPacketsTable {
         streams.mpeg_ts_streams.iter().for_each(|(key, stream)| {
             alias_to_display.insert(*key, stream.alias.to_string());
             transport_stream_id = stream.transport_stream_id;
-            let pat = stream.mpegts_info.pat.clone();
+            let pat = stream.mpegts_stream_info.pat.clone();
             if pat.is_some() {
                 let pat = pat.unwrap();
                 //TODO: add to alias pat.transport_stream_id and program.program_number
@@ -138,7 +138,7 @@ impl MpegTsPacketsTable {
                     pmt_pids.push(program.program_map_pid.unwrap().into());
                 });
 
-                let pmt = stream.mpegts_info.pmt.clone();
+                let pmt = stream.mpegts_stream_info.pmt.clone();
                 pmt_pids.iter().for_each(|pmt_pid| {
                     let single_pmt = pmt.get(pmt_pid);
                     if single_pmt.is_none() {
@@ -155,10 +155,12 @@ impl MpegTsPacketsTable {
             }
         });
 
-        let first_ts = mpegts_packets.first().unwrap().time;
+        let first_ts = mpegts_packets
+            .first()
+            .map(|p| p.time)
+            .unwrap_or(Duration::ZERO);
 
-        body.rows(25.0, mpegts_packets.len(), |mut row| {
-            let row_ix = row.index();
+        body.rows(25.0, mpegts_packets.len(), |row_ix, mut row| {
             let mpegts_packet = mpegts_packets.get(row_ix).unwrap();
 
             let key = (
@@ -172,7 +174,7 @@ impl MpegTsPacketsTable {
                 ui.label(mpegts_packet.id.to_string());
             });
             row.col(|ui| {
-                let timestamp = mpegts_packet.time - first_ts;
+                let timestamp = mpegts_packet.time.saturating_sub(first_ts);
                 ui.label(format!("{:.4}", timestamp.as_secs_f64()));
             });
             row.col(|ui| {
@@ -241,7 +243,20 @@ impl MpegTsPacketsTable {
             });
 
             row.col(|ui| {
-                ui.label((mpegts_packet.content.number_of_fragments * FRAGMENT_SIZE).to_string());
+                let payload_size: usize = mpegts_packet
+                    .content
+                    .fragments
+                    .iter()
+                    .map(|fragment| {
+                        if fragment.header.adaptation_field_control
+                            == AdaptationFieldControl::AdaptationFieldOnly
+                        {
+                            return 0;
+                        }
+                        fragment.clone().payload.unwrap().data.len()
+                    })
+                    .sum();
+                ui.label(payload_size.to_string());
             });
         });
     }

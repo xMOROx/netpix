@@ -4,7 +4,7 @@ use crate::mpegts::psi::pat::fragmentary_pat::FragmentaryProgramAssociationTable
 use crate::mpegts::psi::pat::ProgramAssociationTable;
 use crate::mpegts::psi::psi_buffer::PsiBuffer;
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct PatBuffer {
     last_section_number: u8,
     pat_fragments: Vec<FragmentaryProgramAssociationTable>,

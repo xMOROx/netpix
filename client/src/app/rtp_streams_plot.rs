@@ -5,7 +5,7 @@ use crate::streams::{RefStreams, Streams};
 use eframe::egui;
 use eframe::egui::TextBuffer;
 use eframe::epaint::Color32;
-use egui_plot::{
+use egui::plot::{
     Line, LineStyle, MarkerShape, Plot, PlotBounds, PlotPoint, PlotPoints, PlotUi, Points, Text,
 };
 use egui::Ui;

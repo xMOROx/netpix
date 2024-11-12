@@ -5,9 +5,9 @@ use rtpeeker_common::rtp::payload_type::PayloadType;
 use rtpeeker_common::{Packet, RtcpPacket, RtpPacket, Sdp};
 use std::cmp::{max, min};
 use std::net::SocketAddr;
-use web_time::Duration;
+use std::time::Duration;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct RtcpInfo {
     pub packet: RtcpPacket,
     pub id: usize,
@@ -24,7 +24,7 @@ impl RtcpInfo {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct RtpInfo {
     pub packet: RtpPacket,
     pub id: usize,
@@ -38,7 +38,7 @@ pub struct RtpInfo {
     pub packet_rate: usize, // packets/s
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct RtpStream {
     pub source_addr: SocketAddr,
     pub destination_addr: SocketAddr,
@@ -110,7 +110,7 @@ impl RtpStream {
     }
 
     pub fn get_duration(&self) -> Duration {
-        self.last_time.checked_sub(self.first_time).unwrap()
+        self.last_time.saturating_sub(self.first_time)
     }
 
     pub fn get_expected_count(&self) -> usize {
@@ -199,7 +199,8 @@ impl RtpStream {
     }
 
     fn update_rtp_parameters(&mut self, mut rtp_info: RtpInfo) {
-        rtp_info.time_delta = rtp_info.time - self.rtp_packets.last().unwrap().time;
+        rtp_info.time_delta = rtp_info.time
+            .saturating_sub(self.rtp_packets.last().unwrap().time);
 
         self.estimate_ntp_time(&mut rtp_info);
         self.update_jitter(&mut rtp_info);
@@ -259,7 +260,7 @@ impl RtpStream {
         }
 
         let unit = 1.0 / clock_rate as f64;
-        let arrival_diff = (rtp_info.time - prev_rtp_info.time).as_secs_f64();
+        let arrival_diff = rtp_info.time.saturating_sub(prev_rtp_info.time).as_secs_f64();
         let rtp_timestamp_diff =
             (rtp_info.packet.timestamp as i64 - prev_rtp_info.packet.timestamp as i64) as f64;
         let diff = arrival_diff - rtp_timestamp_diff * unit;
@@ -277,7 +278,7 @@ impl RtpStream {
     }
 
     fn update_rates(&self, rtp_info: &mut RtpInfo) {
-        let cutoff = rtp_info.time.checked_sub(Duration::from_secs(1)).unwrap();
+        let cutoff = rtp_info.time.saturating_sub(Duration::from_secs(1));
 
         let last_second_packets = self.rtp_packets.iter().rev().map_while(|pack| match pack {
             RtpInfo { time, .. } if *time > cutoff => Some(pack.bytes),
