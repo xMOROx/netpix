@@ -1,12 +1,24 @@
 use crate::app::is_stream_visible;
-use crate::streams::{RefStreams, Streams};
+use crate::streams::mpeg_ts_streams::MpegTsPacketInfo;
+use crate::streams::RefStreams;
 use eframe::epaint::Color32;
 use egui::RichText;
+use egui::{ScrollArea, Ui, Vec2};
 use egui_extras::{Column, TableBody, TableBuilder};
 use rtpeeker_common::mpegts::header::{AdaptationFieldControl, PIDTable};
 use rtpeeker_common::StreamKey;
 use std::collections::HashMap;
-use web_time::{Duration, Instant};
+use web_time::Duration;
+
+const ROW_HEIGHT: f32 = 25.0;
+const HEADER_HEIGHT: f32 = 30.0;
+const SPACE_AFTER_FILTER: f32 = 5.0;
+
+const PMT_FORMAT: &str = "Program Map Table";
+const PCR_ES_FORMAT: &str = "PCR+ES";
+const ES_FORMAT: &str = "Elementary Stream";
+const PCR_FORMAT: &str = "PCR Table";
+const PID_FORMAT: &str = "PID";
 
 #[derive(Clone)]
 pub struct MpegTsPacketsTable {
@@ -14,11 +26,19 @@ pub struct MpegTsPacketsTable {
     streams_visibility: HashMap<StreamKey, bool>,
 }
 
+#[derive(Clone)]
+struct PacketInfo<'a> {
+    packet: &'a MpegTsPacketInfo,
+    timestamp: Duration,
+    key: StreamKey,
+}
+
 impl MpegTsPacketsTable {
     pub fn new(streams: RefStreams) -> Self {
+        let capacity = streams.borrow().mpeg_ts_streams.len();
         Self {
             streams,
-            streams_visibility: HashMap::default(),
+            streams_visibility: HashMap::with_capacity(capacity),
         }
     }
 
@@ -30,26 +50,22 @@ impl MpegTsPacketsTable {
     }
 
     fn options_ui(&mut self, ui: &mut egui::Ui) {
-        let mut aliases = Vec::new();
         let streams = &self.streams.borrow().mpeg_ts_streams;
-        let keys: Vec<_> = streams.keys().collect();
+        let mut aliases = Vec::with_capacity(streams.len());
 
-        keys.iter().for_each(|&key| {
-            let alias = streams.get(key).unwrap().alias.to_string();
-            aliases.push((*key, alias));
-        });
+        for (&key, stream) in streams.iter() {
+            aliases.push((key, stream.alias.to_string()));
+        }
         aliases.sort_by(|(_, a), (_, b)| a.cmp(b));
 
         ui.horizontal_wrapped(|ui| {
             ui.label("Filter by: ");
-            aliases.iter().for_each(|(key, alias)| {
+            for (key, alias) in &aliases {
                 let mut selected = is_stream_visible(&mut self.streams_visibility, *key);
                 ui.checkbox(&mut selected, alias);
-            });
+            }
         });
-        ui.vertical(|ui| {
-            ui.add_space(5.0);
-        });
+        ui.add_space(SPACE_AFTER_FILTER);
     }
 
     fn build_table(&mut self, ui: &mut egui::Ui) {
@@ -81,7 +97,7 @@ impl MpegTsPacketsTable {
             .column(Column::remainder().at_most(50.0))
             .columns(Column::remainder().at_least(140.0), 7)
             .column(Column::remainder().at_least(80.0))
-            .header(30.0, |mut header| {
+            .header(HEADER_HEIGHT, |mut header| {
                 header_labels.iter().for_each(|(label, desc)| {
                     header.col(|ui| {
                         ui.heading(label.to_string())
@@ -112,8 +128,13 @@ impl MpegTsPacketsTable {
                     (packet, key)
                 })
             })
-            .filter(|(_, key)| *is_stream_visible(&mut self.streams_visibility, *key))
-            .map(|(packet, _)| packet)
+            .filter_map(|(packet, key)| {
+                if *is_stream_visible(&mut self.streams_visibility, key) {
+                    Some(packet)
+                } else {
+                    None
+                }
+            })
             .collect();
 
         if mpegts_packets.is_empty() {
@@ -129,9 +150,7 @@ impl MpegTsPacketsTable {
         streams.mpeg_ts_streams.iter().for_each(|(key, stream)| {
             alias_to_display.insert(*key, stream.alias.to_string());
             transport_stream_id = stream.transport_stream_id;
-            let pat = stream.mpegts_stream_info.pat.clone();
-            if pat.is_some() {
-                let pat = pat.unwrap();
+            if let Some(pat) = &stream.mpegts_stream_info.pat {
                 //TODO: add to alias pat.transport_stream_id and program.program_number
                 pat.programs.iter().for_each(|program| {
                     if program.program_map_pid.is_none() {
@@ -142,18 +161,12 @@ impl MpegTsPacketsTable {
 
                 let pmt = stream.mpegts_stream_info.pmt.clone();
                 pmt_pids.iter().for_each(|pmt_pid| {
-                    let single_pmt = pmt.get(pmt_pid);
-                    if single_pmt.is_none() {
-                        return;
-                    }
-                    single_pmt
-                        .unwrap()
-                        .elementary_streams_info
-                        .iter()
-                        .for_each(|es| {
+                    if let Some(single_pmt) = pmt.get(pmt_pid) {
+                        single_pmt.elementary_streams_info.iter().for_each(|es| {
                             es_pids.push(es.elementary_pid.into());
                         });
-                    pcr_pids.push(single_pmt.unwrap().fields.pcr_pid.into());
+                        pcr_pids.push(single_pmt.fields.pcr_pid.into());
+                    }
                 });
             }
         });
@@ -163,34 +176,50 @@ impl MpegTsPacketsTable {
             .map(|p| p.time)
             .unwrap_or(Duration::ZERO);
 
-        body.rows(25.0, mpegts_packets.len(), |row_ix, mut row| {
-            let mpegts_packet = mpegts_packets.get(row_ix).unwrap();
-
-            let key = (
-                mpegts_packet.source_addr,
-                mpegts_packet.destination_addr,
-                mpegts_packet.protocol,
-                transport_stream_id,
-            );
+        let packets_with_info: Vec<PacketInfo> = mpegts_packets
+            .iter()
+            .map(|packet| {
+                let timestamp = packet.time.saturating_sub(first_ts);
+                let key = (
+                    packet.source_addr,
+                    packet.destination_addr,
+                    packet.protocol,
+                    transport_stream_id,
+                );
+                PacketInfo {
+                    packet,
+                    timestamp,
+                    key,
+                }
+            })
+            .collect();
+        body.rows(ROW_HEIGHT, mpegts_packets.len(), |row_ix, mut row| {
+            let info = &packets_with_info[row_ix];
 
             row.col(|ui| {
-                ui.label(mpegts_packet.id.to_string());
+                ui.label(info.packet.id.to_string());
             });
             row.col(|ui| {
-                let timestamp = mpegts_packet.time.saturating_sub(first_ts);
+                let timestamp = info.packet.time.saturating_sub(first_ts);
                 ui.label(format!("{:.4}", timestamp.as_secs_f64()));
             });
             row.col(|ui| {
-                ui.label(mpegts_packet.source_addr.to_string());
+                ui.label(info.packet.source_addr.to_string());
             });
             row.col(|ui| {
-                ui.label(mpegts_packet.destination_addr.to_string());
+                ui.label(info.packet.destination_addr.to_string());
             });
             row.col(|ui| {
-                ui.label(alias_to_display.get(&key).unwrap().to_string());
+                ui.label(
+                    alias_to_display
+                        .get(&info.key)
+                        .expect("Alias should exist for stream key")
+                        .to_string(),
+                );
             });
 
-            let mut labels = mpegts_packet
+            let mut labels = info
+                .packet
                 .content
                 .fragments
                 .iter()
@@ -210,11 +239,11 @@ impl MpegTsPacketsTable {
                         let is_pcr = pcr_pids.contains(&PIDTable::PID(pid));
 
                         match (is_pmt, is_es, is_pcr) {
-                            (true, _, _) => format!("Program Map Table ({})", pid),
-                            (_, true, true) => format!("PCR+ES ({})", pid),
-                            (_, true, false) => format!("Elementary Stream ({})", pid),
-                            (_, false, true) => format!("PCR Table ({})", pid),
-                            _ => format!("PID ({})", pid),
+                            (true, _, _) => format!("{} ({})", PMT_FORMAT, pid),
+                            (_, true, true) => format!("{} ({})", PCR_ES_FORMAT, pid),
+                            (_, true, false) => format!("{} ({})", ES_FORMAT, pid),
+                            (_, false, true) => format!("{} ({})", PCR_FORMAT, pid),
+                            _ => format!("{} ({})", PID_FORMAT, pid),
                         }
                     }
                     PIDTable::IPMPControlInformation => String::from("IPMPControlInformation"),
@@ -250,7 +279,8 @@ impl MpegTsPacketsTable {
             });
 
             row.col(|ui| {
-                let payload_size: usize = mpegts_packet
+                let payload_size: usize = info
+                    .packet
                     .content
                     .fragments
                     .iter()
@@ -270,17 +300,12 @@ impl MpegTsPacketsTable {
 }
 
 fn format_text(value: String) -> RichText {
-    if value.contains("Program Association Table") {
-        RichText::from(value).color(Color32::GREEN)
-    } else if value.contains("Program Map Table") {
-        RichText::from(value).color(Color32::LIGHT_BLUE)
-    } else if value.contains("PCR Table") && value.contains("Elementary Stream") {
-        RichText::from(format!("{} (PCR+ES)", value))
-    } else if value.contains("PCR Table") {
-        RichText::from(value)
-    } else if value.contains("Elementary Stream") {
-        RichText::from(value)
-    } else {
-        RichText::from(value)
+    match value {
+        s if s.contains("Program Association Table") => RichText::from(s).color(Color32::GREEN),
+        s if s.contains("Program Map Table") => RichText::from(s).color(Color32::LIGHT_BLUE),
+        s if s.contains("PCR Table") && s.contains("Elementary Stream") => {
+            RichText::from(format!("{} (PCR+ES)", s))
+        }
+        s => RichText::from(s),
     }
 }
