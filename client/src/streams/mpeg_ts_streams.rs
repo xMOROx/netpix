@@ -12,6 +12,7 @@ use std::cmp::{max, min};
 use std::collections::HashMap;
 use std::net::SocketAddr;
 use std::time::Duration;
+use log::warn;
 
 #[derive(Debug, Clone)]
 pub struct MpegTsPacketInfo {
@@ -144,9 +145,7 @@ impl MpegTsStream {
 
                     mpegts_aggregator.add_pat(pat_fragment);
 
-                    if mpegts_aggregator.is_pat_complete() {
-                        pat = mpegts_aggregator.get_pat();
-                    }
+                    pat = mpegts_aggregator.get_pat();
                 }
             });
         }
@@ -245,6 +244,7 @@ impl MpegTsStream {
             let Some(payload) = &fragment.payload else {
                 continue;
             };
+
             let Some(pat_fragment) = FragmentaryProgramAssociationTable::unmarshall(
                 &payload.data,
                 fragment.header.payload_unit_start_indicator,
@@ -252,15 +252,14 @@ impl MpegTsStream {
                 continue;
             };
 
+
             self.mpegts_aggregator
                 .pat_buffer
                 .set_last_section_number(pat_fragment.header.last_section_number);
 
             self.mpegts_aggregator.add_pat(pat_fragment);
 
-            if self.mpegts_aggregator.is_pat_complete() {
-                pat = self.mpegts_aggregator.get_pat();
-            }
+            pat = self.mpegts_aggregator.get_pat();
         }
 
         pat
@@ -306,10 +305,6 @@ impl MpegTsStream {
                 continue;
             };
             let pid: u16 = program_map_pid.into();
-
-            if !self.mpegts_aggregator.is_pmt_complete(pid) {
-                continue;
-            };
 
             if let Some(program_map_table) = self.mpegts_aggregator.get_pmt(pid) {
                 self.mpegts_stream_info

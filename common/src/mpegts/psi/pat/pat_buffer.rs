@@ -40,7 +40,7 @@ impl PsiBuffer<ProgramAssociationTable, FragmentaryProgramAssociationTable> for 
         &self.pat_fragments
     }
 
-    fn build(&self) -> Option<ProgramAssociationTable> {
+    fn build(&mut self) -> Option<ProgramAssociationTable> {
         if !self.is_complete() {
             return None;
         }
@@ -58,10 +58,9 @@ impl PsiBuffer<ProgramAssociationTable, FragmentaryProgramAssociationTable> for 
             &accumulated_payload,
         )
     }
-}
 
-impl PatBuffer {
-    pub fn clear(&mut self) {
+    fn clear(&mut self) {
+        self.last_section_number = 0;
         self.pat_fragments.clear();
     }
 }

@@ -8,7 +8,8 @@ pub trait PsiBuffer<T, U: FragmentaryPsi> {
     fn set_last_section_number(&mut self, last_section_number: u8);
     fn add_fragment(&mut self, fragment: U);
     fn get_fragments(&self) -> &Vec<U>;
-    fn build(&self) -> Option<T>;
+    fn build(&mut self) -> Option<T>;
+    fn clear(&mut self);
 }
 
 pub trait FragmentaryPsi {

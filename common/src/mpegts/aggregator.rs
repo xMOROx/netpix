@@ -1,23 +1,29 @@
-use std::collections::HashMap;
-
-use serde::{Deserialize, Serialize};
-
 use super::psi::pat::fragmentary_pat::FragmentaryProgramAssociationTable;
 use super::psi::pmt::fragmentary_pmt::FragmentaryProgramMapTable;
 use super::psi::psi_buffer::PsiBuffer;
 use super::psi::{pat::pat_buffer::PatBuffer, pmt::pmt_buffer::PmtBuffer};
+use crate::mpegts::psi::pat::ProgramAssociationTable;
+use crate::mpegts::psi::pmt::ProgramMapTable;
+use log::warn;
+use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
+use std::hash::Hash;
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct MpegtsAggregator {
     pub pat_buffer: PatBuffer,
     pub pmt_buffers: HashMap<u16, PmtBuffer>,
+    pat: Option<ProgramAssociationTable>,
+    pmt: HashMap<u16, ProgramMapTable>,
 }
 
 impl MpegtsAggregator {
     pub fn new() -> Self {
         MpegtsAggregator {
             pat_buffer: PatBuffer::new(0),
-            pmt_buffers: HashMap::new(),
+            pmt_buffers: HashMap::default(),
+            pat: None,
+            pmt: HashMap::default(),
         }
     }
 
@@ -42,32 +48,42 @@ impl MpegtsAggregator {
         self.pmt_buffers.insert(pmt_pid, pmt_buffer);
     }
 
-    pub fn get_pat(&self) -> Option<super::psi::pat::ProgramAssociationTable> {
-        self.pat_buffer.build()
+    pub fn get_pat(&mut self) -> Option<ProgramAssociationTable> {
+        let pat = self.pat_buffer.build();
+        if pat.is_some() {
+            self.pat_buffer.clear();
+        }
+
+        self.pat = pat.clone();
+        pat
     }
 
-    pub fn get_pmt(&self, pid: u16) -> Option<super::psi::pmt::ProgramMapTable> {
-        if let Some(pmt_buffer) = self.pmt_buffers.get(&pid) {
-            pmt_buffer.build()
+    pub fn get_pmt(&mut self, pid: u16) -> Option<ProgramMapTable> {
+        if let Some(pmt_buffer) = self.pmt_buffers.get_mut(&pid) {
+            let pmt = pmt_buffer.build();
+            if pmt.is_some() {
+                pmt_buffer.clear();
+                self.pmt.insert(pid, pmt.clone().unwrap());
+            }
+
+            pmt
         } else {
             None
         }
     }
 
     pub fn is_pat_complete(&self) -> bool {
-        self.pat_buffer.is_complete()
+        self.pat.is_some()
     }
 
     pub fn is_pmt_complete(&self, pid: u16) -> bool {
-        if let Some(pmt_buffer) = self.pmt_buffers.get(&pid) {
-            pmt_buffer.is_complete()
-        } else {
-            false
-        }
+        self.pmt.get(&pid).is_some()
     }
 
     pub fn clear(&mut self) {
         self.pat_buffer.clear();
         self.pmt_buffers.clear();
+        self.pat = None;
+        self.pmt.clear();
     }
 }

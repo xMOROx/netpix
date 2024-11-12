@@ -39,7 +39,7 @@ impl PsiBuffer<ProgramMapTable, FragmentaryProgramMapTable> for PmtBuffer {
         &self.pmt_fragments
     }
 
-    fn build(&self) -> Option<ProgramMapTable> {
+    fn build(&mut self) -> Option<ProgramMapTable> {
         if !self.is_complete() {
             return None;
         }
@@ -51,7 +51,13 @@ impl PsiBuffer<ProgramMapTable, FragmentaryProgramMapTable> for PmtBuffer {
             program_info_length: self.pmt_fragments[0].fields.program_info_length,
         };
 
-        ProgramMapTable::build(fields, &cumulated_descriptors_payload, &cumulated_payload)
+        let pmt = ProgramMapTable::build(fields, &cumulated_descriptors_payload, &cumulated_payload);
+        pmt
+    }
+
+    fn clear(&mut self) {
+        self.last_section_number = 0;
+        self.pmt_fragments.clear();
     }
 }
 
