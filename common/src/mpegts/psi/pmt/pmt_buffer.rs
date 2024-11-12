@@ -51,7 +51,8 @@ impl PsiBuffer<ProgramMapTable, FragmentaryProgramMapTable> for PmtBuffer {
             program_info_length: self.pmt_fragments[0].fields.program_info_length,
         };
 
-        let pmt = ProgramMapTable::build(fields, &cumulated_descriptors_payload, &cumulated_payload);
+        let pmt =
+            ProgramMapTable::build(fields, &cumulated_descriptors_payload, &cumulated_payload);
         pmt
     }
 
@@ -67,6 +68,9 @@ impl PmtBuffer {
     }
 
     pub fn is_fragment_inside(&self, fragment: &FragmentaryProgramMapTable) -> bool {
+        if self.pmt_fragments.is_empty() {
+            return false;
+        }
         (self.pmt_fragments.len() as u8) >= fragment.header.section_number
             && self.pmt_fragments[0].fields.program_number == fragment.fields.program_number
     }

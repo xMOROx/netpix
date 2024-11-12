@@ -3,11 +3,10 @@ use crate::streams::{RefStreams, Streams};
 use eframe::epaint::Color32;
 use egui::RichText;
 use egui_extras::{Column, TableBody, TableBuilder};
-use log::warn;
 use rtpeeker_common::mpegts::header::{AdaptationFieldControl, PIDTable};
 use rtpeeker_common::StreamKey;
 use std::collections::HashMap;
-use std::time::{Duration, Instant};
+use web_time::{Duration, Instant};
 
 #[derive(Clone)]
 pub struct MpegTsPacketsTable {
@@ -88,7 +87,7 @@ impl MpegTsPacketsTable {
             if stream.mpegts_stream_info.pmt.is_empty() {
                 continue;
             }
-
+    
             match self.last_pmt_update.get(key) {
                 None => {
                     self.update_es_labels(streams);
@@ -147,7 +146,7 @@ impl MpegTsPacketsTable {
     }
 
     fn build_table_body(&mut self, body: TableBody) {
-        self.refresh_packet_labels(&self.streams.clone().borrow());
+        // self.refresh_packet_labels(&self.streams.clone().borrow());
         let streams = &self.streams.borrow();
 
         let mpegts_packets: Vec<_> = streams
