@@ -12,8 +12,6 @@ use web_time::{Duration, Instant};
 pub struct MpegTsPacketsTable {
     streams: RefStreams,
     streams_visibility: HashMap<StreamKey, bool>,
-    last_pmt_update: HashMap<StreamKey, Instant>,
-    es_pid_labels: HashMap<PIDTable, String>,
 }
 
 impl MpegTsPacketsTable {
@@ -21,8 +19,6 @@ impl MpegTsPacketsTable {
         Self {
             streams,
             streams_visibility: HashMap::default(),
-            last_pmt_update: HashMap::default(),
-            es_pid_labels: HashMap::default(),
         }
     }
 
@@ -54,53 +50,6 @@ impl MpegTsPacketsTable {
         ui.vertical(|ui| {
             ui.add_space(5.0);
         });
-    }
-
-    fn update_es_labels(&mut self, streams: &Streams) {
-        let mut new_labels = HashMap::new();
-
-        for (key, stream) in streams.mpeg_ts_streams.iter() {
-            if let Some(pat) = &stream.mpegts_stream_info.pat {
-                for program in pat.programs.iter() {
-                    if let Some(pmt_pid) = program.program_map_pid {
-                        if let Some(pmt) = stream.mpegts_stream_info.pmt.get(&pmt_pid.into()) {
-                            for es in pmt.elementary_streams_info.iter() {
-                                let pid: PIDTable = es.elementary_pid.into();
-                                let label = format!(
-                                    "Elementary stream: {} ({})",
-                                    es.stream_type.to_string(),
-                                    stream.alias
-                                );
-                                new_labels.insert(pid, label);
-                            }
-                        }
-                    }
-                }
-            }
-        }
-
-        self.es_pid_labels = new_labels;
-    }
-
-    fn refresh_packet_labels(&mut self, streams: &Streams) {
-        for (key, stream) in streams.mpeg_ts_streams.iter() {
-            if stream.mpegts_stream_info.pmt.is_empty() {
-                continue;
-            }
-    
-            match self.last_pmt_update.get(key) {
-                None => {
-                    self.update_es_labels(streams);
-                    self.last_pmt_update.insert(*key, Instant::now());
-                }
-                Some(last_update) => {
-                    if last_update.elapsed() > Duration::from_secs(5) {
-                        self.update_es_labels(streams);
-                        self.last_pmt_update.insert(*key, Instant::now());
-                    }
-                }
-            }
-        }
     }
 
     fn build_table(&mut self, ui: &mut egui::Ui) {
@@ -146,7 +95,6 @@ impl MpegTsPacketsTable {
     }
 
     fn build_table_body(&mut self, body: TableBody) {
-        // self.refresh_packet_labels(&self.streams.clone().borrow());
         let streams = &self.streams.borrow();
 
         let mpegts_packets: Vec<_> = streams
@@ -257,16 +205,16 @@ impl MpegTsPacketsTable {
                     }
                     PIDTable::NullPacket => String::from("NullPacket"),
                     PIDTable::PID(pid) => {
-                        if let Some(label) = self.es_pid_labels.get(&fragment.header.pid) {
-                            label.clone()
-                        } else if pmt_pids.contains(&PIDTable::PID(pid)) {
-                            format!("Program Map Table ({})", pid)
-                        } else if es_pids.contains(&PIDTable::PID(pid)) {
-                            format!("Elementary Stream ({})", pid)
-                        } else if pcr_pids.contains(&PIDTable::PID(pid)) {
-                            format!("PCR Table ({})", pid)
-                        } else {
-                            format!("PID ({})", pid)
+                        let is_pmt = pmt_pids.contains(&PIDTable::PID(pid));
+                        let is_es = es_pids.contains(&PIDTable::PID(pid));
+                        let is_pcr = pcr_pids.contains(&PIDTable::PID(pid));
+
+                        match (is_pmt, is_es, is_pcr) {
+                            (true, _, _) => format!("Program Map Table ({})", pid),
+                            (_, true, true) => format!("PCR+ES ({})", pid),
+                            (_, true, false) => format!("Elementary Stream ({})", pid),
+                            (_, false, true) => format!("PCR Table ({})", pid),
+                            _ => format!("PID ({})", pid),
                         }
                     }
                     PIDTable::IPMPControlInformation => String::from("IPMPControlInformation"),
@@ -326,6 +274,12 @@ fn format_text(value: String) -> RichText {
         RichText::from(value).color(Color32::GREEN)
     } else if value.contains("Program Map Table") {
         RichText::from(value).color(Color32::LIGHT_BLUE)
+    } else if value.contains("PCR Table") && value.contains("Elementary Stream") {
+        RichText::from(format!("{} (PCR+ES)", value))
+    } else if value.contains("PCR Table") {
+        RichText::from(value)
+    } else if value.contains("Elementary Stream") {
+        RichText::from(value)
     } else {
         RichText::from(value)
     }
