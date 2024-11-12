@@ -90,13 +90,14 @@ impl MpegtsPacket {
             return None;
         };
         start_index += HEADER_SIZE;
+
         let adaptation_field = match header.adaptation_field_control {
             AdaptationFieldControl::AdaptationFieldOnly
             | AdaptationFieldControl::AdaptationFieldAndPaylod => {
                 let Some(adaptation_field) = Self::get_adaptation_field(buffer, start_index) else {
                     return None;
                 };
-                start_index += adaptation_field.adaptation_field_length as usize;
+                start_index += adaptation_field.adaptation_field_length as usize + 1;
                 Some(adaptation_field)
             }
             _ => None,
@@ -112,6 +113,7 @@ impl MpegtsPacket {
             }
             _ => None,
         };
+
         Some(MpegtsFragment {
             header,
             adaptation_field,
@@ -150,10 +152,7 @@ impl MpegtsPacket {
     }
 
     fn get_adaptation_field(buffer: &Vec<u8>, start_index: usize) -> Option<AdaptationField> {
-        let adaptation_field_length = buffer[start_index];
-        Some(AdaptationField {
-            adaptation_field_length,
-        })
+        AdaptationField::unmarshall(&buffer[start_index..])
     }
 
     fn get_payload(
@@ -213,7 +212,6 @@ mod tests {
             "Incorrect number of fragments in vec"
         );
 
-        // Test the first fragment
         let first_fragment = &packet.fragments[0];
         assert_eq!(first_fragment.header.pid, PIDTable::ProgramAssociation);
         assert!(first_fragment.header.payload_unit_start_indicator);

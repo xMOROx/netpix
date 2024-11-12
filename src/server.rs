@@ -332,7 +332,7 @@ async fn handle_messages(
                                 cur_source,
                                 packet_type,
                             )
-                                .await;
+                            .await;
                         } else {
                             error!("Received reparse request from client without selected source, client_id: {}", client_id);
                         }
