@@ -12,8 +12,9 @@ use std::collections::HashMap;
 use std::net::SocketAddr;
 use std::rc::Rc;
 
-pub mod mpeg_ts_streams;
 mod packets;
+pub mod mpeg_ts_streams;
+#[allow(non_snake_case)]
 pub mod rtpStream;
 
 pub type RefStreams = Rc<RefCell<Streams>>;
