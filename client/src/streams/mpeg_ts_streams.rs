@@ -12,7 +12,6 @@ use std::cmp::{max, min};
 use std::collections::HashMap;
 use std::net::SocketAddr;
 use std::time::Duration;
-use log::warn;
 
 #[derive(Debug, Clone)]
 pub struct MpegTsPacketInfo {
@@ -169,7 +168,7 @@ impl MpegTsStream {
         self.mpegts_stream_info.stream_bytes as f64 * 8.0 / duration
     }
 
-    pub fn get_mean_rtp_bitrate(&self) -> f64 {
+    pub fn get_mean_mpegts_bitrate(&self) -> f64 {
         let duration = self.get_duration().as_secs_f64();
         self.mpegts_stream_info.bytes as f64 * 8.0 / duration
     }
@@ -251,7 +250,6 @@ impl MpegTsStream {
             ) else {
                 continue;
             };
-
 
             self.mpegts_aggregator
                 .pat_buffer

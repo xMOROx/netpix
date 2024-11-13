@@ -1,11 +1,11 @@
 use crate::app::is_stream_visible;
 use crate::streams::mpeg_ts_streams::MpegTsPacketInfo;
 use crate::streams::RefStreams;
-use eframe::epaint::Color32;
-use egui::RichText;
-use egui::{ScrollArea, Ui, Vec2};
+use egui::{Color32, RichText};
 use egui_extras::{Column, TableBody, TableBuilder};
 use rtpeeker_common::mpegts::header::{AdaptationFieldControl, PIDTable};
+use rtpeeker_common::mpegts::psi::PsiTypes::PMT;
+use rtpeeker_common::mpegts::MpegtsFragment;
 use rtpeeker_common::StreamKey;
 use std::collections::HashMap;
 use web_time::Duration;
@@ -14,10 +14,11 @@ const ROW_HEIGHT: f32 = 25.0;
 const HEADER_HEIGHT: f32 = 30.0;
 const SPACE_AFTER_FILTER: f32 = 5.0;
 
-const PMT_FORMAT: &str = "Program Map Table";
+const PAT_FORMAT: &str = "PAT";
+const PMT_FORMAT: &str = "PMT";
 const PCR_ES_FORMAT: &str = "PCR+ES";
-const ES_FORMAT: &str = "Elementary Stream";
-const PCR_FORMAT: &str = "PCR Table";
+const ES_FORMAT: &str = "ES";
+const PCR_FORMAT: &str = "PCR";
 const PID_FORMAT: &str = "PID";
 
 #[derive(Clone)]
@@ -74,10 +75,10 @@ impl MpegTsPacketsTable {
             ("Time", "Packet arrival timestamp"),
             ("Source", "Source IP address and port"),
             ("Destination", "Destination IP address and port"),
-            (
-                "Alias",
-                "Locally Assigned alias to make differentiating streams more convenient",
-            ),
+            // (
+            //     "Alias",
+            //     "Locally Assigned alias to make differentiating streams more convenient",
+            // ),
             ("P1", "Packet No. 1"),
             ("P2", "Packet No. 2"),
             ("P3", "Packet No. 3"),
@@ -85,7 +86,10 @@ impl MpegTsPacketsTable {
             ("P5", "Packet No. 5"),
             ("P6", "Packet No. 6"),
             ("P7", "Packet No. 7"),
-            ("Payload Length", "Mpegts payload length"),
+            (
+                "Payload Length",
+                "Mpegts payload length without header and adaptation data",
+            ),
         ];
         TableBuilder::new(ui)
             .striped(true)
@@ -94,8 +98,7 @@ impl MpegTsPacketsTable {
             .column(Column::remainder().at_least(40.0))
             .column(Column::remainder().at_least(80.0))
             .columns(Column::remainder().at_least(100.0), 2)
-            .column(Column::remainder().at_most(50.0))
-            .columns(Column::remainder().at_least(140.0), 7)
+            .columns(Column::remainder().at_least(160.0), 7)
             .column(Column::remainder().at_least(80.0))
             .header(HEADER_HEIGHT, |mut header| {
                 header_labels.iter().for_each(|(label, desc)| {
@@ -117,13 +120,12 @@ impl MpegTsPacketsTable {
             .mpeg_ts_streams
             .iter()
             .flat_map(|(_, stream)| {
-                let transport_stream_id = stream.transport_stream_id;
                 stream.mpegts_stream_info.packets.iter().map(move |packet| {
                     let key = (
                         packet.source_addr,
                         packet.destination_addr,
                         packet.protocol,
-                        transport_stream_id,
+                        0,
                     );
                     (packet, key)
                 })
@@ -144,14 +146,11 @@ impl MpegTsPacketsTable {
         let mut pmt_pids: Vec<PIDTable> = vec![];
         let mut es_pids: Vec<PIDTable> = vec![];
         let mut pcr_pids: Vec<PIDTable> = vec![];
-        let mut transport_stream_id: u32 = 0;
 
         let mut alias_to_display: HashMap<StreamKey, String> = HashMap::default();
         streams.mpeg_ts_streams.iter().for_each(|(key, stream)| {
             alias_to_display.insert(*key, stream.alias.to_string());
-            transport_stream_id = stream.transport_stream_id;
             if let Some(pat) = &stream.mpegts_stream_info.pat {
-                //TODO: add to alias pat.transport_stream_id and program.program_number
                 pat.programs.iter().for_each(|program| {
                     if program.program_map_pid.is_none() {
                         return;
@@ -184,7 +183,7 @@ impl MpegTsPacketsTable {
                     packet.source_addr,
                     packet.destination_addr,
                     packet.protocol,
-                    transport_stream_id,
+                    0,
                 );
                 PacketInfo {
                     packet,
@@ -209,14 +208,14 @@ impl MpegTsPacketsTable {
             row.col(|ui| {
                 ui.label(info.packet.destination_addr.to_string());
             });
-            row.col(|ui| {
-                ui.label(
-                    alias_to_display
-                        .get(&info.key)
-                        .expect("Alias should exist for stream key")
-                        .to_string(),
-                );
-            });
+            // row.col(|ui| {
+            //     ui.label(
+            //         alias_to_display
+            //             .get(&info.key)
+            //             .expect("Alias should exist for stream key")
+            //             .to_string(),
+            //     );
+            // });
 
             let mut labels = info
                 .packet
@@ -224,14 +223,10 @@ impl MpegTsPacketsTable {
                 .fragments
                 .iter()
                 .map(|fragment| match fragment.header.pid {
-                    PIDTable::ProgramAssociation => String::from("Program Association Table"),
-                    PIDTable::ConditionalAccess => String::from("ConditionalAccess"),
-                    PIDTable::TransportStreamDescription => {
-                        String::from("TransportStreamDescription")
-                    }
-                    PIDTable::AdaptiveStreamingInformation => {
-                        String::from("AdaptiveStreamingInformation")
-                    }
+                    PIDTable::ProgramAssociation => String::from(PAT_FORMAT),
+                    PIDTable::ConditionalAccess => String::from("CA"),
+                    PIDTable::TransportStreamDescription => String::from("TSD"),
+                    PIDTable::AdaptiveStreamingInformation => String::from("ASI"),
                     PIDTable::NullPacket => String::from("NullPacket"),
                     PIDTable::PID(pid) => {
                         let is_pmt = pmt_pids.contains(&PIDTable::PID(pid));
@@ -250,62 +245,112 @@ impl MpegTsPacketsTable {
                 })
                 .into_iter();
 
+            let fragments: Vec<_> = info.packet.content.fragments.iter().collect();
+
+            let payload_size: usize = fragments
+                .iter()
+                .map(|fragment| {
+                    if fragment.header.adaptation_field_control
+                        == AdaptationFieldControl::AdaptationFieldOnly
+                    {
+                        return 0;
+                    }
+                    fragment
+                        .payload
+                        .as_ref()
+                        .map_or_else(|| 0, |payload| payload.data.len())
+                })
+                .sum();
+            let mut fragments_iter = fragments.iter();
+
             row.col(|ui| {
-                ui.label(format_text(labels.next().unwrap_or_default()));
+                ui.label(format_text(
+                    labels.next().unwrap_or_default(),
+                    fragments_iter.next().copied(),
+                ));
             });
 
             row.col(|ui| {
-                ui.label(format_text(labels.next().unwrap_or_default()));
+                ui.label(format_text(
+                    labels.next().unwrap_or_default(),
+                    fragments_iter.next().copied(),
+                ));
             });
 
             row.col(|ui| {
-                ui.label(format_text(labels.next().unwrap_or_default()));
+                ui.label(format_text(
+                    labels.next().unwrap_or_default(),
+                    fragments_iter.next().copied(),
+                ));
             });
 
             row.col(|ui| {
-                ui.label(format_text(labels.next().unwrap_or_default()));
+                ui.label(format_text(
+                    labels.next().unwrap_or_default(),
+                    fragments_iter.next().copied(),
+                ));
             });
 
             row.col(|ui| {
-                ui.label(format_text(labels.next().unwrap_or_default()));
+                ui.label(format_text(
+                    labels.next().unwrap_or_default(),
+                    fragments_iter.next().copied(),
+                ));
             });
 
             row.col(|ui| {
-                ui.label(format_text(labels.next().unwrap_or_default()));
+                ui.label(format_text(
+                    labels.next().unwrap_or_default(),
+                    fragments_iter.next().copied(),
+                ));
             });
 
             row.col(|ui| {
-                ui.label(format_text(labels.next().unwrap_or_default()));
+                ui.label(format_text(
+                    labels.next().unwrap_or_default(),
+                    fragments_iter.next().copied(),
+                ));
             });
 
             row.col(|ui| {
-                let payload_size: usize = info
-                    .packet
-                    .content
-                    .fragments
-                    .iter()
-                    .map(|fragment| {
-                        if fragment.header.adaptation_field_control
-                            == AdaptationFieldControl::AdaptationFieldOnly
-                        {
-                            return 0;
-                        }
-                        fragment.clone().payload.unwrap().data.len()
-                    })
-                    .sum();
                 ui.label(payload_size.to_string());
             });
         });
     }
 }
 
-fn format_text(value: String) -> RichText {
+fn format_text(value: String, fragment: Option<&MpegtsFragment>) -> RichText {
     match value {
-        s if s.contains("Program Association Table") => RichText::from(s).color(Color32::GREEN),
-        s if s.contains("Program Map Table") => RichText::from(s).color(Color32::LIGHT_BLUE),
-        s if s.contains("PCR Table") && s.contains("Elementary Stream") => {
-            RichText::from(format!("{} (PCR+ES)", s))
+        s if s.contains(PAT_FORMAT) => RichText::from(s).color(Color32::GREEN),
+        s if s.contains(PMT_FORMAT) => RichText::from(s).color(Color32::LIGHT_BLUE),
+        s if s.contains(PCR_FORMAT) && s.contains(ES_FORMAT) => {
+            if let Some(fragment) = fragment {
+                RichText::from(format!(
+                    "{}{}",
+                    s,
+                    get_star_according_payload_size(fragment)
+                ))
+            } else {
+                RichText::from(format!("{}", s))
+            }
         }
         s => RichText::from(s),
     }
+}
+
+fn get_star_according_payload_size(fragment: &MpegtsFragment) -> &str {
+    match get_fragment_payload_size(fragment) {
+        1..=183 => "*",
+        _ => "",
+    }
+}
+
+fn get_fragment_payload_size(fragment: &MpegtsFragment) -> usize {
+    if fragment.header.adaptation_field_control == AdaptationFieldControl::AdaptationFieldOnly {
+        return 0;
+    }
+    fragment
+        .payload
+        .as_ref()
+        .map_or(0, |payload| payload.data.len())
 }
