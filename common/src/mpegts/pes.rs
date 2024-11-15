@@ -89,7 +89,10 @@ impl PacketizedElementaryStream {
 
     fn number_of_stuffing_bytes(data: &[u8]) -> usize {
         let mut stuffing_bytes = 0;
-        for byte in data.iter() {
+        for (i, byte) in data.iter().enumerate() {
+            if i >= MAXIMUM_NO_OF_STUFFING_BYTES {
+                break;
+            }
             if *byte == STUFFING_BYTE {
                 stuffing_bytes += 1;
             } else {
