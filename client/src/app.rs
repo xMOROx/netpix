@@ -85,8 +85,6 @@ impl eframe::App for App {
             Tab::MpegTsPlot => self.mpegts_plot.ui(ctx),
         };
     }
-    
-    
 }
 
 impl App {
@@ -174,6 +172,7 @@ impl App {
                         self.streams.borrow_mut().clear();
                     }
 
+                    //TODO: implement more optimal way to do that - with lots of packages it is too much for wasm to handle this
                     let button = side_button("↻");
                     let resp = ui
                         .add(button)
