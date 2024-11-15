@@ -6,6 +6,7 @@ use super::trick_mode_control::TrickModeControl;
 
 #[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq)]
 pub struct OptionalFields {
+    pub size: u8,
     pub pts: Option<u64>,
     pub dts: Option<u64>,
     pub escr_base: Option<u64>,
@@ -14,11 +15,16 @@ pub struct OptionalFields {
     pub trick_mode_control: Option<TrickModeControl>,
     pub additional_copy_info: Option<u8>,
     pub previous_pes_packet_crc: Option<u16>,
-    pub pes_private_data_flag: Option<bool>,
-    pub pack_header_field_flag: Option<bool>,
-    pub program_packet_sequence_counter_flag: Option<bool>,
-    pub p_std_buffer_flag: Option<bool>,
-    pub pes_extension_flag_2: Option<bool>,
+    pub pes_extension_data: Option<PesExtensionData>,
+}
+#[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq)]
+pub struct PesExtensionData {
+    pub size: u8,
+    pub pes_private_data_flag: bool,
+    pub pack_header_field_flag: bool,
+    pub program_packet_sequence_counter_flag: bool,
+    pub p_std_buffer_flag: bool,
+    pub pes_extension_flag_2: bool,
     pub pes_private_data: Option<u128>,
     pub pack_field_length: Option<u8>,
     // The pack_header() field of a program stream, or an ISO/IEC 11172-1 system stream, is carried in the transport stream in the header of the immediately following PES packet.
@@ -33,6 +39,7 @@ pub struct OptionalFields {
     pub tref_extension_flag: Option<bool>,
     pub tref: Option<u64>,
 }
+
 #[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq)]
 pub struct ContextFlags {
     pub pts_dts_flags: u8,
@@ -143,23 +150,7 @@ impl OptionalFields {
         let mut trick_mode_control = None;
         let mut additional_copy_info = None;
         let mut previous_pes_packet_crc = None;
-        let mut pes_private_data_flag = None;
-        let mut pack_header_field_flag = None;
-        let mut program_packet_sequence_counter_flag = None;
-        let mut p_std_buffer_flag = None;
-        let mut pes_extension_flag_2 = None;
-        let mut pes_private_data = None;
-        let mut pack_field_length = None;
-        let mut program_packet_sequence_counter = None;
-        let mut mpeg1_mpeg2_identifier = None;
-        let mut original_stuff_length = None;
-        let mut p_std_buffer_scale = None;
-        let mut p_std_buffer_size = None;
-        let mut pes_extension_field_length = None;
-        let mut stream_id_extension_flag = None;
-        let mut stream_id_extension = None;
-        let mut tref_extension_flag = None;
-        let mut tref = None;
+        let mut pes_extension_data = None;
 
         match PtsDtsFlags::from(pts_dts_flags) {
             PtsDtsFlags::Forbidden => { /*//todo: signal error*/ }
@@ -241,78 +232,12 @@ impl OptionalFields {
             index += 2;
         }
         if pes_extension_flag {
-            pes_private_data_flag = Some((data[index] & 0b10000000 >> 7) == 1);
-            pack_header_field_flag = Some((data[index] & 0b01000000 >> 6) == 1);
-            program_packet_sequence_counter_flag = Some((data[index] & 0b00100000 >> 5) == 1);
-            p_std_buffer_flag = Some((data[index] & 0b00010000 >> 4) == 1);
-            pes_extension_flag_2 = Some(data[index] & 0b00000001 == 1);
-            index += 1;
-            if pes_private_data_flag.unwrap() {
-                pes_private_data = Some(u128::from_be_bytes([
-                    data[index],
-                    data[index + 1],
-                    data[index + 2],
-                    data[index + 3],
-                    data[index + 4],
-                    data[index + 5],
-                    data[index + 6],
-                    data[index + 7],
-                    data[index + 8],
-                    data[index + 9],
-                    data[index + 10],
-                    data[index + 11],
-                    data[index + 12],
-                    data[index + 13],
-                    data[index + 14],
-                    data[index + 15],
-                ]));
-                index += 16;
-            }
-            if pack_header_field_flag.unwrap() {
-                pack_field_length = Some(data[index]);
-                index += 1;
-            }
-            if program_packet_sequence_counter_flag.unwrap() {
-                program_packet_sequence_counter = Some(data[index] & 0b01111111);
-                index += 1;
-                mpeg1_mpeg2_identifier = Some((data[index] & 0b01000000) >> 6);
-                original_stuff_length = Some(data[index] & 0b00111111);
-                index += 1;
-            }
-            if p_std_buffer_flag.unwrap() {
-                if data[index] & 0b11000000 != 0b01000000 {
-                    // packet invalid
-                }
-                p_std_buffer_scale = Some((data[index] & 0b00100000) >> 5);
-                p_std_buffer_size =
-                    Some((((data[index] & 0b00011111) as u16) << 8) | data[index + 1] as u16);
-                index += 2;
-            }
-            if pes_extension_flag_2.unwrap() {
-                pes_extension_field_length = Some(data[index] & 0b01111111);
-                index += 1;
-                stream_id_extension_flag = Some((data[index] & 0b10000000) >> 7 == 1);
-                if stream_id_extension_flag.unwrap() == false {
-                    stream_id_extension = Some(data[index] & 0b01111111);
-                    index += 1;
-                } else {
-                    tref_extension_flag = Some(data[index] & 0b00000001 == 1);
-                    index += 1;
-                    if tref_extension_flag.unwrap() == false {
-                        tref = Some(
-                            (((data[index] & 0b00001110) as u64) << 28)
-                                | ((data[index + 1] as u64) << 22)
-                                | (((data[index + 2] & 0b11111110) as u64) << 14)
-                                | ((data[index + 3] as u64) << 7)
-                                | (((data[index + 4] & 0b11111110) >> 1) as u64),
-                        );
-                        index += 5;
-                    }
-                }
-            }
+            pes_extension_data = PesExtensionData::build(&data[index..]);
+            index += pes_extension_data.as_ref().map_or(0, |data| data.size) as usize;
         }
 
         Some(Self {
+            size: index as u8,
             pts,
             dts,
             escr_base,
@@ -321,7 +246,191 @@ impl OptionalFields {
             trick_mode_control,
             additional_copy_info,
             previous_pes_packet_crc,
-            pes_private_data_flag,
+            pes_extension_data,
+        })
+    }
+
+    fn unmarshall_pts_dts(data: &[u8]) -> Result<u64, ()> {
+        //todo: add better error handling
+        let marker_bit_mask = 0x01;
+        if data.len() < 5 {
+            return Err(());
+        }
+
+        if is_invalid_marker_bit(data[0], marker_bit_mask)
+            | is_invalid_marker_bit(data[2], marker_bit_mask)
+            | is_invalid_marker_bit(data[4], marker_bit_mask)
+        {
+            return Err(());
+        }
+
+        let ts_1 = ((data[0] & 0b00001110) as u64) << 29;
+        let ts_2 = (data[1] as u64) << 22;
+        let ts_3 = ((data[2] & 0b11111110) as u64) << 14;
+        let ts_4 = (data[3] as u64) << 7;
+        let ts_5 = ((data[4] & 0b11111110) as u64) >> 1;
+
+        Ok(ts_1 | ts_2 | ts_3 | ts_4 | ts_5)
+    }
+
+    fn unmarshall_escr(data: &[u8]) -> Result<(u64, u16), ()> {
+        if data.len() < 6 {
+            return Err(());
+        }
+
+        let base_1 = ((data[0] & 0b00111000) as u64) << 27;
+        if is_invalid_marker_bit(data[0], 0b00000100)
+            | is_invalid_marker_bit(data[2], 0b00000100)
+            | is_invalid_marker_bit(data[4], 0b00000100)
+            | is_invalid_marker_bit(data[5], 0b00000001)
+        {
+            return Err(());
+        }
+        let base_2 = ((data[0] & 0b00000011) as u64) << 28;
+        let base_3 = (data[1] as u64) << 20;
+        let base_4 = ((data[2] & 0b11111000) as u64) << 12;
+        let base_5 = ((data[2] & 0b00000011) as u64) << 13;
+        let base_6 = (data[3] as u64) << 5;
+        let base_7 = ((data[4] & 0b11111000) >> 3) as u64;
+        let extension_1 = ((data[4] & 0b00000011) as u16) << 7;
+        let extension_2 = ((data[5]) as u16) >> 1;
+
+        Ok((
+            base_1 | base_2 | base_3 | base_4 | base_5 | base_6 | base_7,
+            extension_1 | extension_2,
+        ))
+    }
+
+    fn unmarshall_es_rate(data: &[u8]) -> Result<u32, ()> {
+        if data.len() < 3 {
+            return Err(());
+        }
+
+        if is_invalid_marker_bit(data[0], 0b10000000) || is_invalid_marker_bit(data[2], 0b00000001)
+        {
+            return Err(());
+        }
+
+        Ok((((data[0] as u32) & 0b01111111) << 15)
+            | (data[1] as u32) << 7
+            | ((data[2] as u32) >> 1))
+    }
+}
+
+impl PesExtensionData {
+    pub fn build(data: &[u8]) -> Option<Self> {
+        Self::unmarshall(data)
+    }
+
+    fn unmarshall(data: &[u8]) -> Option<Self> {
+        let mut index = 0;
+
+        let pes_private_data_flag = (data[index] & 0b10000000 >> 7) == 1;
+        let pack_header_field_flag = (data[index] & 0b01000000 >> 6) == 1;
+        let program_packet_sequence_counter_flag = (data[index] & 0b00100000 >> 5) == 1;
+        let p_std_buffer_flag = (data[index] & 0b00010000 >> 4) == 1;
+        let pes_extension_flag_2 = data[index] & 0b00000001 == 1;
+
+        let mut pes_private_data = None;
+        let mut pack_field_length = None;
+        let mut program_packet_sequence_counter = None;
+        let mut mpeg1_mpeg2_identifier = None;
+        let mut original_stuff_length = None;
+        let mut p_std_buffer_scale = None;
+        let mut p_std_buffer_size = None;
+        let mut pes_extension_field_length = None;
+        let mut stream_id_extension_flag = None;
+        let mut stream_id_extension = None;
+        let mut tref_extension_flag = None;
+        let mut tref = None;
+
+        index += 1;
+        if pes_private_data_flag {
+            pes_private_data = Some(u128::from_be_bytes([
+                data[index],
+                data[index + 1],
+                data[index + 2],
+                data[index + 3],
+                data[index + 4],
+                data[index + 5],
+                data[index + 6],
+                data[index + 7],
+                data[index + 8],
+                data[index + 9],
+                data[index + 10],
+                data[index + 11],
+                data[index + 12],
+                data[index + 13],
+                data[index + 14],
+                data[index + 15],
+            ]));
+            index += 16;
+        }
+        if pack_header_field_flag {
+            pack_field_length = Some(data[index]);
+            index += data[index] as usize;
+        }
+        if program_packet_sequence_counter_flag {
+            if is_invalid_marker_bit(data[index], 0b10000000) {
+                return None;
+            }
+
+            program_packet_sequence_counter = Some(data[index] & 0b01111111);
+            index += 1;
+
+            if is_invalid_marker_bit(data[index], 0b10000000) {
+                return None;
+            }
+
+            mpeg1_mpeg2_identifier = Some((data[index] & 0b01000000) >> 6);
+            original_stuff_length = Some(data[index] & 0b00111111);
+            index += 1;
+        }
+        if p_std_buffer_flag {
+            if ((data[index] & P_STD_BUFFER_REQUIRED_BITS_MASK) >> 6)
+                != P_STD_BUFFER_REQUIRED_BITS_VALUE
+            {
+                return None;
+            }
+            p_std_buffer_scale = Some((data[index] & 0b00100000) >> 5);
+            p_std_buffer_size =
+                Some((((data[index] & 0b00011111) as u16) << 8) | data[index + 1] as u16);
+            index += 2;
+        }
+        if pes_extension_flag_2 {
+            if is_invalid_marker_bit(data[index], 0b10000000) {
+                return None;
+            }
+
+            let mut bytes_after_pes_extension_field_length = 1;
+
+            pes_extension_field_length = Some(data[index] & 0b01111111);
+            index += 1;
+            stream_id_extension_flag = Some((data[index] & 0b10000000) >> 7 == 1);
+            if !stream_id_extension_flag.unwrap() {
+                stream_id_extension = Some(data[index] & 0b01111111);
+                index += 1;
+            } else {
+                tref_extension_flag = Some((data[index] & 0b00000001) == 1);
+                index += 1;
+                if !tref_extension_flag.unwrap() {
+                    if let Ok(tref_value) = Self::unmarshall_tref(&data[index..]) {
+                        tref = Some(tref_value);
+                    } else {
+                        return None;
+                    }
+                    index += 5;
+                    bytes_after_pes_extension_field_length += 5;
+                }
+            }
+
+            index += pes_extension_field_length.unwrap() as usize
+                - bytes_after_pes_extension_field_length;
+        }
+
+        Some(Self {
+            size: index as u8,
+            pes_private_data_flag: pes_private_data_flag,
             pack_header_field_flag,
             program_packet_sequence_counter_flag,
             p_std_buffer_flag,
@@ -341,77 +450,25 @@ impl OptionalFields {
         })
     }
 
-    fn unmarshall_pts_dts(data: &[u8]) -> Result<u64, ()> {
-        //todo: add better error handling
-        let marker_bit_mask = 0x01;
+    fn unmarshall_tref(data: &[u8]) -> Result<u64, ()> {
         if data.len() < 5 {
             return Err(());
         }
-        let ts_1 = ((data[0] & 0b00001110) as u64) << 29;
-        if is_invalid_marker_bit(data[0], marker_bit_mask) {
-            return Err(());
-        }
-        let ts_2 = (data[1] as u64) << 22;
-        let ts_3 = ((data[2] & 0b11111110) as u64) << 14;
-        if is_invalid_marker_bit(data[2], marker_bit_mask) {
-            return Err(());
-        }
-        let ts_4 = (data[3] as u64) << 7;
-        let ts_5 = ((data[4] & 0b11111110) as u64) >> 1;
-        if is_invalid_marker_bit(data[4], marker_bit_mask) {
-            return Err(());
-        }
 
-        Ok(ts_1 | ts_2 | ts_3 | ts_4 | ts_5)
-    }
-
-    fn unmarshall_escr(data: &[u8]) -> Result<(u64, u16), ()> {
-        if data.len() < 6 {
-            return Err(());
-        }
-
-        let base_1 = ((data[0] & 0b00111000) as u64) << 27;
-        if is_invalid_marker_bit(data[0], 0b00000100) {
-            return Err(());
-        }
-        let base_2 = ((data[0] & 0b00000011) as u64) << 28;
-        let base_3 = (data[1] as u64) << 20;
-        let base_4 = ((data[2] & 0b11111000) as u64) << 12;
-        if is_invalid_marker_bit(data[2], 0b00000100) {
-            return Err(());
-        }
-        let base_5 = ((data[2] & 0b00000011) as u64) << 13;
-        let base_6 = (data[3] as u64) << 5;
-        let base_7 = ((data[4] & 0b11111000) >> 3) as u64;
-
-        let base = base_1 | base_2 | base_3 | base_4 | base_5 | base_6 | base_7;
-        if is_invalid_marker_bit(data[4], 0b00000100) {
-            return Err(());
-        }
-        let extension_1 = ((data[4] & 0b00000011) as u16) << 7;
-        let extension_2 = ((data[5]) as u16) >> 1;
-
-        let extension = extension_1 | extension_2;
-        if is_invalid_marker_bit(data[5], 0b00000001) {
-            return Err(());
-        }
-
-        Ok((base, extension))
-    }
-
-    fn unmarshall_es_rate(data: &[u8]) -> Result<u32, ()> {
-        if data.len() < 3 {
-            return Err(());
-        }
-
-        if is_invalid_marker_bit(data[0], 0b10000000) || is_invalid_marker_bit(data[2], 0b00000001)
+        if is_invalid_marker_bit(data[0], 0b00000001)
+            | is_invalid_marker_bit(data[2], 0b00000001)
+            | is_invalid_marker_bit(data[4], 0b00000001)
         {
             return Err(());
         }
 
-        Ok((((data[0] as u32) & 0b01111111) << 15)
-            | (data[1] as u32) << 7
-            | ((data[2] as u32) >> 1))
+        let tref_1 = ((data[0] & 0b00001110) as u64) << 29;
+        let tref_2 = (data[1] as u64) << 22;
+        let tref_3 = ((data[2] & 0b11111110) as u64) << 14;
+        let tref_4 = (data[3] as u64) << 7;
+        let tref_5 = ((data[4] & 0b11111110) as u64) >> 1;
+
+        Ok(tref_1 | tref_2 | tref_3 | tref_4 | tref_5)
     }
 }
 
@@ -531,6 +588,46 @@ mod tests {
     fn test_optional_fields_unmarshall_es_rate_invalid_second_marker_bit() {
         let data = [0b11111111, 0b11111111, 0b11111110];
         let result = OptionalFields::unmarshall_es_rate(&data);
+        assert_eq!(result, Err(()));
+    }
+}
+
+#[cfg(test)]
+mod pes_extension_data_tests {
+    use super::*;
+
+    #[test]
+    fn test_unmarshall_tref() {
+        let data = [0b11111111, 0b11111111, 0b11111111, 0b11111111, 0b11111111];
+        let result = PesExtensionData::unmarshall_tref(&data);
+        assert_eq!(result, Ok(8_589_934_591));
+    }
+
+    #[test]
+    fn test_unmarshall_tref_invalid() {
+        let data = [0b11111111, 0b11111111, 0b11111111, 0b11111111];
+        let result = PesExtensionData::unmarshall_tref(&data);
+        assert_eq!(result, Err(()));
+    }
+
+    #[test]
+    fn test_unmarshall_tref_invalid_first_marker_bit() {
+        let data = [0b11111110, 0b11111111, 0b11111111, 0b11111111, 0b11111111];
+        let result = PesExtensionData::unmarshall_tref(&data);
+        assert_eq!(result, Err(()));
+    }
+
+    #[test]
+    fn test_unmarshall_tref_invalid_second_marker_bit() {
+        let data = [0b11111111, 0b11111111, 0b11111110, 0b11111111, 0b11111111];
+        let result = PesExtensionData::unmarshall_tref(&data);
+        assert_eq!(result, Err(()));
+    }
+
+    #[test]
+    fn test_unmarshall_tref_invalid_third_marker_bit() {
+        let data = [0b11111111, 0b11111111, 0b11111111, 0b11111111, 0b11111110];
+        let result = PesExtensionData::unmarshall_tref(&data);
         assert_eq!(result, Err(()));
     }
 }
