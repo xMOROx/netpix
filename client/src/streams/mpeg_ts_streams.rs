@@ -12,7 +12,6 @@ use std::cmp::{max, min};
 use std::collections::HashMap;
 use std::net::SocketAddr;
 use std::time::Duration;
-use log::warn;
 
 #[derive(Debug, Clone)]
 pub struct MpegTsPacketInfo {
@@ -251,7 +250,6 @@ impl MpegTsStream {
             ) else {
                 continue;
             };
-
 
             self.mpegts_aggregator
                 .pat_buffer

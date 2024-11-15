@@ -4,10 +4,8 @@ use super::psi::psi_buffer::PsiBuffer;
 use super::psi::{pat::pat_buffer::PatBuffer, pmt::pmt_buffer::PmtBuffer};
 use crate::mpegts::psi::pat::ProgramAssociationTable;
 use crate::mpegts::psi::pmt::ProgramMapTable;
-use log::warn;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use std::hash::Hash;
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct MpegtsAggregator {
