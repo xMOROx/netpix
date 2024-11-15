@@ -1,8 +1,7 @@
-use std::collections::HashMap;
 use log::warn;
+use std::collections::HashMap;
 
 use crate::mpegts::MpegtsFragment;
-
 
 pub struct PesPacketPayload {
     pub data: Vec<u8>,
@@ -20,10 +19,9 @@ impl PesPacketPayload {
     pub fn append(&mut self, payload: &[u8]) {
         self.data.extend_from_slice(payload);
     }
-
 }
 pub struct PesBuffer {
-    packets: HashMap<u16, PesPacketPayload>
+    packets: HashMap<u16, PesPacketPayload>,
 }
 
 impl PesBuffer {
@@ -55,10 +53,16 @@ impl PesBuffer {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::mpegts::{MpegtsFragment, Header, PIDTable, TransportScramblingControl, AdaptationFieldControl};
     use crate::mpegts::payload::RawPayload;
+    use crate::mpegts::{
+        AdaptationFieldControl, Header, MpegtsFragment, PIDTable, TransportScramblingControl,
+    };
 
-    fn create_test_fragment(pid: u16, payload_unit_start_indicator: bool, payload: Vec<u8>) -> MpegtsFragment {
+    fn create_test_fragment(
+        pid: u16,
+        payload_unit_start_indicator: bool,
+        payload: Vec<u8>,
+    ) -> MpegtsFragment {
         MpegtsFragment {
             header: Header {
                 transport_error_indicator: false,
@@ -110,7 +114,10 @@ mod tests {
         let fragment2 = create_test_fragment(0x100, false, vec![4, 5, 6]);
         buffer.add_fragment(&fragment1);
         buffer.add_fragment(&fragment2);
-        assert_eq!(buffer.packets.get(&0x100).unwrap().data, vec![1, 2, 3, 4, 5, 6]);
+        assert_eq!(
+            buffer.packets.get(&0x100).unwrap().data,
+            vec![1, 2, 3, 4, 5, 6]
+        );
     }
 
     #[test]
