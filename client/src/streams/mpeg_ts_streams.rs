@@ -168,7 +168,7 @@ impl MpegTsStream {
         self.mpegts_stream_info.stream_bytes as f64 * 8.0 / duration
     }
 
-    pub fn get_mean_rtp_bitrate(&self) -> f64 {
+    pub fn get_mean_mpegts_bitrate(&self) -> f64 {
         let duration = self.get_duration().as_secs_f64();
         self.mpegts_stream_info.bytes as f64 * 8.0 / duration
     }

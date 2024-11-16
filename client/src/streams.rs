@@ -1,9 +1,6 @@
 use mpeg_ts_streams::MpegTsStream;
 use packets::Packets;
 use rtpStream::RtpStream;
-use rtpeeker_common::mpegts::header::PIDTable;
-use rtpeeker_common::mpegts::psi::pat::fragmentary_pat::FragmentaryProgramAssociationTable;
-use rtpeeker_common::mpegts::psi::psi_buffer::FragmentaryPsi;
 use rtpeeker_common::packet::SessionPacket;
 use rtpeeker_common::StreamKey;
 use rtpeeker_common::{packet::TransportProtocol, Packet, RtcpPacket};
@@ -12,8 +9,8 @@ use std::collections::HashMap;
 use std::net::SocketAddr;
 use std::rc::Rc;
 
-mod packets;
 pub mod mpeg_ts_streams;
+mod packets;
 #[allow(non_snake_case)]
 pub mod rtpStream;
 
@@ -71,43 +68,20 @@ fn handle_packet(
 ) {
     match packet.contents {
         SessionPacket::Mpegts(ref mpegts) => {
-            mpegts.fragments.iter().for_each(|fragment| {
-                if PIDTable::ProgramAssociation == fragment.header.pid {
-                    let payload = fragment.payload.clone();
-                    if payload.is_none() {
-                        return;
-                    }
+            let stream_key = (
+                packet.source_addr,
+                packet.destination_addr,
+                packet.transport_protocol,
+                0,
+            );
 
-                    let fragmentary_pat = FragmentaryProgramAssociationTable::unmarshall(
-                        &*payload.unwrap().data,
-                        fragment.header.payload_unit_start_indicator,
-                    );
-
-                    if fragmentary_pat.is_none() {
-                        return;
-                    }
-
-                    let transport_stream_id = fragmentary_pat.unwrap().transport_stream_id as u32;
-                    let stream_key = (
-                        packet.source_addr,
-                        packet.destination_addr,
-                        packet.transport_protocol,
-                        transport_stream_id,
-                    );
-
-                    if let Some(stream) = mpegts_streams.get_mut(&stream_key) {
-                        stream.add_mpegts_packet(packet, mpegts);
-                    } else {
-                        let new_stream = MpegTsStream::new(
-                            packet,
-                            mpegts,
-                            int_to_letter(mpegts_streams.len()),
-                            transport_stream_id,
-                        );
-                        mpegts_streams.insert(stream_key, new_stream);
-                    }
-                }
-            });
+            if let Some(stream) = mpegts_streams.get_mut(&stream_key) {
+                stream.add_mpegts_packet(packet, mpegts);
+            } else {
+                let new_stream =
+                    MpegTsStream::new(packet, mpegts, int_to_letter(mpegts_streams.len()), 0);
+                mpegts_streams.insert(stream_key, new_stream);
+            }
         }
         SessionPacket::Rtp(ref rtp) => {
             let stream_key = (
