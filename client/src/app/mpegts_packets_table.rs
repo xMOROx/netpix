@@ -1,12 +1,25 @@
 use crate::app::is_stream_visible;
-use crate::streams::{RefStreams, Streams};
-use eframe::epaint::Color32;
-use egui::RichText;
+use crate::streams::mpeg_ts_streams::MpegTsPacketInfo;
+use crate::streams::RefStreams;
+use egui::{Color32, RichText};
 use egui_extras::{Column, TableBody, TableBuilder};
 use rtpeeker_common::mpegts::header::{AdaptationFieldControl, PIDTable};
+use rtpeeker_common::mpegts::psi::PsiTypes::PMT;
+use rtpeeker_common::mpegts::MpegtsFragment;
 use rtpeeker_common::StreamKey;
 use std::collections::HashMap;
-use web_time::{Duration, Instant};
+use web_time::Duration;
+
+const ROW_HEIGHT: f32 = 25.0;
+const HEADER_HEIGHT: f32 = 30.0;
+const SPACE_AFTER_FILTER: f32 = 5.0;
+
+const PAT_FORMAT: &str = "PAT";
+const PMT_FORMAT: &str = "PMT";
+const PCR_ES_FORMAT: &str = "PCR+ES";
+const ES_FORMAT: &str = "ES";
+const PCR_FORMAT: &str = "PCR";
+const PID_FORMAT: &str = "PID";
 
 #[derive(Clone)]
 pub struct MpegTsPacketsTable {
@@ -14,11 +27,19 @@ pub struct MpegTsPacketsTable {
     streams_visibility: HashMap<StreamKey, bool>,
 }
 
+#[derive(Clone)]
+struct PacketInfo<'a> {
+    packet: &'a MpegTsPacketInfo,
+    timestamp: Duration,
+    key: StreamKey,
+}
+
 impl MpegTsPacketsTable {
     pub fn new(streams: RefStreams) -> Self {
+        let capacity = streams.borrow().mpeg_ts_streams.len();
         Self {
             streams,
-            streams_visibility: HashMap::default(),
+            streams_visibility: HashMap::with_capacity(capacity),
         }
     }
 
@@ -30,26 +51,22 @@ impl MpegTsPacketsTable {
     }
 
     fn options_ui(&mut self, ui: &mut egui::Ui) {
-        let mut aliases = Vec::new();
         let streams = &self.streams.borrow().mpeg_ts_streams;
-        let keys: Vec<_> = streams.keys().collect();
+        let mut aliases = Vec::with_capacity(streams.len());
 
-        keys.iter().for_each(|&key| {
-            let alias = streams.get(key).unwrap().alias.to_string();
-            aliases.push((*key, alias));
-        });
+        for (&key, stream) in streams.iter() {
+            aliases.push((key, stream.alias.to_string()));
+        }
         aliases.sort_by(|(_, a), (_, b)| a.cmp(b));
 
         ui.horizontal_wrapped(|ui| {
             ui.label("Filter by: ");
-            aliases.iter().for_each(|(key, alias)| {
+            for (key, alias) in &aliases {
                 let mut selected = is_stream_visible(&mut self.streams_visibility, *key);
                 ui.checkbox(&mut selected, alias);
-            });
+            }
         });
-        ui.vertical(|ui| {
-            ui.add_space(5.0);
-        });
+        ui.add_space(SPACE_AFTER_FILTER);
     }
 
     fn build_table(&mut self, ui: &mut egui::Ui) {
@@ -58,10 +75,10 @@ impl MpegTsPacketsTable {
             ("Time", "Packet arrival timestamp"),
             ("Source", "Source IP address and port"),
             ("Destination", "Destination IP address and port"),
-            (
-                "Alias",
-                "Locally Assigned alias to make differentiating streams more convenient",
-            ),
+            // (
+            //     "Alias",
+            //     "Locally Assigned alias to make differentiating streams more convenient",
+            // ),
             ("P1", "Packet No. 1"),
             ("P2", "Packet No. 2"),
             ("P3", "Packet No. 3"),
@@ -69,7 +86,10 @@ impl MpegTsPacketsTable {
             ("P5", "Packet No. 5"),
             ("P6", "Packet No. 6"),
             ("P7", "Packet No. 7"),
-            ("Payload Length", "Mpegts payload length"),
+            (
+                "Payload Length",
+                "Mpegts payload length without header and adaptation data",
+            ),
         ];
         TableBuilder::new(ui)
             .striped(true)
@@ -78,10 +98,9 @@ impl MpegTsPacketsTable {
             .column(Column::remainder().at_least(40.0))
             .column(Column::remainder().at_least(80.0))
             .columns(Column::remainder().at_least(100.0), 2)
-            .column(Column::remainder().at_most(50.0))
-            .columns(Column::remainder().at_least(140.0), 7)
+            .columns(Column::remainder().at_least(160.0), 7)
             .column(Column::remainder().at_least(80.0))
-            .header(30.0, |mut header| {
+            .header(HEADER_HEIGHT, |mut header| {
                 header_labels.iter().for_each(|(label, desc)| {
                     header.col(|ui| {
                         ui.heading(label.to_string())
@@ -101,19 +120,23 @@ impl MpegTsPacketsTable {
             .mpeg_ts_streams
             .iter()
             .flat_map(|(_, stream)| {
-                let transport_stream_id = stream.transport_stream_id;
                 stream.mpegts_stream_info.packets.iter().map(move |packet| {
                     let key = (
                         packet.source_addr,
                         packet.destination_addr,
                         packet.protocol,
-                        transport_stream_id,
+                        0,
                     );
                     (packet, key)
                 })
             })
-            .filter(|(_, key)| *is_stream_visible(&mut self.streams_visibility, *key))
-            .map(|(packet, _)| packet)
+            .filter_map(|(packet, key)| {
+                if *is_stream_visible(&mut self.streams_visibility, key) {
+                    Some(packet)
+                } else {
+                    None
+                }
+            })
             .collect();
 
         if mpegts_packets.is_empty() {
@@ -123,16 +146,11 @@ impl MpegTsPacketsTable {
         let mut pmt_pids: Vec<PIDTable> = vec![];
         let mut es_pids: Vec<PIDTable> = vec![];
         let mut pcr_pids: Vec<PIDTable> = vec![];
-        let mut transport_stream_id: u32 = 0;
 
         let mut alias_to_display: HashMap<StreamKey, String> = HashMap::default();
         streams.mpeg_ts_streams.iter().for_each(|(key, stream)| {
             alias_to_display.insert(*key, stream.alias.to_string());
-            transport_stream_id = stream.transport_stream_id;
-            let pat = stream.mpegts_stream_info.pat.clone();
-            if pat.is_some() {
-                let pat = pat.unwrap();
-                //TODO: add to alias pat.transport_stream_id and program.program_number
+            if let Some(pat) = &stream.mpegts_stream_info.pat {
                 pat.programs.iter().for_each(|program| {
                     if program.program_map_pid.is_none() {
                         return;
@@ -142,18 +160,12 @@ impl MpegTsPacketsTable {
 
                 let pmt = stream.mpegts_stream_info.pmt.clone();
                 pmt_pids.iter().for_each(|pmt_pid| {
-                    let single_pmt = pmt.get(pmt_pid);
-                    if single_pmt.is_none() {
-                        return;
-                    }
-                    single_pmt
-                        .unwrap()
-                        .elementary_streams_info
-                        .iter()
-                        .for_each(|es| {
+                    if let Some(single_pmt) = pmt.get(pmt_pid) {
+                        single_pmt.elementary_streams_info.iter().for_each(|es| {
                             es_pids.push(es.elementary_pid.into());
                         });
-                    pcr_pids.push(single_pmt.unwrap().fields.pcr_pid.into());
+                        pcr_pids.push(single_pmt.fields.pcr_pid.into());
+                    }
                 });
             }
         });
@@ -163,46 +175,58 @@ impl MpegTsPacketsTable {
             .map(|p| p.time)
             .unwrap_or(Duration::ZERO);
 
-        body.rows(25.0, mpegts_packets.len(), |row_ix, mut row| {
-            let mpegts_packet = mpegts_packets.get(row_ix).unwrap();
-
-            let key = (
-                mpegts_packet.source_addr,
-                mpegts_packet.destination_addr,
-                mpegts_packet.protocol,
-                transport_stream_id,
-            );
+        let packets_with_info: Vec<PacketInfo> = mpegts_packets
+            .iter()
+            .map(|packet| {
+                let timestamp = packet.time.saturating_sub(first_ts);
+                let key = (
+                    packet.source_addr,
+                    packet.destination_addr,
+                    packet.protocol,
+                    0,
+                );
+                PacketInfo {
+                    packet,
+                    timestamp,
+                    key,
+                }
+            })
+            .collect();
+        body.rows(ROW_HEIGHT, mpegts_packets.len(), |row_ix, mut row| {
+            let info = &packets_with_info[row_ix];
 
             row.col(|ui| {
-                ui.label(mpegts_packet.id.to_string());
+                ui.label(info.packet.id.to_string());
             });
             row.col(|ui| {
-                let timestamp = mpegts_packet.time.saturating_sub(first_ts);
+                let timestamp = info.packet.time.saturating_sub(first_ts);
                 ui.label(format!("{:.4}", timestamp.as_secs_f64()));
             });
             row.col(|ui| {
-                ui.label(mpegts_packet.source_addr.to_string());
+                ui.label(info.packet.source_addr.to_string());
             });
             row.col(|ui| {
-                ui.label(mpegts_packet.destination_addr.to_string());
+                ui.label(info.packet.destination_addr.to_string());
             });
-            row.col(|ui| {
-                ui.label(alias_to_display.get(&key).unwrap().to_string());
-            });
+            // row.col(|ui| {
+            //     ui.label(
+            //         alias_to_display
+            //             .get(&info.key)
+            //             .expect("Alias should exist for stream key")
+            //             .to_string(),
+            //     );
+            // });
 
-            let mut labels = mpegts_packet
+            let mut labels = info
+                .packet
                 .content
                 .fragments
                 .iter()
                 .map(|fragment| match fragment.header.pid {
-                    PIDTable::ProgramAssociation => String::from("Program Association Table"),
-                    PIDTable::ConditionalAccess => String::from("ConditionalAccess"),
-                    PIDTable::TransportStreamDescription => {
-                        String::from("TransportStreamDescription")
-                    }
-                    PIDTable::AdaptiveStreamingInformation => {
-                        String::from("AdaptiveStreamingInformation")
-                    }
+                    PIDTable::ProgramAssociation => String::from(PAT_FORMAT),
+                    PIDTable::ConditionalAccess => String::from("CA"),
+                    PIDTable::TransportStreamDescription => String::from("TSD"),
+                    PIDTable::AdaptiveStreamingInformation => String::from("ASI"),
                     PIDTable::NullPacket => String::from("NullPacket"),
                     PIDTable::PID(pid) => {
                         let is_pmt = pmt_pids.contains(&PIDTable::PID(pid));
@@ -210,77 +234,123 @@ impl MpegTsPacketsTable {
                         let is_pcr = pcr_pids.contains(&PIDTable::PID(pid));
 
                         match (is_pmt, is_es, is_pcr) {
-                            (true, _, _) => format!("Program Map Table ({})", pid),
-                            (_, true, true) => format!("PCR+ES ({})", pid),
-                            (_, true, false) => format!("Elementary Stream ({})", pid),
-                            (_, false, true) => format!("PCR Table ({})", pid),
-                            _ => format!("PID ({})", pid),
+                            (true, _, _) => format!("{} ({})", PMT_FORMAT, pid),
+                            (_, true, true) => format!("{} ({})", PCR_ES_FORMAT, pid),
+                            (_, true, false) => format!("{} ({})", ES_FORMAT, pid),
+                            (_, false, true) => format!("{} ({})", PCR_FORMAT, pid),
+                            _ => format!("{} ({})", PID_FORMAT, pid),
                         }
                     }
                     PIDTable::IPMPControlInformation => String::from("IPMPControlInformation"),
                 })
                 .into_iter();
 
+            let fragments: Vec<_> = info.packet.content.fragments.iter().collect();
+
+            let payload_size: usize = fragments
+                .iter()
+                .map(|fragment| {
+                    if fragment.header.adaptation_field_control
+                        == AdaptationFieldControl::AdaptationFieldOnly
+                    {
+                        return 0;
+                    }
+                    fragment
+                        .payload
+                        .as_ref()
+                        .map_or_else(|| 0, |payload| payload.data.len())
+                })
+                .sum();
+            let mut fragments_iter = fragments.iter();
+
             row.col(|ui| {
-                ui.label(format_text(labels.next().unwrap_or_default()));
+                ui.label(format_text(
+                    labels.next().unwrap_or_default(),
+                    fragments_iter.next().copied(),
+                ));
             });
 
             row.col(|ui| {
-                ui.label(format_text(labels.next().unwrap_or_default()));
+                ui.label(format_text(
+                    labels.next().unwrap_or_default(),
+                    fragments_iter.next().copied(),
+                ));
             });
 
             row.col(|ui| {
-                ui.label(format_text(labels.next().unwrap_or_default()));
+                ui.label(format_text(
+                    labels.next().unwrap_or_default(),
+                    fragments_iter.next().copied(),
+                ));
             });
 
             row.col(|ui| {
-                ui.label(format_text(labels.next().unwrap_or_default()));
+                ui.label(format_text(
+                    labels.next().unwrap_or_default(),
+                    fragments_iter.next().copied(),
+                ));
             });
 
             row.col(|ui| {
-                ui.label(format_text(labels.next().unwrap_or_default()));
+                ui.label(format_text(
+                    labels.next().unwrap_or_default(),
+                    fragments_iter.next().copied(),
+                ));
             });
 
             row.col(|ui| {
-                ui.label(format_text(labels.next().unwrap_or_default()));
+                ui.label(format_text(
+                    labels.next().unwrap_or_default(),
+                    fragments_iter.next().copied(),
+                ));
             });
 
             row.col(|ui| {
-                ui.label(format_text(labels.next().unwrap_or_default()));
+                ui.label(format_text(
+                    labels.next().unwrap_or_default(),
+                    fragments_iter.next().copied(),
+                ));
             });
 
             row.col(|ui| {
-                let payload_size: usize = mpegts_packet
-                    .content
-                    .fragments
-                    .iter()
-                    .map(|fragment| {
-                        if fragment.header.adaptation_field_control
-                            == AdaptationFieldControl::AdaptationFieldOnly
-                        {
-                            return 0;
-                        }
-                        fragment.clone().payload.unwrap().data.len()
-                    })
-                    .sum();
                 ui.label(payload_size.to_string());
             });
         });
     }
 }
 
-fn format_text(value: String) -> RichText {
-    if value.contains("Program Association Table") {
-        RichText::from(value).color(Color32::GREEN)
-    } else if value.contains("Program Map Table") {
-        RichText::from(value).color(Color32::LIGHT_BLUE)
-    } else if value.contains("PCR Table") && value.contains("Elementary Stream") {
-        RichText::from(format!("{} (PCR+ES)", value))
-    } else if value.contains("PCR Table") {
-        RichText::from(value)
-    } else if value.contains("Elementary Stream") {
-        RichText::from(value)
-    } else {
-        RichText::from(value)
+fn format_text(value: String, fragment: Option<&MpegtsFragment>) -> RichText {
+    match value {
+        s if s.contains(PAT_FORMAT) => RichText::from(s).color(Color32::GREEN),
+        s if s.contains(PMT_FORMAT) => RichText::from(s).color(Color32::LIGHT_BLUE),
+        s if s.contains(PCR_FORMAT) && s.contains(ES_FORMAT) => {
+            if let Some(fragment) = fragment {
+                RichText::from(format!(
+                    "{}{}",
+                    s,
+                    get_star_according_payload_size(fragment)
+                ))
+            } else {
+                RichText::from(format!("{}", s))
+            }
+        }
+        s => RichText::from(s),
     }
+}
+
+fn get_star_according_payload_size(fragment: &MpegtsFragment) -> &str {
+    match get_fragment_payload_size(fragment) {
+        1..=183 => "*",
+        _ => "",
+    }
+}
+
+fn get_fragment_payload_size(fragment: &MpegtsFragment) -> usize {
+    if fragment.header.adaptation_field_control == AdaptationFieldControl::AdaptationFieldOnly {
+        return 0;
+    }
+    fragment
+        .payload
+        .as_ref()
+        .map_or(0, |payload| payload.data.len())
 }
