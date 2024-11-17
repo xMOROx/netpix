@@ -3,7 +3,8 @@ mod tests;
 
 use super::PacketizedElementaryStream;
 use crate::mpegts::MpegtsFragment;
-
+use serde::{Deserialize, Serialize};
+#[derive(Serialize, Deserialize, Debug, Clone, Default)]
 pub struct PesPacketPayload {
     pub data: Vec<u8>,
     pub is_completable: bool,
@@ -61,6 +62,7 @@ impl PesPacketPayload {
         self.data.extend_from_slice(payload);
     }
 }
+#[derive(Serialize, Deserialize, Debug, Clone, Default)]
 pub struct PesBuffer {
     payload: PesPacketPayload,
 }
@@ -105,5 +107,25 @@ impl PesBuffer {
         let data = self.payload.get_data();
         let pes = PacketizedElementaryStream::build(data);
         pes
+    }
+
+    pub fn is_complete(&self) -> bool {
+        self.payload.is_complete()
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.payload.is_empty()
+    }
+
+    pub fn clear(&mut self) {
+        self.payload.clear();
+    }
+
+    pub fn get_payload(&self) -> &PesPacketPayload {
+        &self.payload
+    }
+
+    pub fn get_payload_mut(&mut self) -> &mut PesPacketPayload {
+        &mut self.payload
     }
 }

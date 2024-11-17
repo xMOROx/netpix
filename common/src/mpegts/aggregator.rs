@@ -1,9 +1,12 @@
+use super::pes::PacketizedElementaryStream;
 use super::psi::pat::fragmentary_pat::FragmentaryProgramAssociationTable;
 use super::psi::pmt::fragmentary_pmt::FragmentaryProgramMapTable;
 use super::psi::psi_buffer::PsiBuffer;
 use super::psi::{pat::pat_buffer::PatBuffer, pmt::pmt_buffer::PmtBuffer};
+use crate::mpegts::pes::pes_buffer::PesBuffer;
 use crate::mpegts::psi::pat::ProgramAssociationTable;
 use crate::mpegts::psi::pmt::ProgramMapTable;
+use crate::mpegts::MpegtsFragment;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
@@ -11,8 +14,10 @@ use std::collections::HashMap;
 pub struct MpegtsAggregator {
     pub pat_buffer: PatBuffer,
     pub pmt_buffers: HashMap<u16, PmtBuffer>,
+    pub pes_buffers: HashMap<u16, PesBuffer>,
     pat: Option<ProgramAssociationTable>,
     pmt: HashMap<u16, ProgramMapTable>,
+    pes: HashMap<u16, PacketizedElementaryStream>,
 }
 
 impl MpegtsAggregator {
@@ -20,8 +25,10 @@ impl MpegtsAggregator {
         MpegtsAggregator {
             pat_buffer: PatBuffer::new(0),
             pmt_buffers: HashMap::default(),
+            pes_buffers: HashMap::default(),
             pat: None,
             pmt: HashMap::default(),
+            pes: HashMap::default(),
         }
     }
 
@@ -46,6 +53,20 @@ impl MpegtsAggregator {
         self.pmt_buffers.insert(pmt_pid, pmt_buffer);
     }
 
+    pub fn add_pes(&mut self, pes_pid: u16, fragment: MpegtsFragment) {
+        if let Some(pes_buffer) = self.pes_buffers.get_mut(&pes_pid) {
+            if pes_buffer.is_complete() {
+                return;
+            }
+
+            pes_buffer.add_fragment(&fragment);
+        }
+
+        let mut pes_buffer = PesBuffer::new();
+        pes_buffer.add_fragment(&fragment);
+        self.pes_buffers.insert(pes_pid, pes_buffer);
+    }
+
     pub fn get_pat(&mut self) -> Option<ProgramAssociationTable> {
         let pat = self.pat_buffer.build();
         if pat.is_some() {
@@ -65,6 +86,20 @@ impl MpegtsAggregator {
             }
 
             pmt
+        } else {
+            None
+        }
+    }
+
+    pub fn get_pes(&mut self, pid: u16) -> Option<PacketizedElementaryStream> {
+        if let Some(pes_buffer) = self.pes_buffers.get_mut(&pid) {
+            let pes = pes_buffer.build();
+            if pes.is_some() {
+                pes_buffer.clear();
+                self.pes.insert(pid, pes.clone().unwrap());
+            }
+
+            pes
         } else {
             None
         }
