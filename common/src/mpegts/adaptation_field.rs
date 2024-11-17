@@ -204,7 +204,6 @@ impl AdaptationFieldExtension {
 
         if af_descriptor_not_present_float && index < buffer.len() {
             extension.reserved = Some(buffer[index]);
-            index += 1;
         }
 
         Some(extension)

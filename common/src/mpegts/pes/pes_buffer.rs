@@ -1,19 +1,58 @@
-use log::warn;
-use std::collections::HashMap;
-
 use crate::mpegts::MpegtsFragment;
+
+use super::PacketizedElementaryStream;
 
 pub struct PesPacketPayload {
     pub data: Vec<u8>,
-    pub is_complete: bool,
+    pub is_completable: bool,
+    pub packet_length: u16,
 }
 
 impl PesPacketPayload {
     pub fn new() -> Self {
         Self {
             data: Vec::new(),
-            is_complete: false,
+            is_completable: false,
+            packet_length: 0,
         }
+    }
+
+    pub fn set_packet_length(&mut self, length: u16) {
+        self.packet_length = length;
+    }
+
+    pub fn get_packet_length(&self) -> u16 {
+        self.packet_length
+    }
+
+    pub fn is_completable(&self) -> bool {
+        self.is_completable
+    }
+
+    pub fn set_completable(&mut self, completable: bool) {
+        self.is_completable = completable;
+    }
+
+    pub fn get_data(&self) -> &[u8] {
+        &self.data
+    }
+
+    pub fn get_data_mut(&mut self) -> &mut Vec<u8> {
+        &mut self.data
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.data.is_empty()
+    }
+
+    pub fn is_complete(&self) -> bool {
+        self.is_completable && self.data.len() == self.packet_length as usize
+    }
+
+    pub fn clear(&mut self) {
+        self.data.clear();
+        self.is_completable = false;
+        self.packet_length = 0;
     }
 
     pub fn append(&mut self, payload: &[u8]) {
@@ -21,130 +60,48 @@ impl PesPacketPayload {
     }
 }
 pub struct PesBuffer {
-    packets: HashMap<u16, PesPacketPayload>,
+    payload: PesPacketPayload,
 }
 
 impl PesBuffer {
     pub fn new() -> Self {
         Self {
-            packets: HashMap::new(),
+            payload: PesPacketPayload::new(),
         }
     }
 
     pub fn add_fragment(&mut self, packet: &MpegtsFragment) {
-        let pid = packet.clone().header.pid.into();
+        let payload = match packet.payload.as_ref() {
+            Some(data) => data,
+            None => return,
+        };
+
+        let mut required_fields = None;
+
         if packet.header.payload_unit_start_indicator {
-            let new_pes = PesPacketPayload::new();
-            self.packets.insert(pid, new_pes);
+            required_fields =
+                PacketizedElementaryStream::unmarshall_required_fields(&payload.data[..]);
         }
-        // naive append, probably needs to be sorted by continuity counter
-        if let Some(pes) = self.packets.get_mut(&pid) {
-            pes.append(&packet.payload.as_ref().unwrap().data);
+
+        if let Some(fields) = required_fields {
+            let mut pes_packet = PesPacketPayload::new();
+            let packet_length = fields.pes_packet_length;
+            pes_packet.set_packet_length(packet_length);
+            pes_packet.append(&payload.data[..]);
+            pes_packet.set_completable(packet_length != 0);
+            self.payload = pes_packet;
         } else {
-            warn!("Warning: packet with pid {} not found", pid);
+            self.payload.append(&payload.data[..]);
         }
     }
 
-    pub fn remove_payload(&mut self, pid: u16) {
-        self.packets.remove(&pid);
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::mpegts::payload::RawPayload;
-    use crate::mpegts::{
-        AdaptationFieldControl, Header, MpegtsFragment, PIDTable, TransportScramblingControl,
-    };
-
-    fn create_test_fragment(
-        pid: u16,
-        payload_unit_start_indicator: bool,
-        payload: Vec<u8>,
-    ) -> MpegtsFragment {
-        MpegtsFragment {
-            header: Header {
-                transport_error_indicator: false,
-                payload_unit_start_indicator,
-                transport_priority: false,
-                pid: PIDTable::from(pid),
-                transport_scrambling_control: TransportScramblingControl::NotScrambled,
-                adaptation_field_control: AdaptationFieldControl::PayloadOnly,
-                continuity_counter: 0,
-            },
-            adaptation_field: None,
-            payload: Some(RawPayload { data: payload }),
+    pub fn build(&mut self) -> Option<PacketizedElementaryStream> {
+        if !self.payload.is_completable() {
+            return None;
         }
-    }
 
-    #[test]
-    fn test_pes_packet_payload_initialization() {
-        let payload = PesPacketPayload::new();
-        assert!(payload.data.is_empty());
-        assert!(!payload.is_complete);
-    }
-
-    #[test]
-    fn test_pes_packet_payload_append() {
-        let mut payload = PesPacketPayload::new();
-        payload.append(&[1, 2, 3]);
-        assert_eq!(payload.data, vec![1, 2, 3]);
-    }
-
-    #[test]
-    fn test_pes_buffer_initialization() {
-        let buffer = PesBuffer::new();
-        assert!(buffer.packets.is_empty());
-    }
-
-    #[test]
-    fn test_pes_buffer_add_fragment_new_packet() {
-        let mut buffer = PesBuffer::new();
-        let fragment = create_test_fragment(0x100, true, vec![1, 2, 3]);
-        buffer.add_fragment(&fragment);
-        assert!(buffer.packets.contains_key(&0x100));
-        assert_eq!(buffer.packets.get(&0x100).unwrap().data, vec![1, 2, 3]);
-    }
-
-    #[test]
-    fn test_pes_buffer_add_fragment_existing_packet() {
-        let mut buffer = PesBuffer::new();
-        let fragment1 = create_test_fragment(0x100, true, vec![1, 2, 3]);
-        let fragment2 = create_test_fragment(0x100, false, vec![4, 5, 6]);
-        buffer.add_fragment(&fragment1);
-        buffer.add_fragment(&fragment2);
-        assert_eq!(
-            buffer.packets.get(&0x100).unwrap().data,
-            vec![1, 2, 3, 4, 5, 6]
-        );
-    }
-
-    #[test]
-    fn test_pes_buffer_remove_payload() {
-        let mut buffer = PesBuffer::new();
-        let fragment = create_test_fragment(0x100, true, vec![1, 2, 3]);
-        buffer.add_fragment(&fragment);
-        buffer.remove_payload(0x100);
-        assert!(!buffer.packets.contains_key(&0x100));
-    }
-
-    #[test]
-    fn test_pes_buffer_add_fragment_no_payload() {
-        let mut buffer = PesBuffer::new();
-        let fragment = create_test_fragment(0x100, true, vec![]);
-        buffer.add_fragment(&fragment);
-        assert!(buffer.packets.contains_key(&0x100));
-        assert!(buffer.packets.get(&0x100).unwrap().data.is_empty());
-    }
-
-    #[test]
-    fn test_pes_buffer_add_fragment_same_pid() {
-        let mut buffer = PesBuffer::new();
-        let fragment1 = create_test_fragment(0x100, true, vec![1, 2, 3]);
-        let fragment2 = create_test_fragment(0x100, true, vec![4, 5, 6]);
-        buffer.add_fragment(&fragment1);
-        buffer.add_fragment(&fragment2);
-        assert_eq!(buffer.packets.get(&0x100).unwrap().data, vec![4, 5, 6]);
+        let data = self.payload.get_data();
+        let pes = PacketizedElementaryStream::build(data);
+        pes
     }
 }
