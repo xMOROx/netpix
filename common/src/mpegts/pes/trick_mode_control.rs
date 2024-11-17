@@ -19,7 +19,7 @@ impl TrickModeControl {
         Some(trick_mode_control)
     }
 
-    pub(super) fn unmarshall(data: &[u8]) -> Option<Self> {
+    fn unmarshall(data: &[u8]) -> Option<Self> {
         if data.is_empty() || data.len() < 1 {
             return None;
         }

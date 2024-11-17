@@ -1,5 +1,5 @@
 use crate::mpegts;
-use crate::mpegts::psi::{ProgramSpecificInformationHeader};
+use crate::mpegts::psi::ProgramSpecificInformationHeader;
 
 pub trait PsiBuffer<T, U: FragmentaryPsi> {
     fn new(last_section_number: u8) -> Self;
