@@ -1,6 +1,8 @@
-use crate::mpegts::MpegtsFragment;
+#[cfg(test)]
+mod tests;
 
 use super::PacketizedElementaryStream;
+use crate::mpegts::MpegtsFragment;
 
 pub struct PesPacketPayload {
     pub data: Vec<u8>,
