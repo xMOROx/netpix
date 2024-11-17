@@ -17,8 +17,7 @@ use crate::mpegts::descriptors::tags::DescriptorTag::{
 use crate::mpegts::descriptors::video_stream::VideoStreamDescriptor;
 use crate::mpegts::descriptors::{avc_video_descriptor, DescriptorHeader, Descriptors};
 use crate::mpegts::psi::pmt::stream_types::StreamTypes::{
-    AVCVideoStreamAsDefinedInItuTH264OrIsoIec1449610Video, IsoIec111723Audio,
-    RecItuTH2220OrIsoIec138181PESPackets, RecItuTH2220OrIsoIec138181PrivateSections,
+    Audio111723, PESPackets, PrivateSections, VideoH264,
 };
 use crate::mpegts::psi::pmt::{ElementaryStreamInfo, PmtFields};
 use crate::mpegts::psi::psi_buffer::FragmentaryPsi;
@@ -74,7 +73,7 @@ fn test_pmt_buffer_with_one_fragment() {
         ],
         elementary_streams_info: vec![
             ElementaryStreamInfo {
-                stream_type: AVCVideoStreamAsDefinedInItuTH264OrIsoIec1449610Video,
+                stream_type: VideoH264,
                 elementary_pid: 602,
                 es_info_length: 22,
                 descriptors: vec![
@@ -128,7 +127,7 @@ fn test_pmt_buffer_with_one_fragment() {
                 ],
             },
             ElementaryStreamInfo {
-                stream_type: IsoIec111723Audio,
+                stream_type: Audio111723,
                 elementary_pid: 603,
                 es_info_length: 17,
                 descriptors: vec![
@@ -163,7 +162,7 @@ fn test_pmt_buffer_with_one_fragment() {
                 ],
             },
             ElementaryStreamInfo {
-                stream_type: RecItuTH2220OrIsoIec138181PrivateSections,
+                stream_type: PrivateSections,
                 elementary_pid: 607,
                 es_info_length: 13,
                 descriptors: vec![
@@ -179,7 +178,7 @@ fn test_pmt_buffer_with_one_fragment() {
                 ],
             },
             ElementaryStreamInfo {
-                stream_type: RecItuTH2220OrIsoIec138181PESPackets,
+                stream_type: PESPackets,
                 elementary_pid: 606,
                 es_info_length: 18,
                 descriptors: vec![
@@ -195,7 +194,7 @@ fn test_pmt_buffer_with_one_fragment() {
                 ],
             },
             ElementaryStreamInfo {
-                stream_type: RecItuTH2220OrIsoIec138181PESPackets,
+                stream_type: PESPackets,
                 elementary_pid: 608,
                 es_info_length: 25,
                 descriptors: vec![
