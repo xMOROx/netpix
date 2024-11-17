@@ -1,15 +1,9 @@
+pub mod constants;
 pub mod fragmentary_pat;
 pub mod pat_buffer;
 
+use constants::*;
 use serde::{Deserialize, Serialize};
-
-const HEADER_SIZE: usize = 3;
-
-const HEADER_AFTER_SECTION_LENGTH_SIZE: usize = 5;
-
-const PROGRAM_SECTION_SIZE: usize = 4;
-
-const PROGRAM_PID_UPPER_MASK: u8 = 0x1F;
 
 #[derive(Serialize, Deserialize, Debug, Clone, Ord, PartialOrd, Eq)]
 pub struct ProgramAssociationTable {
