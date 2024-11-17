@@ -5,9 +5,10 @@ pub mod header;
 pub mod payload;
 pub mod pes;
 pub mod psi;
+pub mod constants;
 #[cfg(test)]
 mod tests;
-mod constants;
+
 
 use crate::mpegts::adaptation_field::AdaptationField;
 use crate::mpegts::header::Header;
