@@ -1,6 +1,5 @@
 pub mod constants;
 pub mod enums;
-pub mod fragmentary_pes;
 pub mod header;
 pub mod optional_fields;
 pub mod pes_buffer;
@@ -14,12 +13,17 @@ use std::cmp::PartialEq;
 
 #[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq)]
 pub struct PacketizedElementaryStream {
-    pub packet_start_code_prefix: u32,
-    pub stream_id: u8,
-    pub pes_packet_length: u16,
+    pub required_fields: RequiredFields,
     pub header: Option<PesHeader>,
     pub packet_data: Option<Vec<u8>>,
     pub padding_bytes: Option<Vec<u8>>,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq)]
+pub struct RequiredFields {
+    pub packet_start_code_prefix: u32,
+    pub stream_id: u8,
+    pub pes_packet_length: u16,
 }
 
 impl PacketizedElementaryStream {
@@ -35,7 +39,11 @@ impl PacketizedElementaryStream {
         Some(pes)
     }
 
-    fn unmarshall(data: &[u8]) -> Option<Self> {
+    pub fn unmarshall_required_fields(data: &[u8]) -> Option<RequiredFields> {
+        if data.len() < REQUIRED_FIELDS_SIZE {
+            return None;
+        }
+
         let packet_start_code_prefix: u32 =
             (data[0] as u32) << 16 | (data[1] as u32) << 8 | data[2] as u32;
         if packet_start_code_prefix != PACKET_START_CODE_PREFIX {
@@ -46,11 +54,24 @@ impl PacketizedElementaryStream {
 
         let pes_packet_length: u16 = (data[4] as u16) << 8 | data[5] as u16;
 
+        Some(RequiredFields {
+            packet_start_code_prefix,
+            stream_id,
+            pes_packet_length,
+        })
+    }
+
+    // TODO: implement Result instead of Option
+    fn unmarshall(data: &[u8]) -> Option<Self> {
+        let Some(required_fields) = Self::unmarshall_required_fields(data) else {
+            return None;
+        };
+
         let mut header = None;
         let mut packet_data = None;
         let mut padding_bytes = None;
 
-        match StreamType::from(stream_id) {
+        match StreamType::from(required_fields.stream_id) {
             StreamType::PaddingStream => {
                 padding_bytes = Some(data[6..].to_vec());
             }
@@ -78,9 +99,7 @@ impl PacketizedElementaryStream {
         }
 
         Some(Self {
-            packet_start_code_prefix,
-            stream_id,
-            pes_packet_length,
+            required_fields,
             header,
             packet_data,
             padding_bytes,
