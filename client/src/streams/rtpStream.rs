@@ -199,7 +199,8 @@ impl RtpStream {
     }
 
     fn update_rtp_parameters(&mut self, mut rtp_info: RtpInfo) {
-        rtp_info.time_delta = rtp_info.time
+        rtp_info.time_delta = rtp_info
+            .time
             .saturating_sub(self.rtp_packets.last().unwrap().time);
 
         self.estimate_ntp_time(&mut rtp_info);
@@ -260,7 +261,10 @@ impl RtpStream {
         }
 
         let unit = 1.0 / clock_rate as f64;
-        let arrival_diff = rtp_info.time.saturating_sub(prev_rtp_info.time).as_secs_f64();
+        let arrival_diff = rtp_info
+            .time
+            .saturating_sub(prev_rtp_info.time)
+            .as_secs_f64();
         let rtp_timestamp_diff =
             (rtp_info.packet.timestamp as i64 - prev_rtp_info.packet.timestamp as i64) as f64;
         let diff = arrival_diff - rtp_timestamp_diff * unit;

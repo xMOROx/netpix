@@ -1,5 +1,5 @@
 use self::SettingsXAxis::*;
-use super::is_stream_visible;
+use super::is_rtp_stream_visible;
 use crate::streams::{RefStreams, Streams};
 use eframe::egui;
 use eframe::egui::TextBuffer;
@@ -12,7 +12,7 @@ use egui::{Align2, RichText};
 use rtpeeker_common::packet::SessionPacket;
 use rtpeeker_common::rtcp::ReceptionReport;
 use rtpeeker_common::rtp::payload_type::MediaType;
-use rtpeeker_common::StreamKey;
+use rtpeeker_common::RtpStreamKey;
 use rtpeeker_common::{Packet, RtcpPacket, RtpPacket};
 use std::cell::Ref;
 use std::collections::HashMap;
@@ -64,7 +64,7 @@ pub struct MpegTsStreamPlot {
     stream_separator_lines: Vec<StreamSeparatorLine>,
     stream_texts: Vec<StreamText>,
     requires_reset: bool,
-    streams_visibility: HashMap<StreamKey, bool>,
+    streams_visibility: HashMap<RtpStreamKey, bool>,
     last_rtp_packets_len: usize,
     set_plot_bounds: bool,
     slider_max: i64,

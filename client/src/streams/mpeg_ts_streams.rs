@@ -46,7 +46,6 @@ pub struct MpegTsStream {
     pub alias: String,
     pub mpegts_stream_info: MpegTsStreamInfo,
     pub mpegts_aggregator: MpegtsAggregator,
-    pub transport_stream_id: u32,
 }
 
 impl MpegTsPacketInfo {
@@ -125,8 +124,7 @@ impl MpegTsStream {
     pub fn new(
         packet: &Packet,
         mpegts: &MpegtsPacket,
-        default_alias: String,
-        transport_stream_id: u32,
+        default_alias: String
     ) -> Self {
         let mut mpegts_aggregator = MpegtsAggregator::new();
         let mut pat: Option<ProgramAssociationTable> = None;
@@ -160,7 +158,6 @@ impl MpegTsStream {
 
         Self {
             alias: default_alias,
-            transport_stream_id,
             mpegts_stream_info: MpegTsStreamInfo::new_with_pat(packet, mpegts, pat),
             mpegts_aggregator,
         }

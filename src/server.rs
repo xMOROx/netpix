@@ -6,7 +6,7 @@ use futures_util::{
 use log::{error, info, warn};
 use rtpeeker_common::packet::SessionProtocol;
 use rtpeeker_common::{Request, Response, Sdp};
-use rtpeeker_common::{Source, StreamKey};
+use rtpeeker_common::{Source, RtpStreamKey};
 use rust_embed::RustEmbed;
 use std::collections::HashMap;
 use std::net::SocketAddr;
@@ -253,7 +253,7 @@ async fn parse_sdp(
     client_id: usize,
     clients: &Clients,
     cur_source: &Source,
-    stream_key: StreamKey,
+    stream_key: RtpStreamKey,
     raw_sdp: String,
 ) {
     let Some(sdp) = Sdp::build(raw_sdp) else {

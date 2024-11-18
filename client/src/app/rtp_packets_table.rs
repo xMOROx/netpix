@@ -1,15 +1,15 @@
-use super::is_stream_visible;
+use super::is_rtp_stream_visible;
 use crate::streams::RefStreams;
 use eframe::epaint::Color32;
 use egui::RichText;
 use egui_extras::{Column, TableBody, TableBuilder};
 use rtpeeker_common::packet::SessionPacket;
-use rtpeeker_common::StreamKey;
+use rtpeeker_common::RtpStreamKey;
 use std::collections::HashMap;
 
 pub struct RtpPacketsTable {
     streams: RefStreams,
-    streams_visibility: HashMap<StreamKey, bool>,
+    streams_visibility: HashMap<RtpStreamKey, bool>,
 }
 
 impl RtpPacketsTable {
@@ -41,7 +41,7 @@ impl RtpPacketsTable {
         ui.horizontal_wrapped(|ui| {
             ui.label("Filter by: ");
             aliases.iter().for_each(|(key, alias)| {
-                let selected = is_stream_visible(&mut self.streams_visibility, *key);
+                let selected = is_rtp_stream_visible(&mut self.streams_visibility, *key);
                 ui.checkbox(selected, alias);
             });
         });
@@ -107,7 +107,7 @@ impl RtpPacketsTable {
                     rtp_packet.ssrc,
                 );
 
-                *is_stream_visible(&mut self.streams_visibility, key)
+                *is_rtp_stream_visible(&mut self.streams_visibility, key)
             })
             .collect();
 
@@ -115,7 +115,7 @@ impl RtpPacketsTable {
             return;
         }
 
-        let mut ssrc_to_display_name: HashMap<StreamKey, String> = HashMap::default();
+        let mut ssrc_to_display_name: HashMap<RtpStreamKey, String> = HashMap::default();
         streams.rtp_streams.iter().for_each(|(key, stream)| {
             ssrc_to_display_name.insert(*key, stream.alias.to_string());
         });

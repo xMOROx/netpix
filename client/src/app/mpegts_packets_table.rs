@@ -1,11 +1,11 @@
-use crate::app::is_stream_visible;
+use crate::app::is_mpegts_stream_visible;
 use crate::streams::mpeg_ts_streams::MpegTsPacketInfo;
 use crate::streams::RefStreams;
 use egui::{Color32, RichText};
 use egui_extras::{Column, TableBody, TableBuilder};
 use rtpeeker_common::mpegts::header::{AdaptationFieldControl, PIDTable};
 use rtpeeker_common::mpegts::MpegtsFragment;
-use rtpeeker_common::StreamKey;
+use rtpeeker_common::{MpegtsStreamKey, RtpStreamKey};
 use std::collections::HashMap;
 use web_time::Duration;
 
@@ -23,14 +23,14 @@ const PID_FORMAT: &str = "PID";
 #[derive(Clone)]
 pub struct MpegTsPacketsTable {
     streams: RefStreams,
-    streams_visibility: HashMap<StreamKey, bool>,
+    streams_visibility: HashMap<MpegtsStreamKey, bool>,
 }
 
 #[derive(Clone)]
 struct PacketInfo<'a> {
     packet: &'a MpegTsPacketInfo,
     timestamp: Duration,
-    key: StreamKey,
+    key: RtpStreamKey,
 }
 
 impl MpegTsPacketsTable {
@@ -61,7 +61,7 @@ impl MpegTsPacketsTable {
         ui.horizontal_wrapped(|ui| {
             ui.label("Filter by: ");
             for (key, alias) in &aliases {
-                let mut selected = is_stream_visible(&mut self.streams_visibility, *key);
+                let mut selected = is_mpegts_stream_visible(&mut self.streams_visibility, *key);
                 ui.checkbox(&mut selected, alias);
             }
         });
@@ -124,13 +124,12 @@ impl MpegTsPacketsTable {
                         packet.source_addr,
                         packet.destination_addr,
                         packet.protocol,
-                        0,
                     );
                     (packet, key)
                 })
             })
             .filter_map(|(packet, key)| {
-                if *is_stream_visible(&mut self.streams_visibility, key) {
+                if *is_mpegts_stream_visible(&mut self.streams_visibility, key) {
                     Some(packet)
                 } else {
                     None
@@ -146,7 +145,7 @@ impl MpegTsPacketsTable {
         let mut es_pids: Vec<PIDTable> = vec![];
         let mut pcr_pids: Vec<PIDTable> = vec![];
 
-        let mut alias_to_display: HashMap<StreamKey, String> = HashMap::default();
+        let mut alias_to_display: HashMap<MpegtsStreamKey, String> = HashMap::default();
         streams.mpeg_ts_streams.iter().for_each(|(key, stream)| {
             alias_to_display.insert(*key, stream.alias.to_string());
             if let Some(pat) = &stream.mpegts_stream_info.pat {

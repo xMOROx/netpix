@@ -3,7 +3,7 @@ use egui::plot::{Line, Plot, PlotPoints};
 use egui::{TextEdit, Vec2};
 use egui_extras::{Column, TableBody, TableBuilder};
 use ewebsock::{WsMessage, WsSender};
-use rtpeeker_common::{Request, StreamKey};
+use rtpeeker_common::{Request, RtpStreamKey};
 
 const SDP_PROMPT: &str = "Paste your SDP media section here, e.g.
 m=audio 5004 RTP/AVP 96
@@ -16,7 +16,7 @@ pub struct RtpStreamsTable {
     streams: RefStreams,
     ws_sender: WsSender,
     sdp_window_open: bool,
-    chosen_key: Option<StreamKey>,
+    chosen_key: Option<RtpStreamKey>,
     sdp: String,
 }
 

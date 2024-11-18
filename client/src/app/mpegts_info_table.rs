@@ -1,14 +1,14 @@
 use std::collections::HashMap;
-use super::is_stream_visible;
+use super::is_mpegts_stream_visible;
 use crate::streams::RefStreams;
 use egui_extras::{Column, TableBody, TableBuilder};
 use ewebsock::WsSender;
-use rtpeeker_common::StreamKey;
+use rtpeeker_common::MpegtsStreamKey;
 
 pub struct MpegTsInformationsTable {
     streams: RefStreams,
     ws_sender: WsSender,
-    streams_visibility: HashMap<StreamKey, bool>,
+    streams_visibility: HashMap<MpegtsStreamKey, bool>,
 }
 
 impl MpegTsInformationsTable {
@@ -40,7 +40,7 @@ impl MpegTsInformationsTable {
         ui.horizontal_wrapped(|ui| {
             ui.label("Filter by: ");
             aliases.iter().for_each(|(key, alias)| {
-                let selected = is_stream_visible(&mut self.streams_visibility, *key);
+                let selected = is_mpegts_stream_visible(&mut self.streams_visibility, *key);
                 ui.checkbox(selected, alias);
             });
         });
