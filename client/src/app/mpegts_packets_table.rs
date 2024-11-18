@@ -4,7 +4,6 @@ use crate::streams::RefStreams;
 use egui::{Color32, RichText};
 use egui_extras::{Column, TableBody, TableBuilder};
 use rtpeeker_common::mpegts::header::{AdaptationFieldControl, PIDTable};
-use rtpeeker_common::mpegts::psi::PsiTypes::PMT;
 use rtpeeker_common::mpegts::MpegtsFragment;
 use rtpeeker_common::StreamKey;
 use std::collections::HashMap;

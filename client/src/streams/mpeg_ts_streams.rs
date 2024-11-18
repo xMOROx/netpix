@@ -29,13 +29,16 @@ pub struct MpegTsPacketInfo {
 
 #[derive(Debug, Clone)]
 pub struct MpegTsStreamInfo {
+    pub source_addr: SocketAddr,
+    pub destination_addr: SocketAddr,
+    pub protocol: TransportProtocol,
     pub packets: Vec<MpegTsPacketInfo>,
     pub pat: Option<ProgramAssociationTable>,
     pub pmt: HashMap<PIDTable, ProgramMapTable>,
     first_time: Duration,
     last_time: Duration,
-    stream_bytes: usize,
     bytes: usize,
+    mpegts_bytes: usize,
 }
 
 #[derive(Debug, Clone)]
@@ -49,10 +52,10 @@ pub struct MpegTsStream {
 impl MpegTsPacketInfo {
     pub fn new(packet: &Packet, mpegts_packet: &MpegtsPacket) -> Self {
         Self {
-            content: mpegts_packet.clone(),
             source_addr: packet.source_addr,
             destination_addr: packet.destination_addr,
             protocol: packet.transport_protocol,
+            content: mpegts_packet.clone(),
             id: packet.id,
             time: packet.timestamp,
             time_delta: Duration::from_secs(0),
@@ -73,8 +76,11 @@ impl MpegTsStreamInfo {
             pmt: HashMap::new(),
             first_time: packet.timestamp,
             last_time: packet.timestamp,
-            stream_bytes: packet.length as usize,
-            bytes: MpegTsStreamInfo::count_payload_bytes(mpegts_packet),
+            bytes: packet.length as usize,
+            source_addr: packet.source_addr,
+            destination_addr: packet.destination_addr,
+            protocol: packet.transport_protocol,
+            mpegts_bytes: MpegTsStreamInfo::count_payload_bytes(mpegts_packet),
         }
     }
 
@@ -91,8 +97,11 @@ impl MpegTsStreamInfo {
             pmt: HashMap::new(),
             first_time: packet.timestamp,
             last_time: packet.timestamp,
-            stream_bytes: packet.length as usize,
-            bytes: MpegTsStreamInfo::count_payload_bytes(mpegts_packet),
+            bytes: packet.length as usize,
+            mpegts_bytes: MpegTsStreamInfo::count_payload_bytes(mpegts_packet),
+            source_addr: packet.source_addr,
+            destination_addr: packet.destination_addr,
+            protocol: packet.transport_protocol,
         }
     }
 
@@ -165,12 +174,12 @@ impl MpegTsStream {
 
     pub fn get_mean_bitrate(&self) -> f64 {
         let duration = self.get_duration().as_secs_f64();
-        self.mpegts_stream_info.stream_bytes as f64 * 8.0 / duration
+        self.mpegts_stream_info.bytes as f64 * 8.0 / duration
     }
 
     pub fn get_mean_mpegts_bitrate(&self) -> f64 {
         let duration = self.get_duration().as_secs_f64();
-        self.mpegts_stream_info.bytes as f64 * 8.0 / duration
+        self.mpegts_stream_info.mpegts_bytes as f64 * 8.0 / duration
     }
 
     pub fn get_mean_packet_rate(&self) -> f64 {
@@ -209,8 +218,8 @@ impl MpegTsStream {
 
         self.update_rates(&mut mpegts_info);
 
-        self.mpegts_stream_info.stream_bytes += mpegts_info.bytes;
-        self.mpegts_stream_info.bytes +=
+        self.mpegts_stream_info.bytes += mpegts_info.bytes;
+        self.mpegts_stream_info.mpegts_bytes +=
             MpegTsStreamInfo::count_payload_bytes(&mpegts_info.content);
 
         self.mpegts_stream_info.first_time =

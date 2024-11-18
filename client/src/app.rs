@@ -106,7 +106,7 @@ impl App {
         let rtp_streams_plot = RtpStreamsPlot::new(streams.clone());
 
         let mpegts_packets_table = MpegTsPacketsTable::new(streams.clone());
-        let mpegts_streams_table = MpegTsStreamsTable::new(streams.clone(), ws_sender.clone());
+        let mpegts_streams_table = MpegTsStreamsTable::new(streams.clone());
         let mpegts_info_table = MpegTsInformationsTable::new(streams.clone(), ws_sender.clone());
         let mpegts_plot = MpegTsStreamPlot::new(streams.clone());
 
