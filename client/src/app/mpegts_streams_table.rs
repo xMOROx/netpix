@@ -1,9 +1,9 @@
-use crate::streams::mpeg_ts_streams::MpegTsStream;
+use crate::streams::mpegts_stream::MpegTsStream;
 use crate::streams::RefStreams;
 use eframe::emath::Vec2;
 use egui::plot::{Line, Plot, PlotPoints};
 use egui_extras::{Column, TableBody, TableBuilder};
-use ewebsock::WsSender;
+use crate::streams::stream_statistics::StreamStatistics;
 
 pub struct MpegTsStreamsTable {
     streams: RefStreams,
@@ -110,12 +110,12 @@ impl MpegTsStreamsTable {
             });
 
             row.col(|ui| {
-                let bitrate = stream.get_mean_bitrate() / 1000.0;
+                let bitrate = stream.get_mean_frame_bitrate() / 1000.0;
                 ui.label(format!("{:.2} kbps", bitrate));
             });
 
             row.col(|ui| {
-                let bitrate = stream.get_mean_mpegts_bitrate() / 1000.0;
+                let bitrate = stream.get_mean_protocol_bitrate() / 1000.0;
                 ui.label(format!("{:.2} kbps", bitrate));
             });
 

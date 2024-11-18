@@ -1,4 +1,4 @@
-use mpeg_ts_streams::MpegTsStream;
+use mpegts_stream::MpegTsStream;
 use packets::Packets;
 use rtpStream::RtpStream;
 use rtpeeker_common::packet::SessionPacket;
@@ -9,10 +9,11 @@ use std::collections::HashMap;
 use std::net::SocketAddr;
 use std::rc::Rc;
 
-pub mod mpeg_ts_streams;
+pub mod mpegts_stream;
 mod packets;
 #[allow(non_snake_case)]
 pub mod rtpStream;
+pub mod stream_statistics;
 
 pub type RefStreams = Rc<RefCell<Streams>>;
 

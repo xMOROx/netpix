@@ -1,5 +1,5 @@
 use crate::app::is_mpegts_stream_visible;
-use crate::streams::mpeg_ts_streams::MpegTsPacketInfo;
+use crate::streams::mpegts_stream::MpegTsPacketInfo;
 use crate::streams::RefStreams;
 use egui::{Color32, RichText};
 use egui_extras::{Column, TableBody, TableBuilder};
