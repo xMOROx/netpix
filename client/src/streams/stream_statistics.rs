@@ -1,7 +1,6 @@
 use std::time::Duration;
 
 pub trait StreamStatistics {
-    fn get_statistics(&self) -> Statistics;
     fn get_duration(&self) -> Duration;
     fn get_mean_frame_bitrate(&self) -> f64;
     fn get_mean_protocol_bitrate(&self) -> f64;
@@ -13,25 +12,25 @@ pub trait StreamStatistics {
     fn update_time(&mut self, time: PacketsTime);
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct Statistics {
     packets_time: PacketsTime,
     bitrate: Bitrate,
     bytes: Bytes,
     packet_rate: f64,
 }
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct Bitrate {
     frame_bitrate: f64,
     protocol_bitrate: f64,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct Bytes {
     frame_bytes: f64,
     protocol_bytes: f64,
 }
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct PacketsTime {
     first_time: Duration,
     last_time: Duration,

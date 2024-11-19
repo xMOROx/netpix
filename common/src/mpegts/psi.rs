@@ -25,8 +25,8 @@ pub struct ProgramSpecificInformationHeader {
 
 #[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq)]
 pub enum PsiTypes {
-    PAT(pat::ProgramAssociationTable),
-    PMT(pmt::ProgramMapTable),
+    PAT(u16), //transport_stream_id
+    PMT(u16), // pid value
     NONE,
 }
 

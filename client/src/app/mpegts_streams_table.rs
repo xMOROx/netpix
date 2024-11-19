@@ -93,15 +93,15 @@ impl MpegTsStreamsTable {
             });
 
             row.col(|ui| {
-                ui.label(stream.mpegts_stream_info.source_addr.to_string());
+                ui.label(stream.stream_info.source_addr.to_string());
             });
 
             row.col(|ui| {
-                ui.label(stream.mpegts_stream_info.destination_addr.to_string());
+                ui.label(stream.stream_info.destination_addr.to_string());
             });
 
             row.col(|ui| {
-                ui.label(stream.mpegts_stream_info.packets.len().to_string());
+                ui.label(stream.stream_info.packets.len().to_string());
             });
 
             row.col(|ui| {
@@ -134,7 +134,7 @@ impl MpegTsStreamsTable {
 fn build_bitrate_plot(ui: &mut egui::Ui, stream: &MpegTsStream) {
     ui.vertical_centered_justified(|ui| {
         let points: PlotPoints = stream
-            .mpegts_stream_info
+            .stream_info
             .packets
             .iter()
             .enumerate()
@@ -145,9 +145,9 @@ fn build_bitrate_plot(ui: &mut egui::Ui, stream: &MpegTsStream) {
         let key = format!(
             "{}{}{}{}",
             0,
-            stream.mpegts_stream_info.source_addr,
-            stream.mpegts_stream_info.destination_addr,
-            stream.mpegts_stream_info.protocol
+            stream.stream_info.source_addr,
+            stream.stream_info.destination_addr,
+            stream.stream_info.protocol
         );
         Plot::new(key)
             .show_background(false)

@@ -119,7 +119,7 @@ impl MpegTsPacketsTable {
             .mpeg_ts_streams
             .iter()
             .flat_map(|(_, stream)| {
-                stream.mpegts_stream_info.packets.iter().map(move |packet| {
+                stream.stream_info.packets.iter().map(move |packet| {
                     let key = (
                         packet.source_addr,
                         packet.destination_addr,
@@ -148,7 +148,7 @@ impl MpegTsPacketsTable {
         let mut alias_to_display: HashMap<MpegtsStreamKey, String> = HashMap::default();
         streams.mpeg_ts_streams.iter().for_each(|(key, stream)| {
             alias_to_display.insert(*key, stream.alias.to_string());
-            if let Some(pat) = &stream.mpegts_stream_info.pat {
+            if let Some(pat) = &stream.stream_info.pat {
                 pat.programs.iter().for_each(|program| {
                     if program.program_map_pid.is_none() {
                         return;
@@ -156,7 +156,7 @@ impl MpegTsPacketsTable {
                     pmt_pids.push(program.program_map_pid.unwrap().into());
                 });
 
-                let pmt = stream.mpegts_stream_info.pmt.clone();
+                let pmt = stream.stream_info.pmt.clone();
                 pmt_pids.iter().for_each(|pmt_pid| {
                     if let Some(single_pmt) = pmt.get(pmt_pid) {
                         single_pmt.elementary_streams_info.iter().for_each(|es| {

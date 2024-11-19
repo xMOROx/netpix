@@ -1,4 +1,7 @@
-use crate::streams::stream_statistics::{Bitrate, Bytes, PacketsTime, Statistics, StreamStatistics};
+use crate::streams::mpegts_stream::substream::{MpegtsSubStream, MpegtsSubStreams, SubStreamKey};
+use crate::streams::stream_statistics::{
+    Bitrate, Bytes, PacketsTime, Statistics, StreamStatistics,
+};
 use rtpeeker_common::mpegts::aggregator::MpegtsAggregator;
 use rtpeeker_common::mpegts::header::{AdaptationFieldControl, PIDTable};
 use rtpeeker_common::mpegts::psi::pat::fragmentary_pat::FragmentaryProgramAssociationTable;
@@ -38,14 +41,15 @@ pub struct MpegTsStreamInfo {
     pub packets: Vec<MpegTsPacketInfo>,
     pub pat: Option<ProgramAssociationTable>,
     pub pmt: HashMap<PIDTable, ProgramMapTable>,
-    statistics: Statistics,
+    pub statistics: Statistics,
 }
 
 #[derive(Debug, Clone)]
 pub struct MpegTsStream {
     pub alias: String,
-    pub mpegts_stream_info: MpegTsStreamInfo,
-    pub mpegts_aggregator: MpegtsAggregator,
+    pub stream_info: MpegTsStreamInfo,
+    pub substreams: MpegtsSubStreams,
+    pub aggregator: MpegtsAggregator,
 }
 
 impl MpegTsPacketInfo {
@@ -170,23 +174,24 @@ impl MpegTsStream {
 
         Self {
             alias: default_alias,
-            mpegts_stream_info: MpegTsStreamInfo::new_with_pat(packet, mpegts, pat),
-            mpegts_aggregator,
+            stream_info: MpegTsStreamInfo::new_with_pat(packet, mpegts, pat),
+            substreams: HashMap::new(),
+            aggregator: mpegts_aggregator,
         }
     }
 
     fn update_rates(&self, mpegts_info: &mut MpegTsPacketInfo) {
         let cutoff = mpegts_info.time.saturating_sub(Duration::from_secs(1));
 
-        let last_second_packets = self
-            .mpegts_stream_info
-            .packets
-            .iter()
-            .rev()
-            .map_while(|pack| match pack {
-                MpegTsPacketInfo { time, .. } if *time > cutoff => Some(pack.bytes),
-                _ => None,
-            });
+        let last_second_packets =
+            self.stream_info
+                .packets
+                .iter()
+                .rev()
+                .map_while(|pack| match pack {
+                    MpegTsPacketInfo { time, .. } if *time > cutoff => Some(pack.bytes),
+                    _ => None,
+                });
 
         mpegts_info.packet_rate = last_second_packets.clone().count() + 1;
 
@@ -202,32 +207,50 @@ impl MpegTsStream {
     fn update_mpegts_parameters(&mut self, mut mpegts_info: MpegTsPacketInfo) {
         mpegts_info.time_delta = mpegts_info
             .time
-            .saturating_sub(self.mpegts_stream_info.packets.last().unwrap().time);
+            .saturating_sub(self.stream_info.packets.last().unwrap().time);
 
         self.update_rates(&mut mpegts_info);
 
         let mpegts_bytes = MpegTsStreamInfo::count_payload_bytes(&mpegts_info.content);
 
-        self.mpegts_stream_info.statistics.add_bytes(Bytes::new()
-            .frame_bytes(mpegts_info.bytes as f64)
-            .protocol_bytes(mpegts_bytes as f64)
-            .build());
-
-        self.mpegts_stream_info.statistics.add_bitrate(Bitrate::new()
-            .frame_bitrate((mpegts_info.bytes * 8) as f64)
-            .protocol_bitrate((mpegts_bytes * 8) as f64)
-            .build());
-
-        self.mpegts_stream_info.statistics.set_packets_time(PacketsTime::new()
-            .first_time(min(self.mpegts_stream_info.statistics.get_packets_time().get_first_time(), mpegts_info.time))
-            .last_time(max(self.mpegts_stream_info.statistics.get_packets_time().get_last_time(), mpegts_info.time))
-            .build());
-
-        self.mpegts_stream_info.statistics.set_packet_rate(
-            self.mpegts_stream_info.statistics.get_packet_rate() + 1.0
+        self.stream_info.statistics.add_bytes(
+            Bytes::new()
+                .frame_bytes(mpegts_info.bytes as f64)
+                .protocol_bytes(mpegts_bytes as f64)
+                .build(),
         );
 
-        self.mpegts_stream_info.packets.push(mpegts_info);
+        self.stream_info.statistics.add_bitrate(
+            Bitrate::new()
+                .frame_bitrate((mpegts_info.bytes * 8) as f64)
+                .protocol_bitrate((mpegts_bytes * 8) as f64)
+                .build(),
+        );
+
+        self.stream_info.statistics.set_packets_time(
+            PacketsTime::new()
+                .first_time(min(
+                    self.stream_info
+                        .statistics
+                        .get_packets_time()
+                        .get_first_time(),
+                    mpegts_info.time,
+                ))
+                .last_time(max(
+                    self.stream_info
+                        .statistics
+                        .get_packets_time()
+                        .get_last_time(),
+                    mpegts_info.time,
+                ))
+                .build(),
+        );
+
+        self.stream_info
+            .statistics
+            .set_packet_rate(self.stream_info.statistics.get_packet_rate() + 1.0);
+
+        self.stream_info.packets.push(mpegts_info);
     }
 
     fn determine_type(&mut self, packet: &Packet) {
@@ -235,7 +258,7 @@ impl MpegTsStream {
             let pat = self.process_pat(mpegts);
 
             if let Some(pat) = pat {
-                self.mpegts_stream_info.pat = Some(pat.clone());
+                self.stream_info.pat = Some(pat.clone());
                 self.process_pmt(mpegts, &pat);
             }
         }
@@ -260,13 +283,13 @@ impl MpegTsStream {
                 continue;
             };
 
-            self.mpegts_aggregator
+            self.aggregator
                 .pat_buffer
                 .set_last_section_number(pat_fragment.header.last_section_number);
 
-            self.mpegts_aggregator.add_pat(pat_fragment);
+            self.aggregator.add_pat(pat_fragment);
 
-            pat = self.mpegts_aggregator.get_pat();
+            pat = self.aggregator.get_pat();
         }
 
         pat
@@ -277,7 +300,7 @@ impl MpegTsStream {
             self.process_pmt_fragment(fragment, pat);
         }
 
-        if self.mpegts_aggregator.is_pat_complete() {
+        if self.aggregator.is_pat_complete() {
             self.update_pmt_tables(pat);
         }
     }
@@ -301,7 +324,7 @@ impl MpegTsStream {
                 continue;
             };
 
-            self.mpegts_aggregator
+            self.aggregator
                 .add_pmt(fragment.header.pid.clone().into(), pmt_fragment);
         }
     }
@@ -313,53 +336,63 @@ impl MpegTsStream {
             };
             let pid: u16 = program_map_pid.into();
 
-            if let Some(program_map_table) = self.mpegts_aggregator.get_pmt(pid) {
-                self.mpegts_stream_info
-                    .pmt
-                    .insert(pid.into(), program_map_table);
+            if let Some(program_map_table) = self.aggregator.get_pmt(pid) {
+                self.stream_info.pmt.insert(pid.into(), program_map_table.clone());
+                for es_info in program_map_table.clone().elementary_streams_info.into_iter() {
+                    let key: SubStreamKey = (
+                        self.stream_info.source_addr,
+                        self.stream_info.destination_addr,
+                        self.stream_info.protocol,
+                        pat.transport_stream_id,
+                        program.program_number,
+                        es_info.stream_type,
+                    );
+
+                }
             }
         }
     }
 }
 
 impl StreamStatistics for MpegTsStream {
-    fn get_statistics(&self) -> Statistics {
-        self.mpegts_stream_info.statistics.clone()
-    }
-
     fn get_duration(&self) -> Duration {
-        let packets_time = self.mpegts_stream_info.statistics.get_packets_time();
+        let packets_time = self.stream_info.statistics.get_packets_time();
         packets_time
             .get_last_time()
             .saturating_sub(packets_time.get_first_time())
     }
-
     fn get_mean_frame_bitrate(&self) -> f64 {
-        self.mpegts_stream_info.statistics.get_bitrate().get_frame_bitrate() / self.get_duration().as_secs_f64()
+        self.stream_info
+            .statistics
+            .get_bitrate()
+            .get_frame_bitrate()
+            / self.get_duration().as_secs_f64()
     }
     fn get_mean_protocol_bitrate(&self) -> f64 {
-        self.mpegts_stream_info.statistics.get_bitrate().get_protocol_bitrate() / self.get_duration().as_secs_f64()
+        self.stream_info
+            .statistics
+            .get_bitrate()
+            .get_protocol_bitrate()
+            / self.get_duration().as_secs_f64()
     }
-
     fn get_mean_frame_bytes_rate(&self) -> f64 {
-        self.mpegts_stream_info.statistics.get_bytes().get_frame_bytes() / self.get_duration().as_secs_f64()
+        self.stream_info.statistics.get_bytes().get_frame_bytes()
+            / self.get_duration().as_secs_f64()
     }
-
     fn get_mean_protocol_bytes_rate(&self) -> f64 {
-        self.mpegts_stream_info.statistics.get_bytes().get_protocol_bytes() / self.get_duration().as_secs_f64()
+        self.stream_info.statistics.get_bytes().get_protocol_bytes()
+            / self.get_duration().as_secs_f64()
     }
-
     fn get_mean_packet_rate(&self) -> f64 {
-        self.mpegts_stream_info.statistics.get_packet_rate() / self.get_duration().as_secs_f64()
+        self.stream_info.statistics.get_packet_rate() / self.get_duration().as_secs_f64()
     }
     fn update_bitrate(&mut self, bitrate: Bitrate) {
-        self.mpegts_stream_info.statistics.set_bitrate(bitrate);
+        self.stream_info.statistics.set_bitrate(bitrate);
     }
     fn update_bytes(&mut self, bytes: Bytes) {
-        self.mpegts_stream_info.statistics.set_bytes(bytes);
+        self.stream_info.statistics.set_bytes(bytes);
     }
     fn update_time(&mut self, time: PacketsTime) {
-        self.mpegts_stream_info.statistics.set_packets_time(time);
+        self.stream_info.statistics.set_packets_time(time);
     }
-
 }

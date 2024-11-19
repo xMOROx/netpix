@@ -21,7 +21,6 @@ use constants::*;
 #[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq)]
 pub struct MpegtsPacket {
     pub number_of_fragments: usize,
-    pub transport_stream_id: u32,
     pub fragments: Vec<MpegtsFragment>,
 }
 
@@ -68,7 +67,6 @@ impl MpegtsPacket {
         (!fragments.is_empty()).then_some(Self {
             number_of_fragments: fragments.len(),
             fragments,
-            transport_stream_id: 0,
         })
     }
 

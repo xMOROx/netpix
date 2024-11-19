@@ -1,3 +1,4 @@
+#![allow(dead_code)]
 pub const FRAGMENT_SIZE: usize = 188;
 pub const HEADER_SIZE: usize = 4;
 pub const MAX_FRAGMENTS: usize = 7;

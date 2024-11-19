@@ -4,7 +4,7 @@ pub mod pmt_buffer;
 pub mod stream_types;
 
 use crate::mpegts::descriptors::Descriptors;
-use crate::mpegts::psi::pmt::stream_types::StreamTypes;
+use crate::mpegts::psi::pmt::stream_types::StreamType;
 use constants::*;
 use serde::{Deserialize, Serialize};
 
@@ -46,7 +46,7 @@ impl PartialEq for PmtFields {
 
 #[derive(Serialize, Deserialize, Debug, Clone, Ord, PartialOrd, Eq)]
 pub struct ElementaryStreamInfo {
-    pub stream_type: StreamTypes, // table is defined on page 55 of H.222.0 (03/2017)
+    pub stream_type: StreamType, // table is defined on page 55 of H.222.0 (03/2017)
     pub elementary_pid: u16,
     pub es_info_length: u16,
     pub descriptors: Vec<Descriptors>,
@@ -95,7 +95,7 @@ impl ProgramMapTable {
                 << 8)
                 | (data[index + 4] & ES_INFO_LENGTH_LOWER_MASK as u8) as u16;
             elementary_streams_info.push(ElementaryStreamInfo {
-                stream_type: StreamTypes::from(stream_type),
+                stream_type: StreamType::from(stream_type),
                 elementary_pid,
                 es_info_length,
                 descriptors: Descriptors::unmarshall_many(
