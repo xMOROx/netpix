@@ -11,7 +11,7 @@ use rtcp_packets_table::RtcpPacketsTable;
 use rtp_packets_table::RtpPacketsTable;
 use rtp_streams_table::RtpStreamsTable;
 
-use mpegts_info_table::MpegTsInformationsTable;
+use mpegts_info_table::MpegTsInformationTable;
 use mpegts_packets_table::MpegTsPacketsTable;
 use mpegts_stream_plot::MpegTsStreamPlot;
 use mpegts_streams_table::MpegTsStreamsTable;
@@ -57,7 +57,7 @@ pub struct App {
 
     mpegts_packets_table: MpegTsPacketsTable,
     mpegts_streams_table: MpegTsStreamsTable,
-    mpegts_info_table: MpegTsInformationsTable,
+    mpegts_info_table: MpegTsInformationTable,
     mpegts_plot: MpegTsStreamPlot,
 }
 
@@ -107,7 +107,7 @@ impl App {
 
         let mpegts_packets_table = MpegTsPacketsTable::new(streams.clone());
         let mpegts_streams_table = MpegTsStreamsTable::new(streams.clone(), ws_sender.clone());
-        let mpegts_info_table = MpegTsInformationsTable::new(streams.clone(), ws_sender.clone());
+        let mpegts_info_table = MpegTsInformationTable::new(streams.clone(), ws_sender.clone());
         let mpegts_plot = MpegTsStreamPlot::new(streams.clone());
 
         let (tab, selected_source) = get_initial_state(cc);
