@@ -74,10 +74,6 @@ impl MpegTsPacketsTable {
             ("Time", "Packet arrival timestamp"),
             ("Source", "Source IP address and port"),
             ("Destination", "Destination IP address and port"),
-            // (
-            //     "Alias",
-            //     "Locally Assigned alias to make differentiating streams more convenient",
-            // ),
             ("P1", "Packet No. 1"),
             ("P2", "Packet No. 2"),
             ("P3", "Packet No. 3"),

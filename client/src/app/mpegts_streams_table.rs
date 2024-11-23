@@ -37,8 +37,8 @@ impl MpegTsStreamsTable {
                 "Sum of packet sizes (IP header included) divided by stream's duration",
             ),
             (
-                "Mean MPEGTS bitrate",
-                "Sum of packet sizes (MPEGTS only) divided by stream's duration",
+                "Mean mpegts bitrate",
+                "Sum of packet sizes (mpegts only) divided by stream's duration",
             ),
             (
                 "Mean packet rate",
