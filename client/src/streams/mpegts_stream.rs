@@ -17,6 +17,7 @@ use rtpeeker_common::{MpegtsPacket, Packet, PacketAssociationTable};
 use std::cmp::{max, min};
 use std::collections::HashMap;
 use std::time::Duration;
+use log::{log, Level};
 
 pub mod substream;
 
@@ -208,9 +209,11 @@ impl MpegTsStream {
     }
 
     fn update_mpegts_parameters(&mut self, mut mpegts_info: MpegTsPacketInfo) {
+
         mpegts_info.time_delta = mpegts_info
             .time
             .saturating_sub(self.stream_info.packets.last().unwrap().time);
+
 
         self.update_rates(&mut mpegts_info);
 
@@ -413,6 +416,7 @@ impl MpegTsStream {
 impl StreamStatistics for MpegTsStream {
     fn get_duration(&self) -> Duration {
         let packets_time = self.stream_info.statistics.get_packets_time();
+
         packets_time
             .get_last_time()
             .saturating_sub(packets_time.get_first_time())

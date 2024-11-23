@@ -29,6 +29,7 @@ pub struct MpegtsFragment {
     pub header: Header,
     pub adaptation_field: Option<AdaptationField>,
     pub payload: Option<RawPayload>,
+    pub size: usize,
 }
 
 #[cfg(not(target_arch = "wasm32"))]
@@ -105,8 +106,14 @@ impl MpegtsPacket {
 
         Some(MpegtsFragment {
             header,
-            adaptation_field,
-            payload,
+            adaptation_field: adaptation_field.clone(),
+            payload: payload.clone(),
+            size: HEADER_SIZE
+                + adaptation_field
+                    .as_ref()
+                    .map(|af| af.adaptation_field_length as usize + 1)
+                    .unwrap_or(0)
+                + payload.as_ref().map(|p| p.data.len()).unwrap_or(0),
         })
     }
 

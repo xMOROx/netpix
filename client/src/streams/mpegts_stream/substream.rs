@@ -8,7 +8,7 @@ use rtpeeker_common::mpegts::psi::pmt::stream_types::{stream_type_into_unique_le
 use rtpeeker_common::mpegts::psi::pmt::ProgramMapTable;
 use rtpeeker_common::mpegts::MpegtsFragment;
 use rtpeeker_common::{Packet, PacketAssociationTable};
-use std::cmp::{max, min};
+use std::cmp::{max, min, Ordering};
 use std::collections::{HashMap, HashSet};
 use std::time::Duration;
 
@@ -33,7 +33,6 @@ pub struct SubstreamMpegTsPacketInfo {
     pub content: MpegtsFragment,
     pub id: usize,
     pub time: Duration,
-    pub time_delta: Duration,
     pub bytes: usize,
     pub bitrate: usize,     // in the last second, kbps
     pub packet_rate: usize, // packets/s
@@ -64,7 +63,6 @@ impl SubstreamMpegTsPacketInfo {
             content: mpegts_packet.clone(),
             id: packet.id,
             time: packet.timestamp,
-            time_delta: Duration::from_secs(0),
             bytes: packet.length as usize,
             bitrate: packet.length as usize * 8,
             packet_rate: 1,
@@ -87,7 +85,7 @@ impl MpegtsSubStream {
             pmt: HashMap::new(),
             packet_association_table: key.0.clone(),
             statistics: Statistics::default(),
-            packets: vec![],
+            packets: Vec::new(),
             transport_stream_id: key.1,
             program_number: key.2,
             stream_type: key.clone().3,
@@ -127,17 +125,32 @@ impl MpegtsSubStream {
     }
 
     fn update_mpegts_parameters(&mut self, mut mpegts_info: SubstreamMpegTsPacketInfo) {
-        if self.packets.last().is_none() {
-            mpegts_info.time_delta = mpegts_info.time.saturating_sub(Duration::ZERO);
+
+        if self.packets.is_empty() {
+            self.statistics.set_packets_time(
+                PacketsTime::new()
+                    .first_time(mpegts_info.time)
+                    .last_time(mpegts_info.time)
+                    .build(),
+            );
         } else {
-            mpegts_info.time_delta = mpegts_info
-                .time
-                .saturating_sub(self.packets.last().unwrap().time);
+            self.statistics.set_packets_time(
+                PacketsTime::new()
+                    .first_time(min(
+                        self.statistics.get_packets_time().get_first_time(),
+                        mpegts_info.time,
+                    ))
+                    .last_time(max(
+                        self.statistics.get_packets_time().get_last_time(),
+                        mpegts_info.time,
+                    ))
+                    .build(),
+            );
         }
 
         self.update_rates(&mut mpegts_info);
 
-        let mpegts_bytes = Self::count_payload_bytes(&mpegts_info.content);
+        let mpegts_bytes = mpegts_info.content.size;
 
         self.statistics.add_bytes(
             Bytes::new()
@@ -153,27 +166,15 @@ impl MpegtsSubStream {
                 .build(),
         );
 
-        self.statistics.set_packets_time(
-            PacketsTime::new()
-                .first_time(min(
-                    self.statistics.get_packets_time().get_first_time(),
-                    mpegts_info.time,
-                ))
-                .last_time(max(
-                    self.statistics.get_packets_time().get_last_time(),
-                    mpegts_info.time,
-                ))
-                .build(),
-        );
 
-        self.statistics
-            .set_packet_rate(self.statistics.get_packet_rate() + 1.0);
+
+        self.statistics.increment_packet_rate();
 
         self.packets.push(mpegts_info);
     }
-    fn create_statistics(packet: &Packet, mpegts_packet: &MpegtsFragment) -> Statistics {
+    fn create_statistics(packet: &Packet, mpegts_fragment: &MpegtsFragment) -> Statistics {
         let packet_bytes = packet.length;
-        let mpegts_packet_bytes = Self::count_payload_bytes(mpegts_packet);
+        let mpegts_packet_bytes = mpegts_fragment.size;
 
         Statistics::new()
             .packets_time(
@@ -197,12 +198,6 @@ impl MpegtsSubStream {
             .build()
     }
 
-    fn count_payload_bytes(mpegts_fragment: &MpegtsFragment) -> usize {
-        mpegts_fragment
-            .payload
-            .as_ref()
-            .map_or(0, |payload| payload.data.len())
-    }
 }
 
 impl StreamStatistics for MpegtsSubStream {

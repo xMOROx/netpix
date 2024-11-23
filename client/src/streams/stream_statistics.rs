@@ -60,6 +60,10 @@ impl Statistics {
     pub fn set_packet_rate(&mut self, packet_rate: f64) {
         self.packet_rate = packet_rate;
     }
+    
+    pub fn increment_packet_rate(&mut self) {
+        self.packet_rate += 1.0;
+    }
 
     pub fn set_packets_time(&mut self, packets_time: PacketsTime) {
         self.packets_time = packets_time;
