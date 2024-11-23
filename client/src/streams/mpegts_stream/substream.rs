@@ -10,8 +10,8 @@ use rtpeeker_common::mpegts::psi::pmt::ProgramMapTable;
 use rtpeeker_common::mpegts::MpegtsFragment;
 use rtpeeker_common::{Packet, PacketAssociationTable};
 use std::cmp::{max, min};
-use std::collections::{HashMap, HashSet};
 use std::time::Duration;
+use rustc_hash::{FxHashMap, FxHashSet};
 
 pub type SubStreamKey = (
     PacketAssociationTable,
@@ -20,7 +20,7 @@ pub type SubStreamKey = (
     StreamType,
 );
 
-pub type MpegtsSubStreams = HashMap<SubStreamKey, MpegtsSubStream>;
+pub type MpegtsSubStreams = FxHashMap<SubStreamKey, MpegtsSubStream>;
 
 #[derive(Debug, Clone)]
 pub struct Aliases {
@@ -44,13 +44,13 @@ pub struct MpegtsSubStream {
     pub packet_association_table: PacketAssociationTable,
     pub packets: Vec<SubstreamMpegTsPacketInfo>,
     pub pat: ProgramAssociationTable,
-    pub pmt: HashMap<PIDTable, ProgramMapTable>,
+    pub pmt: FxHashMap<PIDTable, ProgramMapTable>,
     pub transport_stream_id: u16,
     pub program_number: u16,
     pub stream_type: StreamType,
     pub statistics: Statistics,
     pub aliases: Aliases,
-    processed_packet_ids: HashSet<usize>,
+    processed_packet_ids: FxHashSet<usize>,
 }
 
 impl SubstreamMpegTsPacketInfo {
@@ -83,7 +83,7 @@ impl MpegtsSubStream {
         };
 
         Self {
-            pmt: HashMap::new(),
+            pmt: FxHashMap::default(),
             packet_association_table: key.0,
             statistics: Statistics::default(),
             packets: Vec::new(),
@@ -92,7 +92,7 @@ impl MpegtsSubStream {
             stream_type: key.clone().3,
             pat,
             aliases,
-            processed_packet_ids: HashSet::new(),
+            processed_packet_ids: FxHashSet::default(),
         }
     }
 

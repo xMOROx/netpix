@@ -11,7 +11,7 @@ pub struct Header {
     pub continuity_counter: u8,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, Hash, Default)]
+#[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
 pub enum PIDTable {
     #[default]
     ProgramAssociation,

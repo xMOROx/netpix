@@ -15,8 +15,8 @@ use rtpeeker_common::mpegts::psi::psi_buffer::{FragmentaryPsi, PsiBuffer};
 use rtpeeker_common::mpegts::MpegtsFragment;
 use rtpeeker_common::packet::SessionPacket;
 use rtpeeker_common::{MpegtsPacket, Packet, PacketAssociationTable};
+use rustc_hash::FxHashMap;
 use std::cmp::{max, min};
-use std::collections::HashMap;
 use std::time::Duration;
 
 pub mod substream;
@@ -38,7 +38,7 @@ pub struct MpegTsStreamInfo {
     pub packet_association_table: PacketAssociationTable,
     pub packets: Vec<MpegTsPacketInfo>,
     pub pat: Option<ProgramAssociationTable>,
-    pub pmt: HashMap<PIDTable, ProgramMapTable>,
+    pub pmt: FxHashMap<PIDTable, ProgramMapTable>,
     pub statistics: Statistics,
 }
 
@@ -74,7 +74,7 @@ impl MpegTsStreamInfo {
         Self {
             packets: vec![MpegTsPacketInfo::new(packet, mpegts_packet)],
             pat: None,
-            pmt: HashMap::new(),
+            pmt: FxHashMap::default(),
             statistics: Self::create_statistics(packet, mpegts_packet),
             packet_association_table: PacketAssociationTable {
                 source_addr: packet.source_addr,
@@ -92,7 +92,7 @@ impl MpegTsStreamInfo {
         Self {
             packets: vec![MpegTsPacketInfo::new(packet, mpegts_packet)],
             pat,
-            pmt: HashMap::new(),
+            pmt: FxHashMap::default(),
             statistics: Self::create_statistics(packet, mpegts_packet),
             packet_association_table: PacketAssociationTable {
                 source_addr: packet.source_addr,
@@ -150,36 +150,28 @@ impl MpegTsStream {
         let mut pat: Option<ProgramAssociationTable> = None;
 
         if let SessionPacket::Mpegts(mpegts) = packet.clone().contents {
-            mpegts.fragments.iter().for_each(|fragment| {
+            for fragment in &mpegts.fragments {
                 if let PIDTable::ProgramAssociation = fragment.header.pid {
-                    if fragment.payload.is_none() {
-                        return;
+                    if let Some(payload) = &fragment.payload {
+                        if let Some(pat_fragment) = FragmentaryProgramAssociationTable::unmarshall(
+                            &payload.data,
+                            fragment.header.payload_unit_start_indicator,
+                        ) {
+                            mpegts_aggregator
+                                .pat_buffer
+                                .set_last_section_number(pat_fragment.header.last_section_number);
+                            mpegts_aggregator.add_pat(pat_fragment);
+                            pat = mpegts_aggregator.get_pat();
+                        }
                     }
-                    let payload = fragment.clone().payload.unwrap().data;
-                    let pat_fragment = FragmentaryProgramAssociationTable::unmarshall(
-                        &payload,
-                        fragment.header.payload_unit_start_indicator,
-                    );
-                    if pat_fragment.is_none() {
-                        return;
-                    }
-                    let pat_fragment = pat_fragment.unwrap();
-
-                    mpegts_aggregator
-                        .pat_buffer
-                        .set_last_section_number(pat_fragment.header.last_section_number);
-
-                    mpegts_aggregator.add_pat(pat_fragment);
-
-                    pat = mpegts_aggregator.get_pat();
                 }
-            });
+            }
         }
 
         Self {
             alias: default_alias,
             stream_info: MpegTsStreamInfo::new_with_pat(packet, mpegts, pat),
-            substreams: HashMap::new(),
+            substreams: FxHashMap::default(),
             aggregator: mpegts_aggregator,
         }
     }
@@ -187,20 +179,16 @@ impl MpegTsStream {
     fn update_rates(&self, mpegts_info: &mut MpegTsPacketInfo) {
         let cutoff = mpegts_info.time.saturating_sub(Duration::from_secs(1));
 
-        let last_second_packets =
-            self.stream_info
-                .packets
-                .iter()
-                .rev()
-                .map_while(|pack| match pack {
-                    MpegTsPacketInfo { time, .. } if *time > cutoff => Some(pack.bytes),
-                    _ => None,
-                });
+        let last_second_packets = self
+            .stream_info
+            .packets
+            .iter()
+            .rev()
+            .take_while(|pack| pack.time > cutoff);
 
         mpegts_info.packet_rate = last_second_packets.clone().count() + 1;
-
-        let bytes = last_second_packets.sum::<usize>() + mpegts_info.bytes;
-        mpegts_info.bitrate = bytes * 8;
+        mpegts_info.bitrate =
+            last_second_packets.map(|pack| pack.bytes).sum::<usize>() * 8 + mpegts_info.bytes * 8;
     }
 
     pub fn add_mpegts_packet(&mut self, packet: &Packet, mpegts: &MpegtsPacket) {
@@ -259,9 +247,7 @@ impl MpegTsStream {
 
     fn determine_type(&mut self, packet: &Packet) {
         if let SessionPacket::Mpegts(mpegts) = &packet.contents {
-            let pat = self.process_pat(mpegts);
-
-            if let Some(pat) = pat {
+            if let Some(pat) = self.process_pat(mpegts) {
                 self.stream_info.pat = Some(pat.clone());
                 self.process_pmt(mpegts, packet, &pat);
             }
@@ -269,34 +255,23 @@ impl MpegTsStream {
     }
 
     fn process_pat(&mut self, mpegts: &MpegtsPacket) -> Option<ProgramAssociationTable> {
-        let mut pat = None;
-
-        for fragment in mpegts.fragments.iter() {
-            if fragment.header.pid != PIDTable::ProgramAssociation {
-                continue;
+        for fragment in &mpegts.fragments {
+            if fragment.header.pid == PIDTable::ProgramAssociation {
+                if let Some(payload) = &fragment.payload {
+                    if let Some(pat_fragment) = FragmentaryProgramAssociationTable::unmarshall(
+                        &payload.data,
+                        fragment.header.payload_unit_start_indicator,
+                    ) {
+                        self.aggregator
+                            .pat_buffer
+                            .set_last_section_number(pat_fragment.header.last_section_number);
+                        self.aggregator.add_pat(pat_fragment);
+                        return self.aggregator.get_pat();
+                    }
+                }
             }
-
-            let Some(payload) = &fragment.payload else {
-                continue;
-            };
-
-            let Some(pat_fragment) = FragmentaryProgramAssociationTable::unmarshall(
-                &payload.data,
-                fragment.header.payload_unit_start_indicator,
-            ) else {
-                continue;
-            };
-
-            self.aggregator
-                .pat_buffer
-                .set_last_section_number(pat_fragment.header.last_section_number);
-
-            self.aggregator.add_pat(pat_fragment);
-
-            pat = self.aggregator.get_pat();
         }
-
-        pat
+        None
     }
 
     fn process_pmt(
@@ -305,7 +280,7 @@ impl MpegTsStream {
         packet: &Packet,
         pat: &ProgramAssociationTable,
     ) {
-        for fragment in mpegts.fragments.iter() {
+        for fragment in &mpegts.fragments {
             self.process_pmt_fragment(fragment, pat);
         }
 
@@ -315,94 +290,80 @@ impl MpegTsStream {
     }
 
     fn process_pmt_fragment(&mut self, fragment: &MpegtsFragment, pat: &ProgramAssociationTable) {
-        for program in pat.programs.iter() {
-            let Some(program_map_pid) = program.program_map_pid else {
-                continue;
-            };
-            if program_map_pid != fragment.header.pid.clone().into() {
-                continue;
-            };
-
-            let Some(payload) = &fragment.payload else {
-                continue;
-            };
-            let Some(pmt_fragment) = FragmentaryProgramMapTable::unmarshall(
-                &payload.data,
-                fragment.header.payload_unit_start_indicator,
-            ) else {
-                continue;
-            };
-
-            self.aggregator
-                .add_pmt(fragment.header.pid.clone().into(), pmt_fragment);
+        for program in &pat.programs {
+            if let Some(program_map_pid) = program.program_map_pid {
+                if program_map_pid == fragment.header.pid.into() {
+                    if let Some(payload) = &fragment.payload {
+                        if let Some(pmt_fragment) = FragmentaryProgramMapTable::unmarshall(
+                            &payload.data,
+                            fragment.header.payload_unit_start_indicator,
+                        ) {
+                            self.aggregator
+                                .add_pmt(fragment.header.pid.into(), pmt_fragment);
+                        }
+                    }
+                }
+            }
         }
     }
 
     fn update_pmt_tables(&mut self, packet: &Packet, pat: &ProgramAssociationTable) {
-        for program in pat.programs.iter() {
-            let Some(program_map_pid) = program.program_map_pid else {
-                continue;
-            };
-            let pmt_pid: u16 = program_map_pid;
+        for program in &pat.programs {
+            if let Some(program_map_pid) = program.program_map_pid {
+                if let Some(program_map_table) = self.aggregator.get_pmt(program_map_pid) {
+                    self.stream_info
+                        .pmt
+                        .insert(program_map_pid.into(), program_map_table.clone());
 
-            if let Some(program_map_table) = self.aggregator.get_pmt(pmt_pid) {
-                self.stream_info
-                    .pmt
-                    .insert(pmt_pid.into(), program_map_table.clone());
+                    let program_number = program_map_table.fields.program_number;
+                    let packet_association_table = PacketAssociationTable {
+                        source_addr: packet.source_addr,
+                        destination_addr: packet.destination_addr,
+                        protocol: packet.transport_protocol,
+                    };
 
-                let program_number = program_map_table.fields.program_number;
-                let source_addr = packet.source_addr;
-                let destination_addr = packet.destination_addr;
-                let protocol = packet.transport_protocol;
-                let packet_association_table = PacketAssociationTable {
-                    source_addr,
-                    destination_addr,
-                    protocol,
-                };
+                    for es_info in &program_map_table.elementary_streams_info {
+                        let key: SubStreamKey = (
+                            packet_association_table,
+                            pat.transport_stream_id,
+                            program_number,
+                            es_info.stream_type.clone(),
+                        );
 
-                for es_info in program_map_table.elementary_streams_info.iter() {
-                    let key: SubStreamKey = (
-                        packet_association_table,
-                        pat.transport_stream_id,
-                        program_number,
-                        es_info.stream_type.clone(),
-                    );
+                        let substream = self
+                            .substreams
+                            .entry(key.clone())
+                            .or_insert_with(|| MpegtsSubStream::new(&key, pat.clone()));
 
-                    let substream = self
-                        .substreams
-                        .entry(key.clone())
-                        .or_insert_with(|| MpegtsSubStream::new(&key, pat.clone()));
-
-                    substream.add_pmt(pmt_pid.into(), program_map_table.clone());
-                    if let SessionPacket::Mpegts(mpegts) = &packet.contents {
-                        if !substream.is_packet_processed(packet.id) {
-                            for fragment in mpegts.fragments.iter() {
-                                if fragment.header.pid != PIDTable::from(es_info.elementary_pid)
-                                    && fragment.header.pid != PIDTable::from(pmt_pid)
-                                {
-                                    continue;
+                        substream.add_pmt(program_map_pid.into(), program_map_table.clone());
+                        if let SessionPacket::Mpegts(mpegts) = &packet.contents {
+                            if !substream.is_packet_processed(packet.id) {
+                                for fragment in &mpegts.fragments {
+                                    if fragment.header.pid == PIDTable::from(es_info.elementary_pid)
+                                        || fragment.header.pid == PIDTable::from(program_map_pid)
+                                    {
+                                        substream.add_mpegts_fragment(
+                                            SubstreamMpegTsPacketInfo::new(packet, fragment),
+                                        );
+                                    }
                                 }
-                                substream.add_mpegts_fragment(SubstreamMpegTsPacketInfo::new(
-                                    packet, fragment,
-                                ));
+                                substream.mark_packet_processed(packet.id);
                             }
-                            substream.mark_packet_processed(packet.id);
                         }
-                    }
 
-                    for mpegts_packet in self.stream_info.packets.iter() {
-                        if !substream.is_packet_processed(mpegts_packet.id) {
-                            for fragment in mpegts_packet.content.fragments.iter() {
-                                if fragment.header.pid != PIDTable::from(es_info.elementary_pid)
-                                    && fragment.header.pid != PIDTable::from(pmt_pid)
-                                {
-                                    continue;
+                        for mpegts_packet in &self.stream_info.packets {
+                            if !substream.is_packet_processed(mpegts_packet.id) {
+                                for fragment in &mpegts_packet.content.fragments {
+                                    if fragment.header.pid == PIDTable::from(es_info.elementary_pid)
+                                        || fragment.header.pid == PIDTable::from(program_map_pid)
+                                    {
+                                        substream.add_mpegts_fragment(
+                                            SubstreamMpegTsPacketInfo::new(packet, fragment),
+                                        );
+                                    }
                                 }
-                                substream.add_mpegts_fragment(SubstreamMpegTsPacketInfo::new(
-                                    packet, fragment,
-                                ));
+                                substream.mark_packet_processed(mpegts_packet.id);
                             }
-                            substream.mark_packet_processed(mpegts_packet.id);
                         }
                     }
                 }
