@@ -121,9 +121,9 @@ impl MpegTsPacketsTable {
             .flat_map(|(_, stream)| {
                 stream.stream_info.packets.iter().map(move |packet| {
                     let key = (
-                        packet.source_addr,
-                        packet.destination_addr,
-                        packet.protocol,
+                        packet.packet_association_table.source_addr,
+                        packet.packet_association_table.destination_addr,
+                        packet.packet_association_table.protocol,
                     );
                     (packet, key)
                 })
@@ -178,9 +178,9 @@ impl MpegTsPacketsTable {
             .map(|packet| {
                 let timestamp = packet.time.saturating_sub(first_ts);
                 let key = (
-                    packet.source_addr,
-                    packet.destination_addr,
-                    packet.protocol,
+                    packet.packet_association_table.source_addr,
+                    packet.packet_association_table.destination_addr,
+                    packet.packet_association_table.protocol,
                     0,
                 );
                 PacketInfo {
@@ -201,19 +201,11 @@ impl MpegTsPacketsTable {
                 ui.label(format!("{:.4}", timestamp.as_secs_f64()));
             });
             row.col(|ui| {
-                ui.label(info.packet.source_addr.to_string());
+                ui.label(info.packet.packet_association_table.source_addr.to_string());
             });
             row.col(|ui| {
-                ui.label(info.packet.destination_addr.to_string());
+                ui.label(info.packet.packet_association_table.destination_addr.to_string());
             });
-            // row.col(|ui| {
-            //     ui.label(
-            //         alias_to_display
-            //             .get(&info.key)
-            //             .expect("Alias should exist for stream key")
-            //             .to_string(),
-            //     );
-            // });
 
             let mut labels = info
                 .packet
