@@ -18,6 +18,7 @@ use mpegts_streams_table::MpegTsStreamsTable;
 
 use tab::Tab;
 
+use crate::app::tab::{MpegTsSection, RtpSection};
 use crate::streams::RefStreams;
 use rtp_streams_plot::RtpStreamsPlot;
 
@@ -73,16 +74,18 @@ impl eframe::App for App {
 
         match self.tab {
             Tab::Packets => self.packets_table.ui(ctx),
-            // RTP Group
-            Tab::RtpPackets => self.rtp_packets_table.ui(ctx),
-            Tab::RtcpPackets => self.rtcp_packets_table.ui(ctx),
-            Tab::RtpStreams => self.rtp_streams_table.ui(ctx),
-            Tab::RtpPlot => self.rtp_streams_plot.ui(ctx),
-            // MPEG-TS Group
-            Tab::MpegTsPackets => self.mpegts_packets_table.ui(ctx),
-            Tab::MpegTsStreams => self.mpegts_streams_table.ui(ctx),
-            Tab::MpegTsInformations => self.mpegts_info_table.ui(ctx),
-            Tab::MpegTsPlot => self.mpegts_plot.ui(ctx),
+            Tab::RtpSection(section) => match section {
+                RtpSection::RtpPackets => self.rtp_packets_table.ui(ctx),
+                RtpSection::RtcpPackets => self.rtcp_packets_table.ui(ctx),
+                RtpSection::RtpStreams => self.rtp_streams_table.ui(ctx),
+                RtpSection::RtpPlot => self.rtp_streams_plot.ui(ctx),
+            },
+            Tab::MpegTsSection(section) => match section {
+                MpegTsSection::MpegTsPackets => self.mpegts_packets_table.ui(ctx),
+                MpegTsSection::MpegTsStreams => self.mpegts_streams_table.ui(ctx),
+                MpegTsSection::MpegTsInformations => self.mpegts_info_table.ui(ctx),
+                MpegTsSection::MpegTsPlot => self.mpegts_plot.ui(ctx),
+            },
         };
     }
 }
@@ -192,21 +195,45 @@ impl App {
     }
 
     fn build_top_bar(&mut self, ctx: &egui::Context, frame: &mut eframe::Frame) {
+        let selected = match self.tab {
+            Tab::Packets => "📦 All Packets",
+            Tab::RtpSection(section) => match section {
+                RtpSection::RtpPackets => "🔈RTP Packets",
+                RtpSection::RtcpPackets => "📃 RTCP Packets",
+                RtpSection::RtpStreams => "🔴 RTP Streams",
+                RtpSection::RtpPlot => "📈 RTP Plot",
+            },
+            Tab::MpegTsSection(section) => match section {
+                MpegTsSection::MpegTsPackets => "📺 MPEG-TS Packets",
+                MpegTsSection::MpegTsStreams => "🎥 MPEG-TS Streams",
+                MpegTsSection::MpegTsInformations => "ℹ️ MPEG-TS Info",
+                MpegTsSection::MpegTsPlot => "📊 MPEG-TS Plot",
+            },
+        };
+
         egui::TopBottomPanel::top("top_panel").show(ctx, |ui| {
             egui::menu::bar(ui, |ui| {
                 self.build_dropdown_source(ui, frame);
                 ui.separator();
-                Tab::all().iter().for_each(|tab| {
-                    if ui
-                        .selectable_label(*tab == self.tab, tab.to_string())
-                        .clicked()
-                    {
-                        self.tab = *tab;
-                        if let Some(storage) = frame.storage_mut() {
-                            storage.set_string(TAB_KEY, self.tab.to_string());
+                ComboBox::from_id_source("tab_picker")
+                    .width(300.0)
+                    .wrap(false)
+                    .selected_text(selected)
+                    .show_ui(ui, |ui| {
+                        let mut was_changed = false;
+                        Tab::all().iter().for_each(|tab| {
+                            let resp = ui.selectable_value(&mut self.tab, *tab, tab.to_string());
+                            if resp.clicked() {
+                                was_changed = true;
+                            }
+                        });
+
+                        if was_changed {
+                            if let Some(storage) = frame.storage_mut() {
+                                storage.set_string(TAB_KEY, self.tab.to_string());
+                            }
                         }
-                    }
-                });
+                    });
             });
         });
     }
