@@ -100,61 +100,64 @@ impl Descriptors {
         match header.descriptor_tag {
             DescriptorTag::VideoStreamDescriptorTag => {
                 VideoStreamDescriptor::unmarshall(header, payload)
-                    .map(|descriptor| Descriptors::VideoStreamDescriptor(descriptor))
+                    .map(Descriptors::VideoStreamDescriptor)
             }
             DescriptorTag::AudioStreamDescriptorTag => {
                 AudioStreamDescriptor::unmarshall(header, payload)
-                    .map(|descriptor| Descriptors::AudioStreamDescriptor(descriptor))
+                    .map(Descriptors::AudioStreamDescriptor)
             }
             DescriptorTag::HierarchyDescriptorTag => {
                 HierarchyDescriptor::unmarshall(header, payload)
-                    .map(|descriptor| Descriptors::HierarchyDescriptor(descriptor))
+                    .map(Descriptors::HierarchyDescriptor)
             }
             DescriptorTag::RegistrationDescriptorTag => {
                 RegistrationDescriptor::unmarshall(header, payload)
-                    .map(|descriptor| Descriptors::RegistrationDescriptor(descriptor))
+                    .map(Descriptors::RegistrationDescriptor)
             }
             DescriptorTag::TargetBackgroundGridDescriptorTag => {
                 TargetBackgroundGridDescriptor::unmarshall(header, payload)
-                    .map(|descriptor| Descriptors::TargetBackgroundGridDescriptor(descriptor))
+                    .map(Descriptors::TargetBackgroundGridDescriptor)
             }
             DescriptorTag::VideoWindowDescriptorTag => {
                 VideoWindowDescriptor::unmarshall(header, payload)
-                    .map(|descriptor| Descriptors::VideoWindowDescriptor(descriptor))
+                    .map(Descriptors::VideoWindowDescriptor)
             }
-            DescriptorTag::CaDescriptorTag => CaDescriptor::unmarshall(header, payload)
-                .map(|descriptor| Descriptors::CaDescriptor(descriptor)),
+            DescriptorTag::CaDescriptorTag => {
+                CaDescriptor::unmarshall(header, payload).map(Descriptors::CaDescriptor)
+            }
             DescriptorTag::SystemClockDescriptorTag => {
                 SystemClockDescriptor::unmarshall(header, payload)
-                    .map(|descriptor| Descriptors::SystemClockDescriptor(descriptor))
+                    .map(Descriptors::SystemClockDescriptor)
             }
             DescriptorTag::MaximumBitrateDescriptorTag => {
                 MaximumBitrateDescriptor::unmarshall(header, payload)
-                    .map(|descriptor| Descriptors::MaximumBitrateDescriptor(descriptor))
+                    .map(Descriptors::MaximumBitrateDescriptor)
             }
             DescriptorTag::CopyrightDescriptorTag => {
                 CopyrightDescriptor::unmarshall(header, payload)
-                    .map(|descriptor| Descriptors::CopyrightDescriptor(descriptor))
+                    .map(Descriptors::CopyrightDescriptor)
             }
             DescriptorTag::MultiplexBufferUtilizationDescriptorTag => {
                 MultiplexBufferUtilizationDescriptor::unmarshall(header, payload)
-                    .map(|descriptor| Descriptors::MultiplexBufferUtilizationDescriptor(descriptor))
+                    .map(Descriptors::MultiplexBufferUtilizationDescriptor)
             }
             DescriptorTag::PrivateDataIndicatorDescriptorTag => {
                 PrivateDataIndicatorDescriptor::unmarshall(header, payload)
-                    .map(|descriptor| Descriptors::PrivateDataIndicatorDescriptor(descriptor))
+                    .map(Descriptors::PrivateDataIndicatorDescriptor)
             }
-            DescriptorTag::StdDescriptorTag => StdDescriptor::unmarshall(header, payload)
-                .map(|descriptor| Descriptors::StdDescriptor(descriptor)),
+            DescriptorTag::StdDescriptorTag => {
+                StdDescriptor::unmarshall(header, payload).map(Descriptors::StdDescriptor)
+            }
             DescriptorTag::DataStreamAlignmentDescriptorTag => {
                 DataStreamAlignmentDescriptor::unmarshall(header, payload)
-                    .map(|descriptor| Descriptors::DataStreamAlignmentDescriptor(descriptor))
+                    .map(Descriptors::DataStreamAlignmentDescriptor)
             }
-            DescriptorTag::AvcVideoDescriptorTag => AvcVideoDescriptor::unmarshall(header, payload)
-                .map(|descriptor| Descriptors::AvcVideoDescriptor(descriptor)),
+            DescriptorTag::AvcVideoDescriptorTag => {
+                AvcVideoDescriptor::unmarshall(header, payload).map(Descriptors::AvcVideoDescriptor)
+            }
             DescriptorTag::Iso639LanguageDescriptorTag => {
                 Iso639LanguageDescriptor::unmarshall(header, payload)
-                    .map(|descriptor| Descriptors::Iso639LanguageDescriptor(descriptor))
+                    .map(Descriptors::Iso639LanguageDescriptor)
             }
             DescriptorTag::UserPrivate => Some(Descriptors::UserPrivate(data[0])),
             _ => Some(Descriptors::Unknown),
@@ -165,12 +168,11 @@ impl Descriptors {
         let mut offset = 0;
         while offset < data.len() {
             let header = DescriptorHeader::unmarshall(&data[offset..]);
-            Self::unmarshall(
+            if let Some(descriptor) = Self::unmarshall(
                 &data[offset..(header.descriptor_length + HEADER_SIZE) as usize + offset],
-            )
-            .map(|descriptor| {
+            ) {
                 descriptors.push(descriptor);
-            });
+            }
             offset += (HEADER_SIZE + header.descriptor_length) as usize;
         }
         descriptors

@@ -1,6 +1,5 @@
-use serde::{Deserialize, Serialize};
 use crate::mpegts::descriptors::{DescriptorHeader, ParsableDescriptor};
-
+use serde::{Deserialize, Serialize};
 
 const SECTION_LENGTH: u8 = 4;
 
@@ -51,10 +50,7 @@ impl ParsableDescriptor<Iso639LanguageDescriptor> for Iso639LanguageDescriptor {
             });
         }
 
-        Some(Iso639LanguageDescriptor {
-            header,
-            section,
-        })
+        Some(Iso639LanguageDescriptor { header, section })
     }
 }
 
@@ -62,7 +58,10 @@ impl std::fmt::Display for Iso639LanguageDescriptor {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let mut sections = String::new();
         for s in &self.section {
-            sections.push_str(&format!("Language Code: {}\nAudio Type: {:?}\n", s.language_code, s.audio_type));
+            sections.push_str(&format!(
+                "Language Code: {}\nAudio Type: {:?}\n",
+                s.language_code, s.audio_type
+            ));
         }
         write!(f, "{}", sections)
     }
@@ -70,29 +69,30 @@ impl std::fmt::Display for Iso639LanguageDescriptor {
 
 impl PartialEq for Iso639LanguageDescriptor {
     fn eq(&self, other: &Self) -> bool {
-        self.header == other.header
-            && self.section == other.section
+        self.header == other.header && self.section == other.section
     }
 }
 
 impl PartialEq for Section {
     fn eq(&self, other: &Self) -> bool {
-        self.language_code == other.language_code
-            && self.audio_type == other.audio_type
+        self.language_code == other.language_code && self.audio_type == other.audio_type
     }
 }
 
 impl PartialEq for AudioType {
     fn eq(&self, other: &Self) -> bool {
-        match (self, other) {
-            (AudioType::Undefined, AudioType::Undefined) => true,
-            (AudioType::CleanEffects, AudioType::CleanEffects) => true,
-            (AudioType::HearingImpaired, AudioType::HearingImpaired) => true,
-            (AudioType::VisualImpairedCommentary, AudioType::VisualImpairedCommentary) => true,
-            (AudioType::UserPrivate, AudioType::UserPrivate) => true,
-            (AudioType::Reserved, AudioType::Reserved) => true,
-            _ => false,
-        }
+        matches!(
+            (self, other),
+            (AudioType::Undefined, AudioType::Undefined)
+                | (AudioType::CleanEffects, AudioType::CleanEffects)
+                | (AudioType::HearingImpaired, AudioType::HearingImpaired)
+                | (
+                    AudioType::VisualImpairedCommentary,
+                    AudioType::VisualImpairedCommentary
+                )
+                | (AudioType::UserPrivate, AudioType::UserPrivate)
+                | (AudioType::Reserved, AudioType::Reserved)
+        )
     }
 }
 
@@ -112,8 +112,8 @@ impl From<u8> for AudioType {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::mpegts::descriptors::DescriptorHeader;
     use crate::mpegts::descriptors::tags::DescriptorTag;
+    use crate::mpegts::descriptors::DescriptorHeader;
 
     #[test]
     fn test_iso_639_language_descriptor_unmarshall() {
@@ -139,7 +139,10 @@ mod tests {
             ],
         };
 
-        assert_eq!(Iso639LanguageDescriptor::unmarshall(header, &data), Some(descriptor));
+        assert_eq!(
+            Iso639LanguageDescriptor::unmarshall(header, &data),
+            Some(descriptor)
+        );
     }
 
     #[test]
@@ -150,7 +153,10 @@ mod tests {
             descriptor_length: (data.len() - 1) as u8, // Invalid length
         };
 
-        assert_eq!(Iso639LanguageDescriptor::unmarshall(header, &data[1..]), None);
+        assert_eq!(
+            Iso639LanguageDescriptor::unmarshall(header, &data[1..]),
+            None
+        );
     }
 
     #[test]

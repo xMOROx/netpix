@@ -32,9 +32,7 @@ impl PacketizedElementaryStream {
             return None;
         }
 
-        let Some(pes) = Self::unmarshall(data) else {
-            return None;
-        };
+        let pes = Self::unmarshall(data)?;
 
         Some(pes)
     }
@@ -63,9 +61,7 @@ impl PacketizedElementaryStream {
 
     // TODO: implement Result instead of Option
     fn unmarshall(data: &[u8]) -> Option<Self> {
-        let Some(required_fields) = Self::unmarshall_required_fields(data) else {
-            return None;
-        };
+        let required_fields = Self::unmarshall_required_fields(data)?;
 
         let mut header = None;
         let mut packet_data = None;

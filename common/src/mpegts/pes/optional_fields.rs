@@ -125,12 +125,15 @@ impl ContextFlagsBuilder {
     }
 }
 
+impl Default for ContextFlagsBuilder {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl OptionalFields {
     pub fn build(data: &[u8], context_flags: ContextFlags) -> Option<Self> {
-        let Some(optional_fields) = Self::unmarshall(data, context_flags) else {
-            return None;
-        };
-        Some(optional_fields)
+        Self::unmarshall(data, context_flags)
     }
 
     pub(super) fn unmarshall(data: &[u8], context_flags: ContextFlags) -> Option<Self> {
@@ -433,7 +436,7 @@ impl PesExtensionData {
 
         Some(Self {
             size: index as u8,
-            pes_private_data_flag: pes_private_data_flag,
+            pes_private_data_flag,
             pack_header_field_flag,
             program_packet_sequence_counter_flag,
             p_std_buffer_flag,

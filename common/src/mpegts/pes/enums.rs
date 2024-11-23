@@ -57,9 +57,9 @@ impl From<u8> for PtsDtsFlags {
     }
 }
 
-impl Into<u8> for PtsDtsFlags {
-    fn into(self) -> u8 {
-        match self {
+impl From<PtsDtsFlags> for u8 {
+    fn from(val: PtsDtsFlags) -> Self {
+        match val {
             PtsDtsFlags::No => 0b00,
             PtsDtsFlags::Forbidden => 0b01,
             PtsDtsFlags::PresentPts => 0b10,
@@ -81,9 +81,9 @@ impl From<u8> for TrickModeControlValues {
     }
 }
 
-impl Into<u8> for TrickModeControlValues {
-    fn into(self) -> u8 {
-        match self {
+impl From<TrickModeControlValues> for u8 {
+    fn from(val: TrickModeControlValues) -> Self {
+        match val {
             TrickModeControlValues::FastForward => 0b000,
             TrickModeControlValues::SlowMotion => 0b001,
             TrickModeControlValues::FreezeFrame => 0b010,

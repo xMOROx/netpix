@@ -90,10 +90,9 @@ impl ProgramAssociationTable {
     }
 
     fn unmarshal_crc_32(data: &[u8]) -> u32 {
-        let crc_32 = ((data[data.len() - 4] as u32) << 24)
+        ((data[data.len() - 4] as u32) << 24)
             | ((data[data.len() - 3] as u32) << 16)
             | ((data[data.len() - 2] as u32) << 8)
-            | data[data.len() - 1] as u32;
-        crc_32
+            | data[data.len() - 1] as u32
     }
 }

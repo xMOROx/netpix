@@ -6,7 +6,7 @@ use futures_util::{
 use log::{error, info, warn};
 use rtpeeker_common::packet::SessionProtocol;
 use rtpeeker_common::{Request, Response, Sdp};
-use rtpeeker_common::{Source, RtpStreamKey};
+use rtpeeker_common::{RtpStreamKey, Source};
 use rust_embed::RustEmbed;
 use std::collections::HashMap;
 use std::net::SocketAddr;

@@ -105,8 +105,7 @@ impl PesBuffer {
         }
 
         let data = self.payload.get_data();
-        let pes = PacketizedElementaryStream::build(data);
-        pes
+        PacketizedElementaryStream::build(data)
     }
 
     pub fn is_complete(&self) -> bool {
