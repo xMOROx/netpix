@@ -1,4 +1,4 @@
-build: rebuild clean
+build: clean rebuild
 
 rebuild:
 	@rm -rf dist client/dist
