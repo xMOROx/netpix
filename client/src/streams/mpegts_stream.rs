@@ -145,28 +145,37 @@ impl MpegTsStreamInfo {
 }
 
 impl MpegTsStream {
+    fn process_pat_fragment(
+        aggregator: &mut MpegtsAggregator,
+        fragment: &MpegtsFragment,
+    ) -> Option<ProgramAssociationTable> {
+        if fragment.header.pid != PIDTable::ProgramAssociation {
+            return None;
+        }
+
+        let payload = fragment.payload.as_ref()?;
+        let pat_fragment = FragmentaryProgramAssociationTable::unmarshall(
+            &payload.data,
+            fragment.header.payload_unit_start_indicator,
+        )?;
+
+        aggregator
+            .pat_buffer
+            .set_last_section_number(pat_fragment.header.last_section_number);
+        aggregator.add_pat(pat_fragment);
+        aggregator.get_pat()
+    }
+
     pub fn new(packet: &Packet, mpegts: &MpegtsPacket, default_alias: String) -> Self {
         let mut mpegts_aggregator = MpegtsAggregator::new();
-        let mut pat: Option<ProgramAssociationTable> = None;
-
-        if let SessionPacket::Mpegts(mpegts) = packet.clone().contents {
-            for fragment in &mpegts.fragments {
-                if let PIDTable::ProgramAssociation = fragment.header.pid {
-                    if let Some(payload) = &fragment.payload {
-                        if let Some(pat_fragment) = FragmentaryProgramAssociationTable::unmarshall(
-                            &payload.data,
-                            fragment.header.payload_unit_start_indicator,
-                        ) {
-                            mpegts_aggregator
-                                .pat_buffer
-                                .set_last_section_number(pat_fragment.header.last_section_number);
-                            mpegts_aggregator.add_pat(pat_fragment);
-                            pat = mpegts_aggregator.get_pat();
-                        }
-                    }
-                }
-            }
-        }
+        let pat = if let SessionPacket::Mpegts(mpegts) = packet.clone().contents {
+            mpegts
+                .fragments
+                .iter()
+                .find_map(|fragment| Self::process_pat_fragment(&mut mpegts_aggregator, fragment))
+        } else {
+            None
+        };
 
         Self {
             alias: default_alias,
@@ -174,6 +183,116 @@ impl MpegTsStream {
             substreams: FxHashMap::default(),
             aggregator: mpegts_aggregator,
         }
+    }
+
+    fn process_fragment_for_substream(
+        substream: &mut MpegtsSubStream,
+        packet: &Packet,
+        fragment: &MpegtsFragment,
+        es_pid: u16,
+        pmt_pid: u16,
+    ) {
+        if fragment.header.pid == PIDTable::from(es_pid)
+            || fragment.header.pid == PIDTable::from(pmt_pid)
+        {
+            substream.add_mpegts_fragment(SubstreamMpegTsPacketInfo::new(packet, fragment));
+        }
+    }
+
+    fn process_substream_packets(
+        &mut self,
+        packet: &Packet,
+        pat: &ProgramAssociationTable,
+        program_map_table: &ProgramMapTable,
+        program_map_pid: u16,
+    ) {
+        let program_number = program_map_table.fields.program_number;
+        let packet_association_table = PacketAssociationTable {
+            source_addr: packet.source_addr,
+            destination_addr: packet.destination_addr,
+            protocol: packet.transport_protocol,
+        };
+
+        for es_info in &program_map_table.elementary_streams_info {
+            let key = (
+                packet_association_table,
+                pat.transport_stream_id,
+                program_number,
+                es_info.stream_type.clone(),
+            );
+
+            let substream = self
+                .substreams
+                .entry(key.clone())
+                .or_insert_with(|| MpegtsSubStream::new(&key, pat.clone()));
+
+            substream.add_pmt(program_map_pid.into(), program_map_table.clone());
+
+            // Process current packet
+            if let SessionPacket::Mpegts(mpegts) = &packet.contents {
+                if !substream.is_packet_processed(packet.id) {
+                    for fragment in &mpegts.fragments {
+                        Self::process_fragment_for_substream(
+                            substream,
+                            packet,
+                            fragment,
+                            es_info.elementary_pid,
+                            program_map_pid,
+                        );
+                    }
+                    substream.mark_packet_processed(packet.id);
+                }
+            }
+
+            // Process historical packets
+            for mpegts_packet in &self.stream_info.packets {
+                if !substream.is_packet_processed(mpegts_packet.id) {
+                    for fragment in &mpegts_packet.content.fragments {
+                        Self::process_fragment_for_substream(
+                            substream,
+                            packet,
+                            fragment,
+                            es_info.elementary_pid,
+                            program_map_pid,
+                        );
+                    }
+                    substream.mark_packet_processed(mpegts_packet.id);
+                }
+            }
+        }
+    }
+
+    fn update_statistics(&mut self, mpegts_info: &MpegTsPacketInfo, mpegts_bytes: usize) {
+        let stats = &mut self.stream_info.statistics;
+
+        stats.add_bytes(
+            Bytes::builder()
+                .frame_bytes(mpegts_info.bytes as f64)
+                .protocol_bytes(mpegts_bytes as f64)
+                .build(),
+        );
+
+        stats.add_bitrate(
+            Bitrate::builder()
+                .frame_bitrate((mpegts_info.bytes * 8) as f64)
+                .protocol_bitrate((mpegts_bytes * 8) as f64)
+                .build(),
+        );
+
+        stats.set_packets_time(
+            PacketsTime::builder()
+                .first_time(min(
+                    stats.get_packets_time().get_first_time(),
+                    mpegts_info.time,
+                ))
+                .last_time(max(
+                    stats.get_packets_time().get_last_time(),
+                    mpegts_info.time,
+                ))
+                .build(),
+        );
+
+        stats.set_packet_rate(stats.get_packet_rate() + 1.0);
     }
 
     fn update_rates(&self, mpegts_info: &mut MpegTsPacketInfo) {
@@ -205,42 +324,7 @@ impl MpegTsStream {
 
         let mpegts_bytes = MpegTsStreamInfo::count_payload_bytes(&mpegts_info.content);
 
-        self.stream_info.statistics.add_bytes(
-            Bytes::builder()
-                .frame_bytes(mpegts_info.bytes as f64)
-                .protocol_bytes(mpegts_bytes as f64)
-                .build(),
-        );
-
-        self.stream_info.statistics.add_bitrate(
-            Bitrate::builder()
-                .frame_bitrate((mpegts_info.bytes * 8) as f64)
-                .protocol_bitrate((mpegts_bytes * 8) as f64)
-                .build(),
-        );
-
-        self.stream_info.statistics.set_packets_time(
-            PacketsTime::builder()
-                .first_time(min(
-                    self.stream_info
-                        .statistics
-                        .get_packets_time()
-                        .get_first_time(),
-                    mpegts_info.time,
-                ))
-                .last_time(max(
-                    self.stream_info
-                        .statistics
-                        .get_packets_time()
-                        .get_last_time(),
-                    mpegts_info.time,
-                ))
-                .build(),
-        );
-
-        self.stream_info
-            .statistics
-            .set_packet_rate(self.stream_info.statistics.get_packet_rate() + 1.0);
+        self.update_statistics(&mpegts_info, mpegts_bytes);
 
         self.stream_info.packets.push(mpegts_info);
     }
@@ -315,57 +399,12 @@ impl MpegTsStream {
                         .pmt
                         .insert(program_map_pid.into(), program_map_table.clone());
 
-                    let program_number = program_map_table.fields.program_number;
-                    let packet_association_table = PacketAssociationTable {
-                        source_addr: packet.source_addr,
-                        destination_addr: packet.destination_addr,
-                        protocol: packet.transport_protocol,
-                    };
-
-                    for es_info in &program_map_table.elementary_streams_info {
-                        let key: SubStreamKey = (
-                            packet_association_table,
-                            pat.transport_stream_id,
-                            program_number,
-                            es_info.stream_type.clone(),
-                        );
-
-                        let substream = self
-                            .substreams
-                            .entry(key.clone())
-                            .or_insert_with(|| MpegtsSubStream::new(&key, pat.clone()));
-
-                        substream.add_pmt(program_map_pid.into(), program_map_table.clone());
-                        if let SessionPacket::Mpegts(mpegts) = &packet.contents {
-                            if !substream.is_packet_processed(packet.id) {
-                                for fragment in &mpegts.fragments {
-                                    if fragment.header.pid == PIDTable::from(es_info.elementary_pid)
-                                        || fragment.header.pid == PIDTable::from(program_map_pid)
-                                    {
-                                        substream.add_mpegts_fragment(
-                                            SubstreamMpegTsPacketInfo::new(packet, fragment),
-                                        );
-                                    }
-                                }
-                                substream.mark_packet_processed(packet.id);
-                            }
-                        }
-
-                        for mpegts_packet in &self.stream_info.packets {
-                            if !substream.is_packet_processed(mpegts_packet.id) {
-                                for fragment in &mpegts_packet.content.fragments {
-                                    if fragment.header.pid == PIDTable::from(es_info.elementary_pid)
-                                        || fragment.header.pid == PIDTable::from(program_map_pid)
-                                    {
-                                        substream.add_mpegts_fragment(
-                                            SubstreamMpegTsPacketInfo::new(packet, fragment),
-                                        );
-                                    }
-                                }
-                                substream.mark_packet_processed(mpegts_packet.id);
-                            }
-                        }
-                    }
+                    self.process_substream_packets(
+                        packet,
+                        pat,
+                        &program_map_table,
+                        program_map_pid,
+                    );
                 }
             }
         }
