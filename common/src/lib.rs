@@ -14,7 +14,7 @@ pub mod rtp;
 pub mod sdp;
 mod stream_keys;
 
-pub use stream_keys::{MpegtsStreamKey, RtpStreamKey};
+pub use stream_keys::{MpegtsStreamKey, RtpStreamKey, PacketAssociationTable};
 
 #[derive(Serialize, Deserialize, Debug, Clone, Hash, Eq, PartialEq)]
 pub enum Source {
