@@ -1,10 +1,10 @@
+#![allow(dead_code)]
 use crate::streams::mpegts_stream::substream::{
     MpegtsSubStream, MpegtsSubStreams, SubStreamKey, SubstreamMpegTsPacketInfo,
 };
 use crate::streams::stream_statistics::{
     Bitrate, Bytes, PacketsTime, Statistics, StreamStatistics,
 };
-use log::{log, Level};
 use rtpeeker_common::mpegts::aggregator::MpegtsAggregator;
 use rtpeeker_common::mpegts::header::{AdaptationFieldControl, PIDTable};
 use rtpeeker_common::mpegts::psi::pat::fragmentary_pat::FragmentaryProgramAssociationTable;

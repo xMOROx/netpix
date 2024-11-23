@@ -1,3 +1,5 @@
+#![allow(dead_code)]
+#![allow(unused_imports)]
 #[cfg(target_arch = "wasm32")]
 mod app;
 mod streams;

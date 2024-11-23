@@ -121,7 +121,6 @@ impl MpegTsStreamPlot {
 
     fn plot_ui(&mut self, ui: &mut Ui) {}
 
-
     fn draw_points(&mut self, plot_ui: &mut PlotUi) {}
 
     fn refresh_points(&mut self) {
@@ -145,7 +144,3 @@ fn get_highest_y(
 ) -> f64 {
     0.0
 }
-
-
-
-

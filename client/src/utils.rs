@@ -1,3 +1,4 @@
+#![allow(dead_code)]
 use chrono::{Duration, TimeZone, Utc};
 
 fn ntp_to_datetime(ntp_time: u64) -> chrono::DateTime<Utc> {

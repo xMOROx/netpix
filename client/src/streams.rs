@@ -1,3 +1,4 @@
+#![allow(dead_code)]
 use mpegts_stream::MpegTsStream;
 use packets::Packets;
 use rtpStream::RtpStream;

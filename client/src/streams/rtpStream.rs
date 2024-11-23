@@ -1,3 +1,4 @@
+#![allow(dead_code)]
 use crate::utils::ntp_to_f64;
 use rtpeeker_common::packet::TransportProtocol;
 use rtpeeker_common::rtcp::{source_description::SdesType, SourceDescription};

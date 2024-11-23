@@ -11,7 +11,6 @@ mod tests;
 
 use crate::mpegts::adaptation_field::AdaptationField;
 use crate::mpegts::header::Header;
-#[cfg(not(target_arch = "wasm32"))]
 use crate::mpegts::header::{AdaptationFieldControl, PIDTable, TransportScramblingControl};
 use crate::mpegts::payload::RawPayload;
 use constants::*;

@@ -1,3 +1,4 @@
+#![allow(dead_code)]
 use crate::streams::int_to_letter;
 use crate::streams::stream_statistics::{
     Bitrate, Bytes, PacketsTime, Statistics, StreamStatistics,
@@ -8,7 +9,7 @@ use rtpeeker_common::mpegts::psi::pmt::stream_types::{stream_type_into_unique_le
 use rtpeeker_common::mpegts::psi::pmt::ProgramMapTable;
 use rtpeeker_common::mpegts::MpegtsFragment;
 use rtpeeker_common::{Packet, PacketAssociationTable};
-use std::cmp::{max, min, Ordering};
+use std::cmp::{max, min};
 use std::collections::{HashMap, HashSet};
 use std::time::Duration;
 
