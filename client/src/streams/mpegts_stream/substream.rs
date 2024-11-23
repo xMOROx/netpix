@@ -58,7 +58,7 @@ impl SubstreamMpegTsPacketInfo {
             packet_association_table: PacketAssociationTable {
                 source_addr: packet.source_addr,
                 destination_addr: packet.destination_addr,
-                protocol: packet.transport_protocol.clone(),
+                protocol: packet.transport_protocol,
             },
             content: mpegts_packet.clone(),
             id: packet.id,
@@ -83,7 +83,7 @@ impl MpegtsSubStream {
 
         Self {
             pmt: HashMap::new(),
-            packet_association_table: key.0.clone(),
+            packet_association_table: key.0,
             statistics: Statistics::default(),
             packets: Vec::new(),
             transport_stream_id: key.1,
@@ -125,17 +125,16 @@ impl MpegtsSubStream {
     }
 
     fn update_mpegts_parameters(&mut self, mut mpegts_info: SubstreamMpegTsPacketInfo) {
-
         if self.packets.is_empty() {
             self.statistics.set_packets_time(
-                PacketsTime::new()
+                PacketsTime::builder()
                     .first_time(mpegts_info.time)
                     .last_time(mpegts_info.time)
                     .build(),
             );
         } else {
             self.statistics.set_packets_time(
-                PacketsTime::new()
+                PacketsTime::builder()
                     .first_time(min(
                         self.statistics.get_packets_time().get_first_time(),
                         mpegts_info.time,
@@ -153,20 +152,18 @@ impl MpegtsSubStream {
         let mpegts_bytes = mpegts_info.content.size;
 
         self.statistics.add_bytes(
-            Bytes::new()
+            Bytes::builder()
                 .frame_bytes(mpegts_info.bytes as f64)
                 .protocol_bytes(mpegts_bytes as f64)
                 .build(),
         );
 
         self.statistics.add_bitrate(
-            Bitrate::new()
+            Bitrate::builder()
                 .frame_bitrate((mpegts_info.bytes * 8) as f64)
                 .protocol_bitrate((mpegts_bytes * 8) as f64)
                 .build(),
         );
-
-
 
         self.statistics.increment_packet_rate();
 
@@ -176,28 +173,27 @@ impl MpegtsSubStream {
         let packet_bytes = packet.length;
         let mpegts_packet_bytes = mpegts_fragment.size;
 
-        Statistics::new()
+        Statistics::builder()
             .packets_time(
-                PacketsTime::new()
+                PacketsTime::builder()
                     .first_time(packet.timestamp)
                     .last_time(packet.timestamp)
                     .build(),
             )
             .bitrate(
-                Bitrate::new()
+                Bitrate::builder()
                     .frame_bitrate((packet_bytes * 8) as f64)
                     .protocol_bitrate((mpegts_packet_bytes * 8) as f64)
                     .build(),
             )
             .bytes(
-                Bytes::new()
+                Bytes::builder()
                     .frame_bytes(packet_bytes as f64)
                     .protocol_bytes(mpegts_packet_bytes as f64)
                     .build(),
             )
             .build()
     }
-
 }
 
 impl StreamStatistics for MpegtsSubStream {

@@ -4,6 +4,7 @@ use crate::streams::mpegts_stream::substream::{
 use crate::streams::stream_statistics::{
     Bitrate, Bytes, PacketsTime, Statistics, StreamStatistics,
 };
+use log::{log, Level};
 use rtpeeker_common::mpegts::aggregator::MpegtsAggregator;
 use rtpeeker_common::mpegts::header::{AdaptationFieldControl, PIDTable};
 use rtpeeker_common::mpegts::psi::pat::fragmentary_pat::FragmentaryProgramAssociationTable;
@@ -17,7 +18,6 @@ use rtpeeker_common::{MpegtsPacket, Packet, PacketAssociationTable};
 use std::cmp::{max, min};
 use std::collections::HashMap;
 use std::time::Duration;
-use log::{log, Level};
 
 pub mod substream;
 
@@ -106,21 +106,21 @@ impl MpegTsStreamInfo {
         let packet_bytes = packet.length;
         let mpegts_packet_bytes = MpegTsStreamInfo::count_payload_bytes(mpegts_packet);
 
-        Statistics::new()
+        Statistics::builder()
             .packets_time(
-                PacketsTime::new()
+                PacketsTime::builder()
                     .first_time(packet.timestamp)
                     .last_time(packet.timestamp)
                     .build(),
             )
             .bitrate(
-                Bitrate::new()
+                Bitrate::builder()
                     .frame_bitrate((packet_bytes * 8) as f64)
                     .protocol_bitrate((mpegts_packet_bytes * 8) as f64)
                     .build(),
             )
             .bytes(
-                Bytes::new()
+                Bytes::builder()
                     .frame_bytes(packet_bytes as f64)
                     .protocol_bytes(mpegts_packet_bytes as f64)
                     .build(),
@@ -157,7 +157,7 @@ impl MpegTsStream {
                     }
                     let payload = fragment.clone().payload.unwrap().data;
                     let pat_fragment = FragmentaryProgramAssociationTable::unmarshall(
-                        &*payload,
+                        &payload,
                         fragment.header.payload_unit_start_indicator,
                     );
                     if pat_fragment.is_none() {
@@ -209,32 +209,30 @@ impl MpegTsStream {
     }
 
     fn update_mpegts_parameters(&mut self, mut mpegts_info: MpegTsPacketInfo) {
-
         mpegts_info.time_delta = mpegts_info
             .time
             .saturating_sub(self.stream_info.packets.last().unwrap().time);
-
 
         self.update_rates(&mut mpegts_info);
 
         let mpegts_bytes = MpegTsStreamInfo::count_payload_bytes(&mpegts_info.content);
 
         self.stream_info.statistics.add_bytes(
-            Bytes::new()
+            Bytes::builder()
                 .frame_bytes(mpegts_info.bytes as f64)
                 .protocol_bytes(mpegts_bytes as f64)
                 .build(),
         );
 
         self.stream_info.statistics.add_bitrate(
-            Bitrate::new()
+            Bitrate::builder()
                 .frame_bitrate((mpegts_info.bytes * 8) as f64)
                 .protocol_bitrate((mpegts_bytes * 8) as f64)
                 .build(),
         );
 
         self.stream_info.statistics.set_packets_time(
-            PacketsTime::new()
+            PacketsTime::builder()
                 .first_time(min(
                     self.stream_info
                         .statistics
@@ -345,7 +343,7 @@ impl MpegTsStream {
             let Some(program_map_pid) = program.program_map_pid else {
                 continue;
             };
-            let pmt_pid: u16 = program_map_pid.into();
+            let pmt_pid: u16 = program_map_pid;
 
             if let Some(program_map_table) = self.aggregator.get_pmt(pmt_pid) {
                 self.stream_info
@@ -355,7 +353,7 @@ impl MpegTsStream {
                 let program_number = program_map_table.fields.program_number;
                 let source_addr = packet.source_addr;
                 let destination_addr = packet.destination_addr;
-                let protocol = packet.transport_protocol.clone();
+                let protocol = packet.transport_protocol;
                 let packet_association_table = PacketAssociationTable {
                     source_addr,
                     destination_addr,
@@ -364,7 +362,7 @@ impl MpegTsStream {
 
                 for es_info in program_map_table.elementary_streams_info.iter() {
                     let key: SubStreamKey = (
-                        packet_association_table.clone(),
+                        packet_association_table,
                         pat.transport_stream_id,
                         program_number,
                         es_info.stream_type.clone(),

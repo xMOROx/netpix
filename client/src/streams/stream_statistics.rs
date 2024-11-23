@@ -37,7 +37,7 @@ pub struct PacketsTime {
 }
 
 impl Statistics {
-    pub fn new() -> StatisticsBuilder {
+    pub fn builder() -> StatisticsBuilder {
         StatisticsBuilder::new()
     }
 
@@ -52,15 +52,15 @@ impl Statistics {
     pub fn get_bytes(&self) -> &Bytes {
         &self.bytes
     }
-    
+
     pub fn get_packet_rate(&self) -> f64 {
         self.packet_rate
     }
-    
+
     pub fn set_packet_rate(&mut self, packet_rate: f64) {
         self.packet_rate = packet_rate;
     }
-    
+
     pub fn increment_packet_rate(&mut self) {
         self.packet_rate += 1.0;
     }
@@ -114,7 +114,7 @@ impl Statistics {
     }
 }
 impl Bitrate {
-    pub fn new() -> BitrateBuilder {
+    pub fn builder() -> BitrateBuilder {
         BitrateBuilder::new()
     }
 
@@ -140,7 +140,7 @@ impl Bitrate {
     }
 }
 impl Bytes {
-    pub fn new() -> BytesBuilder {
+    pub fn builder() -> BytesBuilder {
         BytesBuilder::new()
     }
 
@@ -166,7 +166,7 @@ impl Bytes {
     }
 }
 impl PacketsTime {
-    pub fn new() -> PacketsTimeBuilder {
+    pub fn builder() -> PacketsTimeBuilder {
         PacketsTimeBuilder::new()
     }
 
@@ -233,7 +233,7 @@ impl StatisticsBuilder {
         self.bytes = bytes;
         self
     }
-    
+
     pub fn packet_rate(mut self, packet_rate: f64) -> Self {
         self.packet_rate = packet_rate;
         self
