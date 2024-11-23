@@ -4,7 +4,7 @@ mod tests;
 use serde::{Deserialize, Serialize};
 use std::fmt::Display;
 
-#[derive(Serialize, PartialEq, Eq, Deserialize, Debug, Clone, Ord, PartialOrd, Hash)]
+#[derive(Serialize, PartialEq, Eq, Deserialize, Debug, Clone, Copy, Ord, PartialOrd, Hash)]
 pub enum StreamType {
     Reserved,
     Video111722,

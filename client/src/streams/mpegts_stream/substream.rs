@@ -1,25 +1,35 @@
 #![allow(dead_code)]
-use crate::streams::int_to_letter;
-use crate::streams::stream_statistics::{
-    Bitrate, Bytes, PacketsTime, Statistics, StreamStatistics,
+use crate::streams::{int_to_letter, stream_statistics::*};
+use rtpeeker_common::{
+    mpegts::{
+        header::PIDTable,
+        psi::{
+            pat::ProgramAssociationTable,
+            pmt::{
+                stream_types::{stream_type_into_unique_letter, StreamType},
+                ProgramMapTable,
+            },
+        },
+        MpegtsFragment,
+    },
+    Packet, PacketAssociationTable,
 };
-use rtpeeker_common::mpegts::header::PIDTable;
-use rtpeeker_common::mpegts::psi::pat::ProgramAssociationTable;
-use rtpeeker_common::mpegts::psi::pmt::stream_types::{stream_type_into_unique_letter, StreamType};
-use rtpeeker_common::mpegts::psi::pmt::ProgramMapTable;
-use rtpeeker_common::mpegts::MpegtsFragment;
-use rtpeeker_common::{Packet, PacketAssociationTable};
-use std::cmp::{max, min};
-use std::time::Duration;
 use rustc_hash::{FxHashMap, FxHashSet};
+use std::{
+    cmp::{max, min},
+    time::Duration,
+};
+
+type PacketId = usize;
+type TransportStreamId = u16;
+type ProgramNumber = u16;
 
 pub type SubStreamKey = (
     PacketAssociationTable,
-    u16, //transport_stream_id
-    u16, //program_number
+    TransportStreamId,
+    ProgramNumber,
     StreamType,
 );
-
 pub type MpegtsSubStreams = FxHashMap<SubStreamKey, MpegtsSubStream>;
 
 #[derive(Debug, Clone)]
@@ -28,29 +38,32 @@ pub struct Aliases {
     pub program_alias: String,
 }
 
+impl Aliases {
+    fn new(
+        transport_stream_id: TransportStreamId,
+        program_number: ProgramNumber,
+        stream_type: &StreamType,
+    ) -> Self {
+        Self {
+            stream_alias: format!(
+                "{}-{}",
+                int_to_letter(transport_stream_id as usize),
+                stream_type_into_unique_letter(stream_type)
+            ),
+            program_alias: program_number.to_string(),
+        }
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct SubstreamMpegTsPacketInfo {
     pub packet_association_table: PacketAssociationTable,
     pub content: MpegtsFragment,
-    pub id: usize,
+    pub id: PacketId,
     pub time: Duration,
     pub bytes: usize,
-    pub bitrate: usize,     // in the last second, kbps
-    pub packet_rate: usize, // packets/s
-}
-
-#[derive(Debug, Clone)]
-pub struct MpegtsSubStream {
-    pub packet_association_table: PacketAssociationTable,
-    pub packets: Vec<SubstreamMpegTsPacketInfo>,
-    pub pat: ProgramAssociationTable,
-    pub pmt: FxHashMap<PIDTable, ProgramMapTable>,
-    pub transport_stream_id: u16,
-    pub program_number: u16,
-    pub stream_type: StreamType,
-    pub statistics: Statistics,
-    pub aliases: Aliases,
-    processed_packet_ids: FxHashSet<usize>,
+    pub bitrate: usize,
+    pub packet_rate: usize,
 }
 
 impl SubstreamMpegTsPacketInfo {
@@ -71,17 +84,22 @@ impl SubstreamMpegTsPacketInfo {
     }
 }
 
+#[derive(Debug, Clone)]
+pub struct MpegtsSubStream {
+    pub packet_association_table: PacketAssociationTable,
+    pub packets: Vec<SubstreamMpegTsPacketInfo>,
+    pub pat: ProgramAssociationTable,
+    pub pmt: FxHashMap<PIDTable, ProgramMapTable>,
+    pub transport_stream_id: TransportStreamId,
+    pub program_number: ProgramNumber,
+    pub stream_type: StreamType,
+    pub statistics: Statistics,
+    pub aliases: Aliases,
+    processed_packet_ids: FxHashSet<PacketId>,
+}
+
 impl MpegtsSubStream {
     pub fn new(key: &SubStreamKey, pat: ProgramAssociationTable) -> Self {
-        let aliases = Aliases {
-            stream_alias: format!(
-                "{}-{}",
-                int_to_letter(key.1 as usize),
-                stream_type_into_unique_letter(&key.3)
-            ),
-            program_alias: key.2.to_string(),
-        };
-
         Self {
             pmt: FxHashMap::default(),
             packet_association_table: key.0,
@@ -89,67 +107,76 @@ impl MpegtsSubStream {
             packets: Vec::new(),
             transport_stream_id: key.1,
             program_number: key.2,
-            stream_type: key.clone().3,
+            stream_type: key.3,
             pat,
-            aliases,
+            aliases: Aliases::new(key.1, key.2, &key.3),
             processed_packet_ids: FxHashSet::default(),
         }
     }
 
-    pub fn is_packet_processed(&self, packet_id: usize) -> bool {
+    pub fn is_packet_processed(&self, packet_id: PacketId) -> bool {
         self.processed_packet_ids.contains(&packet_id)
     }
 
-    pub fn mark_packet_processed(&mut self, packet_id: usize) {
+    pub fn mark_packet_processed(&mut self, packet_id: PacketId) {
         self.processed_packet_ids.insert(packet_id);
     }
 
     pub fn add_mpegts_fragment(&mut self, packet: SubstreamMpegTsPacketInfo) {
         self.update_mpegts_parameters(packet);
     }
+
     pub fn add_pmt(&mut self, pid: PIDTable, pmt: ProgramMapTable) {
         self.pmt.insert(pid, pmt);
     }
 
     fn update_rates(&self, mpegts_info: &mut SubstreamMpegTsPacketInfo) {
         let cutoff = mpegts_info.time.saturating_sub(Duration::from_secs(1));
-
-        let last_second_packets = self.packets.iter().rev().map_while(|pack| match pack {
-            SubstreamMpegTsPacketInfo { time, .. } if *time > cutoff => Some(pack.bytes),
-            _ => None,
-        });
+        let last_second_packets = self.get_last_second_packets(cutoff);
 
         mpegts_info.packet_rate = last_second_packets.clone().count() + 1;
+        mpegts_info.bitrate = (last_second_packets.sum::<usize>() + mpegts_info.bytes) * 8;
+    }
 
-        let bytes = last_second_packets.sum::<usize>() + mpegts_info.bytes;
-        mpegts_info.bitrate = bytes * 8;
+    fn get_last_second_packets(
+        &self,
+        cutoff: Duration,
+    ) -> impl Iterator<Item = usize> + Clone + '_ {
+        self.packets
+            .iter()
+            .rev()
+            .map_while(move |pack| (pack.time > cutoff).then_some(pack.bytes))
     }
 
     fn update_mpegts_parameters(&mut self, mut mpegts_info: SubstreamMpegTsPacketInfo) {
-        if self.packets.is_empty() {
-            self.statistics.set_packets_time(
-                PacketsTime::builder()
-                    .first_time(mpegts_info.time)
-                    .last_time(mpegts_info.time)
-                    .build(),
-            );
-        } else {
-            self.statistics.set_packets_time(
-                PacketsTime::builder()
-                    .first_time(min(
-                        self.statistics.get_packets_time().get_first_time(),
-                        mpegts_info.time,
-                    ))
-                    .last_time(max(
-                        self.statistics.get_packets_time().get_last_time(),
-                        mpegts_info.time,
-                    ))
-                    .build(),
-            );
-        }
-
+        self.update_packet_times(&mpegts_info);
         self.update_rates(&mut mpegts_info);
+        self.update_statistics(&mpegts_info);
+        self.packets.push(mpegts_info);
+    }
 
+    fn update_packet_times(&mut self, mpegts_info: &SubstreamMpegTsPacketInfo) {
+        let new_time = if self.packets.is_empty() {
+            PacketsTime::builder()
+                .first_time(mpegts_info.time)
+                .last_time(mpegts_info.time)
+                .build()
+        } else {
+            PacketsTime::builder()
+                .first_time(min(
+                    self.statistics.get_packets_time().get_first_time(),
+                    mpegts_info.time,
+                ))
+                .last_time(max(
+                    self.statistics.get_packets_time().get_last_time(),
+                    mpegts_info.time,
+                ))
+                .build()
+        };
+        self.statistics.set_packets_time(new_time);
+    }
+
+    fn update_statistics(&mut self, mpegts_info: &SubstreamMpegTsPacketInfo) {
         let mpegts_bytes = mpegts_info.content.size;
 
         self.statistics.add_bytes(
@@ -167,33 +194,6 @@ impl MpegtsSubStream {
         );
 
         self.statistics.increment_packet_rate();
-
-        self.packets.push(mpegts_info);
-    }
-    fn create_statistics(packet: &Packet, mpegts_fragment: &MpegtsFragment) -> Statistics {
-        let packet_bytes = packet.length;
-        let mpegts_packet_bytes = mpegts_fragment.size;
-
-        Statistics::builder()
-            .packets_time(
-                PacketsTime::builder()
-                    .first_time(packet.timestamp)
-                    .last_time(packet.timestamp)
-                    .build(),
-            )
-            .bitrate(
-                Bitrate::builder()
-                    .frame_bitrate((packet_bytes * 8) as f64)
-                    .protocol_bitrate((mpegts_packet_bytes * 8) as f64)
-                    .build(),
-            )
-            .bytes(
-                Bytes::builder()
-                    .frame_bytes(packet_bytes as f64)
-                    .protocol_bytes(mpegts_packet_bytes as f64)
-                    .build(),
-            )
-            .build()
     }
 }
 

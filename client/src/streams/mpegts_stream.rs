@@ -218,12 +218,12 @@ impl MpegTsStream {
                 packet_association_table,
                 pat.transport_stream_id,
                 program_number,
-                es_info.stream_type.clone(),
+                es_info.stream_type,
             );
 
             let substream = self
                 .substreams
-                .entry(key.clone())
+                .entry(key)
                 .or_insert_with(|| MpegtsSubStream::new(&key, pat.clone()));
 
             substream.add_pmt(program_map_pid.into(), program_map_table.clone());
