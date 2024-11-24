@@ -29,3 +29,13 @@ pub trait DataAccumulator {
     fn accumulate_payload(&self) -> Vec<u8>;
     fn accumulate_descriptors(&self) -> Vec<u8>;
 }
+
+pub trait BufferOperations {
+    type Item;
+
+    fn clear(&mut self);
+    fn is_empty(&self) -> bool;
+    fn is_complete(&self) -> bool;
+    fn append(&mut self, data: &[u8]);
+    fn get_data(&self) -> &[u8];
+}
