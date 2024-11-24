@@ -4,6 +4,7 @@ mod tests;
 use crate::mpegts::psi::pmt::{constants::*, PmtFields};
 use crate::mpegts::psi::psi_buffer::FragmentaryPsi;
 use crate::mpegts::psi::{constants::*, ProgramSpecificInformationHeader};
+use crate::utils::{BitReader, DataParser, DataValidator};
 use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Debug, Clone, Ord, PartialOrd, Eq)]
@@ -27,34 +28,53 @@ impl PartialEq for FragmentaryProgramMapTable {
     }
 }
 
+impl DataParser for FragmentaryProgramMapTable {
+    type Output = Self;
+
+    fn parse(data: &[u8]) -> Option<Self::Output> {
+        Self::unmarshall(data, false)
+    }
+}
+
+impl DataValidator for FragmentaryProgramMapTable {
+    fn validate(&self) -> bool {
+        self.header.section_syntax_indicator
+            && self.fields.program_info_length <= MAX_PROGRAM_INFO_LENGTH
+    }
+}
+
 impl FragmentaryPsi for FragmentaryProgramMapTable {
-    fn unmarshall(data: &[u8], is_pointer_field: bool) -> Option<Self>
-    where
-        Self: Sized,
-    {
-        if data.len() < HEADER_SIZE {
+    fn unmarshall(data: &[u8], is_pointer_field: bool) -> Option<Self> {
+        if data.len() < HEADER_SIZE.into() {
             return None;
         }
 
         let data = if is_pointer_field {
-            let pointer_field = data[0] as usize;
-            &data[pointer_field + 1..]
+            &data[data[0] as usize + 1..]
         } else {
             data
         };
 
         let header = Self::unmarshall_header(data)?;
-        let full_header_size = HEADER_SIZE + HEADER_AFTER_SECTION_LENGTH_SIZE;
+        let reader = BitReader::new(data);
 
-        let program_number = ((data[3] as u16) << 8) | data[4] as u16;
-        let pcr_pid = (((data[8] & PCR_PID_UPPER_MASK as u8) as u16) << 8)
-            | (data[9] & PCR_PID_LOWER_MASK as u8) as u16;
-        let program_info_length = (((data[10] & PROGRAM_INFO_LENGTH_UPPER_MASK as u8) as u16) << 8)
-            | (data[11] & PROGRAM_INFO_LENGTH_LOWER_MASK as u8) as u16;
-        let descriptors_payload =
-            data[full_header_size..full_header_size + program_info_length as usize].to_vec();
+        let program_number = reader.get_bits_u16(3, 0xFF, 0xFF)?;
+        let pcr_pid = reader.get_pid(8, PCR_PID_UPPER_MASK)?;
+        let program_info_length = reader.get_bits_u16(
+            10,
+            PROGRAM_INFO_LENGTH_UPPER_MASK as u8,
+            PROGRAM_INFO_LENGTH_LOWER_MASK as u8,
+        )?;
+
+        let full_header_size: usize = (HEADER_SIZE + HEADER_AFTER_SECTION_LENGTH_SIZE).into();
+        let descriptors_payload = reader.get_bytes(full_header_size, program_info_length.into())?;
+
         let last_byte = Self::determine_last_byte(data);
-        let payload = data[full_header_size + program_info_length as usize..last_byte].to_vec();
+        let payload = reader.get_bytes(
+            full_header_size + program_info_length as usize,
+            last_byte - (full_header_size + program_info_length as usize),
+        )?;
+
         let fields = PmtFields {
             program_number,
             pcr_pid,

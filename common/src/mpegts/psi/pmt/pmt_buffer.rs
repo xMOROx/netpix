@@ -4,11 +4,42 @@ mod tests;
 use crate::mpegts::psi::pmt::fragmentary_pmt::FragmentaryProgramMapTable;
 use crate::mpegts::psi::pmt::{PmtFields, ProgramMapTable};
 use crate::mpegts::psi::psi_buffer::PsiBuffer;
+use crate::utils::{DataAccumulator, DataValidator};
 use serde::{Deserialize, Serialize};
+
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct PmtBuffer {
     last_section_number: u8,
     pmt_fragments: Vec<FragmentaryProgramMapTable>,
+}
+
+impl DataAccumulator for PmtBuffer {
+    fn accumulate_payload(&self) -> Vec<u8> {
+        self.pmt_fragments
+            .iter()
+            .fold(Vec::new(), |mut acc, fragment| {
+                acc.extend_from_slice(&fragment.payload);
+                acc
+            })
+    }
+
+    fn accumulate_descriptors(&self) -> Vec<u8> {
+        self.pmt_fragments
+            .iter()
+            .fold(Vec::new(), |mut acc, fragment| {
+                acc.extend_from_slice(&fragment.descriptors_payload);
+                acc
+            })
+    }
+}
+
+impl DataValidator for PmtBuffer {
+    fn validate(&self) -> bool {
+        if self.pmt_fragments.is_empty() {
+            return false;
+        }
+        self.is_complete()
+    }
 }
 
 impl PsiBuffer<ProgramMapTable, FragmentaryProgramMapTable> for PmtBuffer {
@@ -42,18 +73,21 @@ impl PsiBuffer<ProgramMapTable, FragmentaryProgramMapTable> for PmtBuffer {
     }
 
     fn build(&mut self) -> Option<ProgramMapTable> {
-        if !self.is_complete() {
+        if !self.validate() {
             return None;
         }
 
-        let (cumulated_payload, cumulated_descriptors_payload) = self.accumulator();
         let fields = PmtFields {
             program_number: self.pmt_fragments[0].fields.program_number,
             pcr_pid: self.pmt_fragments[0].fields.pcr_pid,
             program_info_length: self.pmt_fragments[0].fields.program_info_length,
         };
 
-        ProgramMapTable::build(fields, &cumulated_descriptors_payload, &cumulated_payload)
+        ProgramMapTable::build(
+            fields,
+            &self.accumulate_descriptors(),
+            &self.accumulate_payload(),
+        )
     }
 
     fn clear(&mut self) {
@@ -64,34 +98,16 @@ impl PsiBuffer<ProgramMapTable, FragmentaryProgramMapTable> for PmtBuffer {
 
 impl PmtBuffer {
     pub fn get_program_number(&self) -> u16 {
-        self.pmt_fragments[0].fields.program_number
+        self.pmt_fragments
+            .first()
+            .map(|f| f.fields.program_number)
+            .unwrap_or(0)
     }
 
     pub fn is_fragment_inside(&self, fragment: &FragmentaryProgramMapTable) -> bool {
-        if self.pmt_fragments.is_empty() {
-            return false;
-        }
-        (self.pmt_fragments.len() as u8) >= fragment.header.section_number
-            && self.pmt_fragments[0].fields.program_number == fragment.fields.program_number
-    }
-
-    fn accumulator(&self) -> (Vec<u8>, Vec<u8>) {
-        let cumulated_payload = self
-            .pmt_fragments
-            .iter()
-            .fold(Vec::new(), |mut acc, fragment| {
-                acc.extend_from_slice(&fragment.payload);
-                acc
-            });
-
-        let cumulated_descriptors_payload =
-            self.pmt_fragments
-                .iter()
-                .fold(Vec::new(), |mut acc, fragment| {
-                    acc.extend_from_slice(&fragment.descriptors_payload);
-                    acc
-                });
-
-        (cumulated_payload, cumulated_descriptors_payload)
+        self.pmt_fragments.first().map_or(false, |first| {
+            (self.pmt_fragments.len() as u8) >= fragment.header.section_number
+                && first.fields.program_number == fragment.fields.program_number
+        })
     }
 }
