@@ -1,5 +1,4 @@
 use super::*;
-use crate::mpegts::header::{AdaptationFieldControl, PIDTable, TransportScramblingControl};
 
 fn create_test_buffer(num_fragments: usize) -> Vec<u8> {
     assert!(num_fragments > 0 && num_fragments <= MAX_FRAGMENTS);
@@ -26,16 +25,12 @@ fn test_unmarshall_valid_packet() {
     let packet = MpegtsPacket::unmarshall(&buffer);
     assert!(packet.is_some(), "Failed to unmarshall packet");
     let packet = packet.unwrap();
-    assert_eq!(
-        packet.number_of_fragments, 7,
-        "Incorrect number of fragments"
-    );
-    assert_eq!(
-        packet.fragments.len(),
-        7,
-        "Incorrect number of fragments in vec"
-    );
 
+    // Basic packet validation
+    assert_eq!(packet.number_of_fragments, 7);
+    assert_eq!(packet.fragments.len(), 7);
+
+    // Verify first fragment structure
     let first_fragment = &packet.fragments[0];
     assert_eq!(first_fragment.header.pid, PIDTable::ProgramAssociation);
     assert!(first_fragment.header.payload_unit_start_indicator);
@@ -43,12 +38,38 @@ fn test_unmarshall_valid_packet() {
         first_fragment.header.adaptation_field_control,
         AdaptationFieldControl::PayloadOnly
     ));
-    assert!(first_fragment.adaptation_field.is_none());
-    assert!(first_fragment.payload.is_some());
+
+    // Verify size calculations
     assert_eq!(
-        first_fragment.payload.as_ref().unwrap().data.len(),
-        FRAGMENT_SIZE - HEADER_SIZE
+        first_fragment.size,
+        HEADER_SIZE + first_fragment.payload.as_ref().map_or(0, |p| p.data.len())
     );
+}
+
+#[test]
+fn test_process_adaptation_field() {
+    let mut buffer = create_test_buffer(1);
+    buffer[3] = 0b00100000; // Set AFC to adaptation field only
+    buffer[4] = 10; // Adaptation field length
+
+    let header = MpegtsPacket::get_header(&buffer, 0).unwrap();
+    let result = MpegtsPacket::process_adaptation_field(&header, &buffer, 4);
+
+    assert!(result.is_some());
+    let (field, next_index) = result.unwrap();
+    assert!(field.is_some());
+    assert_eq!(field.unwrap().adaptation_field_length, 10);
+    assert_eq!(next_index, 15); // 4 + 10 + 1
+}
+
+#[test]
+fn test_process_payload() {
+    let buffer = create_test_buffer(1);
+    let header = MpegtsPacket::get_header(&buffer, 0).unwrap();
+
+    let payload = MpegtsPacket::process_payload(&header, &buffer, 4, 0);
+    assert!(payload.is_some());
+    assert_eq!(payload.unwrap().data.len(), FRAGMENT_SIZE - 4);
 }
 
 #[test]
@@ -111,15 +132,6 @@ fn test_get_header() {
 }
 
 #[test]
-fn test_get_adaptation_field() {
-    let mut buffer = vec![0; FRAGMENT_SIZE];
-    buffer[4] = 10; // Adaptation field length
-
-    let adaptation_field = MpegtsPacket::get_adaptation_field(&buffer, 4).unwrap();
-    assert_eq!(adaptation_field.adaptation_field_length, 10);
-}
-
-#[test]
 fn test_get_payload() {
     let mut buffer = vec![0; FRAGMENT_SIZE];
     for i in 4..FRAGMENT_SIZE {
@@ -150,4 +162,20 @@ fn test_get_fragment() {
     ));
     assert!(fragment.adaptation_field.is_none());
     assert!(fragment.payload.is_some());
+}
+
+#[test]
+fn test_get_fragment_with_adaptation_field() {
+    let mut buffer = create_test_buffer(1);
+    buffer[3] = 0b00110000; // AFC: adaptation field + payload
+    buffer[4] = 1; // Adaptation field length
+    buffer[5] = 0; // Adaptation field data
+
+    let fragment = MpegtsPacket::get_fragment(&buffer, 0, 0).unwrap();
+    assert!(fragment.adaptation_field.is_some());
+    assert!(fragment.payload.is_some());
+    assert_eq!(
+        fragment.size,
+        HEADER_SIZE + 2 + fragment.payload.as_ref().unwrap().data.len()
+    );
 }
