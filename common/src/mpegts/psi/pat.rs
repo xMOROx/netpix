@@ -2,8 +2,7 @@ pub mod constants;
 pub mod fragmentary_pat;
 pub mod pat_buffer;
 
-use crate::utils::bits::BitReader;
-use crate::utils::crc::Crc32Reader;
+use crate::utils::{BitReader, Crc32Reader};
 use constants::*;
 use serde::{Deserialize, Serialize};
 

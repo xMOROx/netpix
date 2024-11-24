@@ -5,8 +5,7 @@ pub mod stream_types;
 
 use crate::mpegts::descriptors::Descriptors;
 use crate::mpegts::psi::pmt::stream_types::StreamType;
-use crate::utils::bits::BitReader;
-use crate::utils::crc::Crc32Reader;
+use crate::utils::{BitReader, Crc32Reader};
 use constants::*;
 use serde::{Deserialize, Serialize};
 
@@ -90,23 +89,23 @@ impl ProgramMapTable {
     fn unmarshal_elementary_streams_info(data: &[u8]) -> Option<Vec<ElementaryStreamInfo>> {
         let mut elementary_streams_info = Vec::new();
         let reader = BitReader::new(data);
-        let mut offset = 0;
+        let mut offset: u16 = 0;
 
-        while offset + STREAM_LENGTH <= data.len() {
-            let stream_type = *reader.get_bytes(offset, 1)?.first()?;
+        while usize::from(offset + STREAM_LENGTH) <= data.len() {
+            let stream_type = *reader.get_bytes(offset.into(), 1)?.first()?;
             let elementary_pid = reader.get_bits_u16(
-                offset + 1,
+                (offset + 1).into(),
                 ELEMENTARY_PID_UPPER_MASK as u8,
                 ELEMENTARY_PID_LOWER_MASK as u8,
             )?;
             let es_info_length = reader.get_bits_u16(
-                offset + 3,
+                (offset + 3).into(),
                 ES_INFO_LENGTH_UPPER_MASK as u8,
                 ES_INFO_LENGTH_LOWER_MASK as u8,
             )?;
 
             let descriptors_data =
-                reader.get_bytes(offset + STREAM_LENGTH, es_info_length as usize)?;
+                reader.get_bytes((offset + STREAM_LENGTH).into(), es_info_length as usize)?;
 
             elementary_streams_info.push(ElementaryStreamInfo {
                 stream_type: StreamType::from(stream_type),
@@ -115,7 +114,7 @@ impl ProgramMapTable {
                 descriptors: Descriptors::unmarshall_many(&descriptors_data),
             });
 
-            offset += STREAM_LENGTH + es_info_length as usize;
+            offset += STREAM_LENGTH + es_info_length;
         }
 
         Some(elementary_streams_info)
