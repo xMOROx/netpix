@@ -1,8 +1,7 @@
-use serde::{Deserialize, Serialize};
-
 use super::constants::*;
-use super::optional_fields::ContextFlagsBuilder;
 use super::optional_fields::OptionalFields;
+use crate::utils::traits::{BitManipulation, DataParser, DataValidator};
+use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq)]
 pub struct PesHeader {
@@ -23,66 +22,65 @@ pub struct PesHeader {
     pub optional_fields: Option<OptionalFields>,
 }
 
-impl PesHeader {
-    pub fn build(data: &[u8]) -> Option<Self> {
-        Self::unmarshall(data)
+impl BitManipulation for PesHeader {}
+
+impl DataValidator for PesHeader {
+    fn validate(&self) -> bool {
+        if self.pes_header_data_length < 3 {
+            return false;
+        }
+
+        match self.pts_dts_flags {
+            0b00 | 0b10 | 0b11 => true,
+            _ => false,
+        }
     }
+}
 
-    fn unmarshall(data: &[u8]) -> Option<Self> {
-        if data.is_empty() || data.len() < HEADER_REQUIRED_FIELDS_SIZE {
+impl DataParser for PesHeader {
+    type Output = Self;
+
+    fn parse(data: &[u8]) -> Option<Self::Output> {
+        if data.len() < HEADER_REQUIRED_FIELDS_SIZE {
             return None;
         }
 
-        if ((data[0] & HEADER_MANDATORY_BITS_MASK) >> 6) != HEADER_MANDATORY_BITS_VALUE {
+        if Self::get_bits(data[0], HEADER_MANDATORY_BITS_MASK, 6) != HEADER_MANDATORY_BITS_VALUE {
             return None;
         }
 
-        let scrambling_control = (data[0] & SCRAMBLING_CONTROL_MASK) >> 4;
-        let priority = (data[0] & PRIORITY_MASK) >> 3 == 1;
-        let data_alignment_indicator = (data[0] & DATA_ALIGNMENT_MASK) >> 2 == 1;
-        let copyright = (data[0] & COPYRIGHT_MASK) >> 1 == 1;
-        let original = data[0] & ORIGINAL_MASK == 1;
-        let pts_dts_flags = (data[1] & PTS_DTS_FLAGS_MASK) >> 6;
-        let escr_flag = (data[1] & ESCR_FLAG_MASK) >> 5 == 1;
-        let es_rate_flag = (data[1] & ES_RATE_FLAG_MASK) >> 4 == 1;
-        let dsm_trick_mode_flag = (data[1] & DSM_TRICK_MODE_FLAG_MASK) >> 3 == 1;
-        let additional_copy_info_flag = (data[1] & ADDITIONAL_COPY_INFO_FLAG_MASK) >> 2 == 1;
-        let pes_crc_flag = (data[1] & PES_CRC_FLAG_MASK) >> 1 == 1;
-        let pes_extension_flag = data[1] & PES_EXTENSION_FLAG_MASK == 1;
-        let pes_header_data_length = data[2];
-
-        let context = ContextFlagsBuilder::new()
-            .with_pts_dts_flags(pts_dts_flags)
-            .with_escr_flag(escr_flag)
-            .with_es_rate_flag(es_rate_flag)
-            .with_dsm_trick_mode_flag(dsm_trick_mode_flag)
-            .with_additional_copy_info_flag(additional_copy_info_flag)
-            .with_pes_crc_flag(pes_crc_flag)
-            .with_pes_extension_flag(pes_extension_flag)
-            .build();
-
-        let optional_fields = if pes_extension_flag {
-            OptionalFields::build(&data[3..], context)
-        } else {
-            None
+        let header = Self {
+            size: HEADER_REQUIRED_FIELDS_SIZE,
+            scrambling_control: Self::get_bits(data[0], SCRAMBLING_CONTROL_MASK, 4),
+            priority: Self::get_bit(data[0], 3),
+            data_alignment_indicator: Self::get_bit(data[0], 2),
+            copyright: Self::get_bit(data[0], 1),
+            original: Self::get_bit(data[0], 0),
+            pts_dts_flags: Self::get_bits(data[1], PTS_DTS_FLAGS_MASK, 6),
+            escr_flag: Self::get_bit(data[1], 5),
+            es_rate_flag: Self::get_bit(data[1], 4),
+            dsm_trick_mode_flag: Self::get_bit(data[1], 3),
+            additional_copy_info_flag: Self::get_bit(data[1], 2),
+            pes_crc_flag: Self::get_bit(data[1], 1),
+            pes_extension_flag: Self::get_bit(data[1], 0),
+            pes_header_data_length: data[2],
+            optional_fields: None,
         };
 
-        Some(Self {
-            size: REQUIRED_FIELDS_SIZE + pes_header_data_length as usize,
-            scrambling_control,
-            priority,
-            data_alignment_indicator,
-            copyright,
-            original,
-            pts_dts_flags,
-            escr_flag,
-            es_rate_flag,
-            dsm_trick_mode_flag,
-            additional_copy_info_flag,
-            pes_crc_flag,
-            pes_extension_flag,
-            pes_header_data_length,
-            optional_fields,
-        })
+        let mut header = header;
+        if header.pes_extension_flag {
+            if let Some((fields, _)) = OptionalFields::parse(&data[1..]) {
+                header.optional_fields = Some(fields);
+                header.size += header.pes_header_data_length as usize;
+            }
+        }
+
+        Some(header)
+    }
+}
+
+impl PesHeader {
+    pub fn build(data: &[u8]) -> Option<Self> {
+        Self::parse(data)
     }
 }
