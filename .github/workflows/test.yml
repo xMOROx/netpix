@@ -20,6 +20,8 @@ jobs:
       - uses: dtolnay/rust-toolchain@master
         with:
           toolchain: nightly-2024-02-04
+      - name: Install libpcap
+        run: sudo apt-get install libpcap-dev
       
       - name: Run tests
         working-directory: ./common
