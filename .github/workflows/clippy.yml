@@ -10,6 +10,7 @@ permissions:
   pull-requests: write
 
 jobs:
+
   clippy:
     name: Clippy Analysis
     runs-on: ubuntu-latest
