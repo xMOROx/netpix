@@ -3,7 +3,8 @@ name: Clippy Check
 
 on:
   pull_request:
-    branches: [ master ]
+    branches:
+      - '**'
 
 permissions:
   contents: read
