@@ -1,27 +1,29 @@
 #[cfg(test)]
 mod tests;
 
-use super::PacketizedElementaryStream;
+use super::{PacketizedElementaryStream, REQUIRED_FIELDS_SIZE};
 use crate::mpegts::MpegtsFragment;
+use crate::utils::BufferOperations;
 use serde::{Deserialize, Serialize};
+
 #[derive(Serialize, Deserialize, Debug, Clone, Default)]
 pub struct PesPacketPayload {
-    pub data: Vec<u8>,
-    pub is_completable: bool,
-    pub packet_length: u16,
+    data: Vec<u8>,
+    is_completable: bool,
+    packet_length: u16,
 }
 
 impl PesPacketPayload {
     pub fn new() -> Self {
-        Self {
-            data: Vec::new(),
-            is_completable: false,
-            packet_length: 0,
-        }
+        Self::default()
     }
 
     pub fn set_packet_length(&mut self, length: u16) {
         self.packet_length = length;
+    }
+
+    pub fn set_completable(&mut self, completable: bool) {
+        self.is_completable = completable;
     }
 
     pub fn get_packet_length(&self) -> u16 {
@@ -31,37 +33,41 @@ impl PesPacketPayload {
     pub fn is_completable(&self) -> bool {
         self.is_completable
     }
+}
 
-    pub fn set_completable(&mut self, completable: bool) {
-        self.is_completable = completable;
-    }
+impl BufferOperations for PesPacketPayload {
+    type Item = u8;
 
-    pub fn get_data(&self) -> &[u8] {
-        &self.data
-    }
-
-    pub fn get_data_mut(&mut self) -> &mut Vec<u8> {
-        &mut self.data
-    }
-
-    pub fn is_empty(&self) -> bool {
-        self.data.is_empty()
-    }
-
-    pub fn is_complete(&self) -> bool {
-        self.is_completable && self.data.len() == self.packet_length as usize
-    }
-
-    pub fn clear(&mut self) {
+    fn clear(&mut self) {
         self.data.clear();
         self.is_completable = false;
         self.packet_length = 0;
     }
 
-    pub fn append(&mut self, payload: &[u8]) {
+    fn is_empty(&self) -> bool {
+        self.data.is_empty()
+    }
+
+    fn is_complete(&self) -> bool {
+        println!(
+            "data.len() = {}, REQUIRED_FIELDS_SIZE = {}, packet_length = {}",
+            self.data.len(),
+            REQUIRED_FIELDS_SIZE,
+            self.packet_length
+        );
+        self.is_completable
+            && (self.data.len() - REQUIRED_FIELDS_SIZE) == self.packet_length as usize
+    }
+
+    fn append(&mut self, payload: &[u8]) {
         self.data.extend_from_slice(payload);
     }
+
+    fn get_data(&self) -> &[u8] {
+        &self.data
+    }
 }
+
 #[derive(Serialize, Deserialize, Debug, Clone, Default)]
 pub struct PesBuffer {
     payload: PesPacketPayload,
@@ -69,62 +75,59 @@ pub struct PesBuffer {
 
 impl PesBuffer {
     pub fn new() -> Self {
-        Self {
-            payload: PesPacketPayload::new(),
-        }
+        Self::default()
     }
 
     pub fn add_fragment(&mut self, packet: &MpegtsFragment) {
-        let payload = match packet.payload.as_ref() {
-            Some(data) => data,
-            None => return,
+        let Some(payload) = &packet.payload else {
+            return;
         };
 
-        let mut required_fields = None;
-
         if packet.header.payload_unit_start_indicator {
-            required_fields =
-                PacketizedElementaryStream::unmarshall_required_fields(&payload.data[..]);
+            if let Some(fields) =
+                PacketizedElementaryStream::unmarshall_required_fields(&payload.data[..])
+            {
+                let mut pes_packet = PesPacketPayload::new();
+                pes_packet.set_packet_length(fields.pes_packet_length);
+                pes_packet.append(&payload.data[..]);
+                pes_packet.set_completable(fields.pes_packet_length != 0);
+                self.payload = pes_packet;
+                return;
+            }
         }
 
-        if let Some(fields) = required_fields {
-            let mut pes_packet = PesPacketPayload::new();
-            let packet_length = fields.pes_packet_length;
-            pes_packet.set_packet_length(packet_length);
-            pes_packet.append(&payload.data[..]);
-            pes_packet.set_completable(packet_length != 0);
-            self.payload = pes_packet;
-        } else {
-            self.payload.append(&payload.data[..]);
-        }
+        self.payload.append(&payload.data[..]);
     }
 
     pub fn build(&mut self) -> Option<PacketizedElementaryStream> {
-        if !self.payload.is_completable() {
+        if !self.payload.is_complete() {
             return None;
         }
 
-        let data = self.payload.get_data();
-        PacketizedElementaryStream::build(data)
+        PacketizedElementaryStream::build(self.payload.get_data())
     }
+}
 
-    pub fn is_complete(&self) -> bool {
-        self.payload.is_complete()
-    }
+impl BufferOperations for PesBuffer {
+    type Item = PesPacketPayload;
 
-    pub fn is_empty(&self) -> bool {
-        self.payload.is_empty()
-    }
-
-    pub fn clear(&mut self) {
+    fn clear(&mut self) {
         self.payload.clear();
     }
 
-    pub fn get_payload(&self) -> &PesPacketPayload {
-        &self.payload
+    fn is_empty(&self) -> bool {
+        self.payload.is_empty()
     }
 
-    pub fn get_payload_mut(&mut self) -> &mut PesPacketPayload {
-        &mut self.payload
+    fn is_complete(&self) -> bool {
+        self.payload.is_complete()
+    }
+
+    fn append(&mut self, data: &[u8]) {
+        self.payload.append(data);
+    }
+
+    fn get_data(&self) -> &[u8] {
+        self.payload.get_data()
     }
 }

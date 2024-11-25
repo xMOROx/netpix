@@ -42,7 +42,7 @@ pub struct AdaptationFieldExtension {
 
 impl AdaptationField {
     pub fn unmarshall(buffer: &[u8]) -> Option<Self> {
-        if buffer[0] == 0 {
+        if buffer[0] == 0 || buffer[0] > buffer.len() as u8 {
             return None;
         }
 

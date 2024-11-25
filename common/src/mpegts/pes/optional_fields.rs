@@ -1,6 +1,8 @@
 #[cfg(test)]
 mod tests;
 
+use crate::utils::traits::{BitManipulation, DataParser, DataValidator};
+use crate::utils::{BitReader, PesExtensionReader, TimestampReader};
 use serde::{Deserialize, Serialize};
 
 use super::constants::*;
@@ -125,18 +127,38 @@ impl ContextFlagsBuilder {
     }
 }
 
-impl Default for ContextFlagsBuilder {
-    fn default() -> Self {
-        Self::new()
+impl DataValidator for OptionalFields {
+    fn validate(&self) -> bool {
+        // Validate PTS/DTS consistency
+        match (self.pts, self.dts) {
+            (None, Some(_)) => false,                     // DTS without PTS is invalid
+            (Some(pts), Some(dts)) if pts < dts => false, // PTS must be >= DTS
+            _ => true,
+        }
+    }
+}
+
+impl BitManipulation for OptionalFields {}
+
+impl DataParser for OptionalFields {
+    type Output = (Self, usize); // Return parsed fields and consumed bytes
+
+    fn parse(data: &[u8]) -> Option<Self::Output> {
+        if data.len() < 2 {
+            return None;
+        }
+
+        let context = ContextFlags::parse(data)?;
+        Self::unmarshall(&data[2..], context)
     }
 }
 
 impl OptionalFields {
     pub fn build(data: &[u8], context_flags: ContextFlags) -> Option<Self> {
-        Self::unmarshall(data, context_flags)
+        Self::unmarshall(data, context_flags).map(|(fields, _)| fields)
     }
 
-    pub(super) fn unmarshall(data: &[u8], context_flags: ContextFlags) -> Option<Self> {
+    pub(super) fn unmarshall(data: &[u8], context_flags: ContextFlags) -> Option<(Self, usize)> {
         let ContextFlags {
             pts_dts_flags,
             escr_flag,
@@ -242,41 +264,49 @@ impl OptionalFields {
             index += pes_extension_data.as_ref().map_or(0, |data| data.size) as usize;
         }
 
-        Some(Self {
-            size: index as u8,
-            pts,
-            dts,
-            escr_base,
-            escr_extension,
-            es_rate,
-            trick_mode_control,
-            additional_copy_info,
-            previous_pes_packet_crc,
-            pes_extension_data,
-        })
+        Some((
+            Self {
+                size: index as u8,
+                pts,
+                dts,
+                escr_base,
+                escr_extension,
+                es_rate,
+                trick_mode_control,
+                additional_copy_info,
+                previous_pes_packet_crc,
+                pes_extension_data,
+            },
+            index,
+        ))
     }
 
     fn unmarshall_pts_dts(data: &[u8]) -> Result<u64, ()> {
-        //todo: add better error handling
-        let marker_bit_mask = 0x01;
         if data.len() < 5 {
             return Err(());
         }
 
-        if is_invalid_marker_bit(data[0], marker_bit_mask)
-            | is_invalid_marker_bit(data[2], marker_bit_mask)
-            | is_invalid_marker_bit(data[4], marker_bit_mask)
-        {
+        if !Self::validate_marker_bits(data, &[0, 2, 4], 0x01) {
             return Err(());
         }
 
-        let ts_1 = ((data[0] & 0b00001110) as u64) << 29;
-        let ts_2 = (data[1] as u64) << 22;
-        let ts_3 = ((data[2] & 0b11111110) as u64) << 14;
-        let ts_4 = (data[3] as u64) << 7;
-        let ts_5 = ((data[4] & 0b11111110) as u64) >> 1;
+        Ok(Self::extract_timestamp(data))
+    }
 
-        Ok(ts_1 | ts_2 | ts_3 | ts_4 | ts_5)
+    fn extract_timestamp(data: &[u8]) -> u64 {
+        let ts_1 = ((data[0] & 0x0E) as u64) << 29;
+        let ts_2 = (data[1] as u64) << 22;
+        let ts_3 = ((data[2] & 0xFE) as u64) << 14;
+        let ts_4 = (data[3] as u64) << 7;
+        let ts_5 = ((data[4] & 0xFE) as u64) >> 1;
+
+        ts_1 | ts_2 | ts_3 | ts_4 | ts_5
+    }
+
+    fn validate_marker_bits(data: &[u8], positions: &[usize], mask: u8) -> bool {
+        positions
+            .iter()
+            .all(|&pos| !is_invalid_marker_bit(data[pos], mask))
     }
 
     fn unmarshall_escr(data: &[u8]) -> Result<(u64, u16), ()> {
@@ -329,13 +359,16 @@ impl PesExtensionData {
     }
 
     fn unmarshall(data: &[u8]) -> Option<Self> {
+        let extension_reader = PesExtensionReader::new(data);
         let mut index = 0;
 
-        let pes_private_data_flag = (data[index] & 0b10000000 >> 7) == 1;
-        let pack_header_field_flag = (data[index] & 0b01000000 >> 6) == 1;
-        let program_packet_sequence_counter_flag = (data[index] & 0b00100000 >> 5) == 1;
-        let p_std_buffer_flag = (data[index] & 0b00010000 >> 4) == 1;
-        let pes_extension_flag_2 = data[index] & 0b00000001 == 1;
+        let (
+            pes_private_data_flag,
+            pack_header_field_flag,
+            program_packet_sequence_counter_flag,
+            p_std_buffer_flag,
+            pes_extension_flag_2,
+        ) = extension_reader.read_flags()?;
 
         let mut pes_private_data = None;
         let mut pack_field_length = None;
@@ -351,87 +384,61 @@ impl PesExtensionData {
         let mut tref = None;
 
         index += 1;
+
         if pes_private_data_flag {
-            pes_private_data = Some(u128::from_be_bytes([
-                data[index],
-                data[index + 1],
-                data[index + 2],
-                data[index + 3],
-                data[index + 4],
-                data[index + 5],
-                data[index + 6],
-                data[index + 7],
-                data[index + 8],
-                data[index + 9],
-                data[index + 10],
-                data[index + 11],
-                data[index + 12],
-                data[index + 13],
-                data[index + 14],
-                data[index + 15],
-            ]));
+            pes_private_data = Some(extension_reader.read_private_data(index)?);
             index += 16;
         }
+
         if pack_header_field_flag {
-            pack_field_length = Some(data[index]);
-            index += data[index] as usize;
+            let reader = BitReader::at_position(data, index);
+            pack_field_length = reader.get_bits(0, 0xFF, 0);
+            index += pack_field_length.unwrap_or(0) as usize + 1;
         }
+
         if program_packet_sequence_counter_flag {
-            if is_invalid_marker_bit(data[index], 0b10000000) {
-                return None;
-            }
-
-            program_packet_sequence_counter = Some(data[index] & 0b01111111);
-            index += 1;
-
-            if is_invalid_marker_bit(data[index], 0b10000000) {
-                return None;
-            }
-
-            mpeg1_mpeg2_identifier = Some((data[index] & 0b01000000) >> 6);
-            original_stuff_length = Some(data[index] & 0b00111111);
-            index += 1;
-        }
-        if p_std_buffer_flag {
-            if ((data[index] & P_STD_BUFFER_REQUIRED_BITS_MASK) >> 6)
-                != P_STD_BUFFER_REQUIRED_BITS_VALUE
-            {
-                return None;
-            }
-            p_std_buffer_scale = Some((data[index] & 0b00100000) >> 5);
-            p_std_buffer_size =
-                Some((((data[index] & 0b00011111) as u16) << 8) | data[index + 1] as u16);
+            let (counter, identifier, stuff_length) =
+                extension_reader.read_sequence_counter(index)?;
+            program_packet_sequence_counter = Some(counter);
+            mpeg1_mpeg2_identifier = Some(identifier);
+            original_stuff_length = Some(stuff_length);
             index += 2;
         }
+
+        if p_std_buffer_flag {
+            let (scale, size) = extension_reader.read_buffer_info(index)?;
+            p_std_buffer_scale = Some(scale);
+            p_std_buffer_size = Some(size);
+            index += 2;
+        }
+
         if pes_extension_flag_2 {
-            if is_invalid_marker_bit(data[index], 0b10000000) {
+            let reader = BitReader::at_position(data, index);
+            if !reader.get_bit(0, 7)? {
                 return None;
             }
 
             let mut bytes_after_pes_extension_field_length = 1;
-
-            pes_extension_field_length = Some(data[index] & 0b01111111);
+            pes_extension_field_length = reader.get_bits(0, 0x7F, 0);
             index += 1;
-            stream_id_extension_flag = Some((data[index] & 0b10000000) >> 7 == 1);
-            if !stream_id_extension_flag.unwrap() {
-                stream_id_extension = Some(data[index] & 0b01111111);
+
+            stream_id_extension_flag = reader.get_bit(0, 7);
+            if let Some(false) = stream_id_extension_flag {
+                stream_id_extension = reader.get_bits(0, 0x7F, 0);
                 index += 1;
-            } else {
-                tref_extension_flag = Some((data[index] & 0b00000001) == 1);
+            } else if let Some(true) = stream_id_extension_flag {
+                tref_extension_flag = reader.get_bit(0, 0);
                 index += 1;
-                if !tref_extension_flag.unwrap() {
-                    if let Ok(tref_value) = Self::unmarshall_tref(&data[index..]) {
-                        tref = Some(tref_value);
-                    } else {
-                        return None;
-                    }
+                if let Some(false) = tref_extension_flag {
+                    tref = Some(TimestampReader::new(&data[index..]).read_tref().ok()?);
                     index += 5;
                     bytes_after_pes_extension_field_length += 5;
                 }
             }
 
-            index += pes_extension_field_length.unwrap() as usize
-                - bytes_after_pes_extension_field_length;
+            if let Some(len) = pes_extension_field_length {
+                index += len as usize - bytes_after_pes_extension_field_length;
+            }
         }
 
         Some(Self {
@@ -456,27 +463,51 @@ impl PesExtensionData {
         })
     }
 
-    fn unmarshall_tref(data: &[u8]) -> Result<u64, ()> {
-        if data.len() < 5 {
-            return Err(());
-        }
+    // Remove unmarshall_tref as it's now handled by TimestampReader
+}
 
-        if is_invalid_marker_bit(data[0], 0b00000001)
-            | is_invalid_marker_bit(data[2], 0b00000001)
-            | is_invalid_marker_bit(data[4], 0b00000001)
-        {
-            return Err(());
-        }
+impl DataParser for PesExtensionData {
+    type Output = Self;
 
-        let tref_1 = ((data[0] & 0b00001110) as u64) << 29;
-        let tref_2 = (data[1] as u64) << 22;
-        let tref_3 = ((data[2] & 0b11111110) as u64) << 14;
-        let tref_4 = (data[3] as u64) << 7;
-        let tref_5 = ((data[4] & 0b11111110) as u64) >> 1;
-
-        Ok(tref_1 | tref_2 | tref_3 | tref_4 | tref_5)
+    fn parse(data: &[u8]) -> Option<Self::Output> {
+        Self::unmarshall(data)
     }
 }
+
+impl BitManipulation for PesExtensionData {}
+
+impl DataValidator for PesExtensionData {
+    fn validate(&self) -> bool {
+        if let Some(len) = self.pes_extension_field_length {
+            if len as usize > self.size as usize {
+                return false;
+            }
+        }
+        true
+    }
+}
+
+impl DataParser for ContextFlags {
+    type Output = Self;
+
+    fn parse(data: &[u8]) -> Option<Self::Output> {
+        if data.is_empty() {
+            return None;
+        }
+
+        Some(ContextFlags {
+            pts_dts_flags: Self::get_bits(data[0], PTS_DTS_FLAGS_MASK, 6),
+            escr_flag: Self::get_bit(data[0], 5),
+            es_rate_flag: Self::get_bit(data[0], 4),
+            dsm_trick_mode_flag: Self::get_bit(data[0], 3),
+            additional_copy_info_flag: Self::get_bit(data[0], 2),
+            pes_crc_flag: Self::get_bit(data[0], 1),
+            pes_extension_flag: Self::get_bit(data[0], 0),
+        })
+    }
+}
+
+impl BitManipulation for ContextFlags {}
 
 fn is_invalid_marker_bit(byte: u8, mask: u8) -> bool {
     byte & mask != mask

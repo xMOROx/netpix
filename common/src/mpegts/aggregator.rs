@@ -7,6 +7,7 @@ use crate::mpegts::pes::pes_buffer::PesBuffer;
 use crate::mpegts::psi::pat::ProgramAssociationTable;
 use crate::mpegts::psi::pmt::ProgramMapTable;
 use crate::mpegts::MpegtsFragment;
+use crate::utils::traits::BufferOperations;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
