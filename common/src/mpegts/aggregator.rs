@@ -20,6 +20,12 @@ pub struct MpegtsAggregator {
     pes: HashMap<u16, PacketizedElementaryStream>,
 }
 
+impl Default for MpegtsAggregator {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl MpegtsAggregator {
     pub fn new() -> Self {
         MpegtsAggregator {

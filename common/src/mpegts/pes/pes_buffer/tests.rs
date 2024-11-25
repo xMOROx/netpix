@@ -75,6 +75,7 @@ fn test_pes_buffer_add_fragment_without_payload() {
         header: Header::default(),
         adaptation_field: None,
         payload: None,
+        size: 0,
     };
     buffer.add_fragment(&fragment);
     assert!(buffer.payload.is_empty());
@@ -95,6 +96,7 @@ fn test_pes_buffer_add_fragment_with_start() {
         header,
         adaptation_field: None,
         payload: Some(RawPayload { data: pes_data }),
+        size: 0,
     };
 
     buffer.add_fragment(&fragment);
@@ -115,6 +117,7 @@ fn test_pes_buffer_add_fragment_continuation() {
         header,
         adaptation_field: None,
         payload: Some(RawPayload { data: pes_data }),
+        size: 0,
     };
     buffer.add_fragment(&fragment);
 
@@ -127,6 +130,7 @@ fn test_pes_buffer_add_fragment_continuation() {
         payload: Some(RawPayload {
             data: continuation_data,
         }),
+        size: 0,
     };
     buffer.add_fragment(&fragment);
     assert_eq!(buffer.payload.get_data().len(), 17);

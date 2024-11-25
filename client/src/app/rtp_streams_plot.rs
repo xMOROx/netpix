@@ -1,5 +1,5 @@
 use self::SettingsXAxis::*;
-use super::is_stream_visible;
+use super::is_rtp_stream_visible;
 use crate::streams::rtpStream::{RtpInfo, RtpStream};
 use crate::streams::{RefStreams, Streams};
 use eframe::egui;
@@ -13,7 +13,7 @@ use egui::{Align2, RichText};
 use rtpeeker_common::packet::SessionPacket;
 use rtpeeker_common::rtcp::ReceptionReport;
 use rtpeeker_common::rtp::payload_type::MediaType;
-use rtpeeker_common::StreamKey;
+use rtpeeker_common::RtpStreamKey;
 use rtpeeker_common::{Packet, RtcpPacket, RtpPacket};
 use std::cell::Ref;
 use std::collections::HashMap;
@@ -74,7 +74,7 @@ pub struct RtpStreamsPlot {
     stream_texts: Vec<StreamText>,
     x_axis: SettingsXAxis,
     requires_reset: bool,
-    streams_visibility: HashMap<StreamKey, bool>,
+    streams_visibility: HashMap<RtpStreamKey, bool>,
     last_rtp_packets_len: usize,
     set_plot_bounds: bool,
     slider_max: i64,
@@ -203,14 +203,14 @@ impl RtpStreamsPlot {
             let keys: Vec<_> = streams.keys().collect();
 
             keys.iter().for_each(|&key| {
-                let alias = streams.get(key).unwrap().alias.to_string();
+                let alias = streams.get(&key).unwrap().alias.to_string();
                 aliases.push((*key, alias));
             });
             aliases.sort_by(|(_, a), (_, b)| a.cmp(b));
 
             ui.label(RichText::from("Toggle streams: ").strong());
             aliases.iter().for_each(|(key, alias)| {
-                let selected = is_stream_visible(&mut self.streams_visibility, *key);
+                let selected = is_rtp_stream_visible(&mut self.streams_visibility, *key);
                 if ui.checkbox(selected, alias).clicked() {
                     self.requires_reset = true
                 }
@@ -390,7 +390,7 @@ impl RtpStreamsPlot {
             .iter()
             .enumerate()
             .for_each(|(i, (key, stream))| {
-                if !*(is_stream_visible(&mut self.streams_visibility, *key)) {
+                if !*(is_rtp_stream_visible(&mut self.streams_visibility, *key)) {
                     return;
                 }
                 if i != 0 {

@@ -4,7 +4,7 @@ use eframe::egui;
 use egui::{ComboBox, Ui};
 use ewebsock::{WsEvent, WsMessage, WsReceiver, WsSender};
 use log::{error, warn};
-use rtpeeker_common::{Request, Response, Source, StreamKey};
+use rtpeeker_common::{Request, Response, Source, RtpStreamKey, MpegtsStreamKey};
 
 use packets_table::PacketsTable;
 use rtcp_packets_table::RtcpPacketsTable;
@@ -109,7 +109,7 @@ impl App {
         let rtp_streams_plot = RtpStreamsPlot::new(streams.clone());
 
         let mpegts_packets_table = MpegTsPacketsTable::new(streams.clone());
-        let mpegts_streams_table = MpegTsStreamsTable::new(streams.clone(), ws_sender.clone());
+        let mpegts_streams_table = MpegTsStreamsTable::new(streams.clone());
         let mpegts_info_table = MpegTsInformationsTable::new(streams.clone(), ws_sender.clone());
         let mpegts_plot = MpegTsStreamPlot::new(streams.clone());
 
@@ -381,9 +381,15 @@ fn side_button(text: &str) -> egui::Button {
         .rounding(egui::Rounding::same(9.0))
 }
 
-pub fn is_stream_visible(
-    streams_visibility: &mut HashMap<StreamKey, bool>,
-    key: StreamKey,
+pub fn is_rtp_stream_visible(
+    streams_visibility: &mut HashMap<RtpStreamKey, bool>,
+    key: RtpStreamKey,
+) -> &mut bool {
+    streams_visibility.entry(key).or_insert(true)
+}
+pub fn is_mpegts_stream_visible(
+    streams_visibility: &mut HashMap<MpegtsStreamKey, bool>,
+    key: MpegtsStreamKey,
 ) -> &mut bool {
     streams_visibility.entry(key).or_insert(true)
 }

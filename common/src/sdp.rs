@@ -19,9 +19,7 @@ impl Sdp {
         let mut lines = raw_sdp.lines();
 
         // first line should be media
-        let Some(first_line) = lines.next() else {
-            return None;
-        };
+        let first_line = lines.next()?;
         let Ok(SdpLine {
             sdp_type: SdpType::Media(media),
             ..

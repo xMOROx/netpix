@@ -51,11 +51,7 @@ impl FragmentaryPsi for FragmentaryProgramAssociationTable {
             data
         };
 
-        let header = if let Some(header) = Self::unmarshall_header(data) {
-            header
-        } else {
-            return None;
-        };
+        let header = Self::unmarshall_header(data)?;
 
         let transport_stream_id = ((data[3] as u16) << 8) | data[4] as u16;
 

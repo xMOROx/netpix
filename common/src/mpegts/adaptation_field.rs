@@ -42,7 +42,7 @@ pub struct AdaptationFieldExtension {
 
 impl AdaptationField {
     pub fn unmarshall(buffer: &[u8]) -> Option<Self> {
-        if buffer[0] <= 0 || buffer.len() <= buffer[0] as usize {
+        if buffer[0] == 0 {
             return None;
         }
 
@@ -110,7 +110,7 @@ impl AdaptationField {
         }
 
         if splicing_point_flag && index < buffer.len() {
-            field.splice_countdown = Some(buffer[index] as u8);
+            field.splice_countdown = Some(buffer[index]);
             index += 1;
         }
 

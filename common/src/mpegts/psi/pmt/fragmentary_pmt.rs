@@ -43,11 +43,7 @@ impl FragmentaryPsi for FragmentaryProgramMapTable {
             data
         };
 
-        let header = if let Some(header) = Self::unmarshall_header(data) {
-            header
-        } else {
-            return None;
-        };
+        let header = Self::unmarshall_header(data)?;
         let full_header_size = HEADER_SIZE + HEADER_AFTER_SECTION_LENGTH_SIZE;
 
         let program_number = ((data[3] as u16) << 8) | data[4] as u16;

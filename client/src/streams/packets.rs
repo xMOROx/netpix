@@ -1,3 +1,4 @@
+#![allow(dead_code)]
 use rtpeeker_common::packet::Packet;
 use std::collections::{
     btree_map::{Keys, Values},

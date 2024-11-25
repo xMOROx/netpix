@@ -22,7 +22,7 @@ pub trait FragmentaryPsi {
         let mut last_byte = data.len();
         let mut padding_count = 0;
 
-        for i in 0..data.len() {
+        for (i, _) in data.iter().enumerate() {
             if data[i] == mpegts::PADDING_BYTE {
                 padding_count += 1;
                 if padding_count == 3 {
