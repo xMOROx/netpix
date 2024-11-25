@@ -1,11 +1,11 @@
-
 name: Tests
 
 on:
   push:
     branches: [ master ]
   pull_request:
-    branches: [ master ]
+    branches:
+      - '**'
 
 permissions:
   contents: read
@@ -17,7 +17,11 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: nightly-2024-02-04
+      - name: Install libpcap
+        run: sudo apt-get install libpcap-dev
       
       - name: Run tests
         working-directory: ./common
