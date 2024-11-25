@@ -1,10 +1,10 @@
-use std::collections::HashMap;
+use crate::streams::mpegts_stream::substream::MpegtsSubStream;
+use crate::streams::stream_statistics::StreamStatistics;
 use crate::streams::RefStreams;
 use eframe::emath::Vec2;
 use egui::plot::{Line, Plot, PlotPoints};
 use egui_extras::{Column, TableBody, TableBuilder};
-use crate::streams::mpegts_stream::substream::{MpegtsSubStream};
-use crate::streams::stream_statistics::StreamStatistics;
+use std::collections::HashMap;
 
 pub struct MpegTsStreamsTable {
     streams: RefStreams,
@@ -23,11 +23,17 @@ impl MpegTsStreamsTable {
 
     fn build_table(&mut self, ui: &mut egui::Ui) {
         let header_labels = [
-            ("Stream alias", "Stream alias for the stream is made up of the transport stream id and stream type"),
+            (
+                "Stream alias",
+                "Stream alias for the stream is made up of the transport stream id and stream type",
+            ),
             ("Program number", "Program number from PMT table"),
             ("Source", "Source IP address and port"),
             ("Destination", "Destination IP address and port"),
-            ("Number of fragments", "Number of fragments in mpegts stream"),
+            (
+                "Number of fragments",
+                "Number of fragments in mpegts stream",
+            ),
             (
                 "Duration",
                 "Difference between last timestamp and first timestamp.",
@@ -38,28 +44,29 @@ impl MpegTsStreamsTable {
             ),
             (
                 "Mean mpegts bitrate",
-                "Sum of packet sizes (mpegts only) divided by stream's duration",
+                "Sum of fragment sizes (mpegts only) divided by stream's duration",
             ),
             (
-                "Mean packet rate",
-                "Number of packets divided by stream's duration in seconds",
+                "Mean fragment rate",
+                "Number of fragments divided by stream's duration in seconds",
             ),
             (
                 "Bitrate history",
-                "Plot representing bitrate for all of the stream's packets",
+                "Plot representing bitrate for all of the stream's fragments",
             ),
         ];
         TableBuilder::new(ui)
             .striped(true)
             .resizable(true)
             .stick_to_bottom(true)
-            .column(Column::initial(50.0).at_least(80.0))
-            .column(Column::initial(50.0).at_least(80.0))
-            .columns(Column::initial(140.0).at_least(140.0), 2)
-            .columns(Column::initial(80.0).at_least(80.0), 2)
-            .column(Column::initial(70.0).at_least(70.0))
-            .column(Column::initial(70.0).at_least(90.0))
-            .columns(Column::initial(80.0).at_least(90.0), 1)
+            .column(Column::initial(80.0).at_most(80.0).at_least(80.0))
+            .column(Column::initial(80.0).at_most(80.0).at_least(80.0))
+            .columns(Column::initial(140.0).at_least(140.0).at_most(155.0), 2)
+            .column(Column::initial(97.0).at_most(112.0).at_least(97.0))
+            .column(Column::initial(75.0).at_most(90.0).at_least(75.0))
+            .column(Column::initial(80.0).at_most(95.0).at_least(80.0))
+            .column(Column::initial(75.0).at_most(90.0).at_least(75.0))
+            .column(Column::initial(130.0).at_least(130.0).at_most(145.0))
             .column(Column::remainder().at_least(320.0).resizable(false))
             .header(30.0, |mut header| {
                 header_labels.iter().for_each(|(label, desc)| {
@@ -77,16 +84,11 @@ impl MpegTsStreamsTable {
     fn build_table_body(&mut self, body: TableBody) {
         let mut streams = self.streams.borrow_mut();
         let mut keys: Vec<_> = vec![];
-        let mut substreams: HashMap<_,_> = HashMap::new();
+        let mut substreams: HashMap<_, _> = HashMap::new();
 
         for stream in streams.mpeg_ts_streams.values_mut() {
-            keys.extend(
-                stream
-                    .substreams.keys()
-            );
-            substreams.extend(
-                stream.substreams.clone()
-            );
+            keys.extend(stream.substreams.keys());
+            substreams.extend(stream.substreams.clone());
         }
 
         body.rows(100.0, keys.len(), |id, mut row| {
@@ -94,12 +96,14 @@ impl MpegTsStreamsTable {
             let stream = substreams.get_mut(key).unwrap();
 
             row.col(|ui| {
-                let text_edit = egui::TextEdit::singleline(&mut stream.aliases.stream_alias).frame(false);
+                let text_edit =
+                    egui::TextEdit::singleline(&mut stream.aliases.stream_alias).frame(false);
                 ui.add(text_edit);
             });
 
             row.col(|ui| {
-                let text_edit = egui::TextEdit::singleline(&mut stream.aliases.program_alias).frame(false);
+                let text_edit =
+                    egui::TextEdit::singleline(&mut stream.aliases.program_alias).frame(false);
                 ui.add(text_edit);
             });
 
