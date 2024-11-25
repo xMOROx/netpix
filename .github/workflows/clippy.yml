@@ -1,0 +1,33 @@
+
+name: Clippy Check
+
+on:
+  pull_request:
+    branches: [ master ]
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  clippy:
+    name: Clippy Analysis
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        dir: [., ./client, ./common]
+    steps:
+      - uses: actions/checkout@v3
+      
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy
+          
+      - name: Install libpcap
+        run: sudo apt-get install libpcap-dev
+        
+      - uses: actions-rs/clippy-check@v1
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          args: --manifest-path ${{ matrix.dir }}/Cargo.toml -- -D warnings
+          name: Clippy ${{ matrix.dir }}
