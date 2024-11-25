@@ -68,7 +68,6 @@ impl FragmentaryPsi for FragmentaryProgramMapTable {
 
         let full_header_size: usize = (HEADER_SIZE + HEADER_AFTER_SECTION_LENGTH_SIZE).into();
         let descriptors_payload = reader.get_bytes(full_header_size, program_info_length.into())?;
-
         let last_byte = Self::determine_last_byte(data);
         let payload = reader.get_bytes(
             full_header_size + program_info_length as usize,

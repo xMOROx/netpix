@@ -46,6 +46,7 @@ impl MpegtsPacket {
             return None;
         }
 
+
         let fragments: Vec<_> = (0..buffer.len())
             .step_by(FRAGMENT_SIZE)
             .filter_map(|start_index| {
@@ -115,7 +116,6 @@ impl MpegtsPacket {
 
     fn get_header(buffer: &[u8], start_index: usize) -> Option<Header> {
         let reader = BitReader::at_position(buffer, start_index);
-
         Some(Header {
             transport_error_indicator: reader.get_bit(1, 7)?,
             payload_unit_start_indicator: reader.get_bit(1, 6)?,
