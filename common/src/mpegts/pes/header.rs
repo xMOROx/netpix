@@ -30,10 +30,7 @@ impl DataValidator for PesHeader {
             return false;
         }
 
-        match self.pts_dts_flags {
-            0b00 | 0b10 | 0b11 => true,
-            _ => false,
-        }
+        matches!(self.pts_dts_flags, 0b00 | 0b10 | 0b11)
     }
 }
 

@@ -20,8 +20,6 @@ pub trait FragmentaryPsi: DataParser<Output = Self> + DataValidator {
     fn unmarshall_header(data: &[u8]) -> Option<ProgramSpecificInformationHeader>;
 
     fn determine_last_byte(data: &[u8]) -> usize {
-        ByteOperations::find_padding_end(data, mpegts::PADDING_BYTE, 3)
-            .map(|pos| pos)
-            .unwrap_or(data.len())
+        ByteOperations::find_padding_end(data, mpegts::PADDING_BYTE, 3).unwrap_or(data.len())
     }
 }

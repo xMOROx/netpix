@@ -95,13 +95,13 @@ impl ProgramMapTable {
             let stream_type = *reader.get_bytes(offset.into(), 1)?.first()?;
             let elementary_pid = reader.get_bits_u16(
                 (offset + 1).into(),
-                ELEMENTARY_PID_UPPER_MASK as u8,
-                ELEMENTARY_PID_LOWER_MASK as u8,
+                ELEMENTARY_PID_UPPER_MASK,
+                ELEMENTARY_PID_LOWER_MASK,
             )?;
             let es_info_length = reader.get_bits_u16(
                 (offset + 3).into(),
-                ES_INFO_LENGTH_UPPER_MASK as u8,
-                ES_INFO_LENGTH_LOWER_MASK as u8,
+                ES_INFO_LENGTH_UPPER_MASK,
+                ES_INFO_LENGTH_LOWER_MASK,
             )?;
 
             let descriptors_data =

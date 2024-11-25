@@ -62,8 +62,8 @@ impl FragmentaryPsi for FragmentaryProgramMapTable {
         let pcr_pid = reader.get_pid(8, PCR_PID_UPPER_MASK)?;
         let program_info_length = reader.get_bits_u16(
             10,
-            PROGRAM_INFO_LENGTH_UPPER_MASK as u8,
-            PROGRAM_INFO_LENGTH_LOWER_MASK as u8,
+            PROGRAM_INFO_LENGTH_UPPER_MASK,
+            PROGRAM_INFO_LENGTH_LOWER_MASK,
         )?;
 
         let full_header_size: usize = (HEADER_SIZE + HEADER_AFTER_SECTION_LENGTH_SIZE).into();
