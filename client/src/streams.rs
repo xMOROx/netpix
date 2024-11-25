@@ -1,26 +1,28 @@
-use mpeg_ts_streams::MpegTsStream;
+#![allow(dead_code)]
+use mpegts_stream::MpegTsStream;
 use packets::Packets;
 use rtpStream::RtpStream;
 use rtpeeker_common::packet::SessionPacket;
-use rtpeeker_common::StreamKey;
 use rtpeeker_common::{packet::TransportProtocol, Packet, RtcpPacket};
+use rtpeeker_common::{MpegtsStreamKey, RtpStreamKey};
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::net::SocketAddr;
 use std::rc::Rc;
 
-pub mod mpeg_ts_streams;
+pub mod mpegts_stream;
 mod packets;
 #[allow(non_snake_case)]
 pub mod rtpStream;
+pub mod stream_statistics;
 
 pub type RefStreams = Rc<RefCell<Streams>>;
 
 #[derive(Debug, Default)]
 pub struct Streams {
     pub packets: Packets,
-    pub rtp_streams: HashMap<StreamKey, RtpStream>,
-    pub mpeg_ts_streams: HashMap<StreamKey, MpegTsStream>,
+    pub rtp_streams: HashMap<RtpStreamKey, RtpStream>,
+    pub mpeg_ts_streams: HashMap<MpegtsStreamKey, MpegTsStream>,
 }
 
 impl Streams {
@@ -62,8 +64,8 @@ impl Streams {
 // this function need to take streams as an argument as opposed to methods on `Streams`
 // to make `Streams::recalculate` work, dunno if there's a better way
 fn handle_packet(
-    rtp_streams: &mut HashMap<StreamKey, RtpStream>,
-    mpegts_streams: &mut HashMap<StreamKey, MpegTsStream>,
+    rtp_streams: &mut HashMap<RtpStreamKey, RtpStream>,
+    mpegts_streams: &mut HashMap<MpegtsStreamKey, MpegTsStream>,
     packet: &Packet,
 ) {
     match packet.contents {
@@ -72,14 +74,13 @@ fn handle_packet(
                 packet.source_addr,
                 packet.destination_addr,
                 packet.transport_protocol,
-                0,
             );
 
             if let Some(stream) = mpegts_streams.get_mut(&stream_key) {
                 stream.add_mpegts_packet(packet, mpegts);
             } else {
                 let new_stream =
-                    MpegTsStream::new(packet, mpegts, int_to_letter(mpegts_streams.len()), 0);
+                    MpegTsStream::new(packet, mpegts, int_to_letter(mpegts_streams.len()));
                 mpegts_streams.insert(stream_key, new_stream);
             }
         }
@@ -128,7 +129,7 @@ fn handle_packet(
 }
 
 fn get_rtcp_stream(
-    streams: &mut HashMap<StreamKey, RtpStream>,
+    streams: &mut HashMap<RtpStreamKey, RtpStream>,
     mut source_addr: SocketAddr,
     mut destination_addr: SocketAddr,
     protocol: TransportProtocol,

@@ -4,12 +4,37 @@ mod tests;
 use crate::mpegts::psi::pat::fragmentary_pat::FragmentaryProgramAssociationTable;
 use crate::mpegts::psi::pat::ProgramAssociationTable;
 use crate::mpegts::psi::psi_buffer::PsiBuffer;
+use crate::utils::{DataAccumulator, DataValidator};
 use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct PatBuffer {
     last_section_number: u8,
     pat_fragments: Vec<FragmentaryProgramAssociationTable>,
+}
+
+impl DataAccumulator for PatBuffer {
+    fn accumulate_payload(&self) -> Vec<u8> {
+        self.pat_fragments
+            .iter()
+            .fold(Vec::new(), |mut acc, fragment| {
+                acc.extend_from_slice(&fragment.payload);
+                acc
+            })
+    }
+
+    fn accumulate_descriptors(&self) -> Vec<u8> {
+        Vec::new() // PAT doesn't have descriptors
+    }
+}
+
+impl DataValidator for PatBuffer {
+    fn validate(&self) -> bool {
+        if self.pat_fragments.is_empty() {
+            return false;
+        }
+        self.is_complete()
+    }
 }
 
 impl PsiBuffer<ProgramAssociationTable, FragmentaryProgramAssociationTable> for PatBuffer {
@@ -43,26 +68,33 @@ impl PsiBuffer<ProgramAssociationTable, FragmentaryProgramAssociationTable> for 
     }
 
     fn build(&mut self) -> Option<ProgramAssociationTable> {
-        if !self.is_complete() {
+        if !self.validate() {
             return None;
         }
 
-        let accumulated_payload =
-            self.pat_fragments
-                .iter()
-                .fold(Vec::new(), |mut acc, fragment| {
-                    acc.extend_from_slice(&fragment.payload);
-                    acc
-                });
-
-        ProgramAssociationTable::build(
-            self.pat_fragments[0].transport_stream_id,
-            &accumulated_payload,
-        )
+        self.pat_fragments.first().and_then(|first| {
+            ProgramAssociationTable::build(first.transport_stream_id, &self.accumulate_payload())
+        })
     }
 
     fn clear(&mut self) {
         self.last_section_number = 0;
         self.pat_fragments.clear();
+    }
+}
+
+impl PatBuffer {
+    pub fn get_transport_stream_id(&self) -> u16 {
+        self.pat_fragments
+            .first()
+            .map(|f| f.transport_stream_id)
+            .unwrap_or(0)
+    }
+
+    pub fn is_fragment_inside(&self, fragment: &FragmentaryProgramAssociationTable) -> bool {
+        self.pat_fragments.first().map_or(false, |first| {
+            (self.pat_fragments.len() as u8) >= fragment.header.section_number
+                && first.transport_stream_id == fragment.transport_stream_id
+        })
     }
 }

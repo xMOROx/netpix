@@ -1,7 +1,5 @@
-use serde::{Deserialize, Serialize};
 use crate::mpegts::descriptors::{DescriptorHeader, ParsableDescriptor};
-
-
+use serde::{Deserialize, Serialize};
 
 const NO_VIEW_SCALABILITY_FLAG: u8 = 0b1000_0000;
 
@@ -67,8 +65,12 @@ impl std::fmt::Display for HierarchyType {
             HierarchyType::ExtensionBitstream => write!(f, "Extension Bitstream"),
             HierarchyType::PrivateStream => write!(f, "Private Stream"),
             HierarchyType::MultiViewProfile => write!(f, "Multi View Profile"),
-            HierarchyType::CombinedScalabilityOrMvHevcSubpartition => write!(f, "Combined Scalability or MV HEVC Subpartition"),
-            HierarchyType::MvcVideoSubBitstreamOrMvcdVideoSubBitstream => write!(f, "MVC Video Sub Bitstream or MVCD Video Sub Bitstream"),
+            HierarchyType::CombinedScalabilityOrMvHevcSubpartition => {
+                write!(f, "Combined Scalability or MV HEVC Subpartition")
+            }
+            HierarchyType::MvcVideoSubBitstreamOrMvcdVideoSubBitstream => {
+                write!(f, "MVC Video Sub Bitstream or MVCD Video Sub Bitstream")
+            }
             HierarchyType::AuxiliaryPictureLayer => write!(f, "Auxiliary Picture Layer"),
             HierarchyType::BaseLayerOrOtherType => write!(f, "Base Layer or Other Type"),
         }
@@ -131,21 +133,48 @@ impl PartialEq for HierarchyDescriptor {
 
 impl PartialEq for HierarchyType {
     fn eq(&self, other: &Self) -> bool {
-        match (self, other) {
-            (HierarchyType::Reserved, HierarchyType::Reserved) => true,
-            (HierarchyType::SpatialScalability, HierarchyType::SpatialScalability) => true,
-            (HierarchyType::SNRScalability, HierarchyType::SNRScalability) => true,
-            (HierarchyType::TemporalScalability, HierarchyType::TemporalScalability) => true,
-            (HierarchyType::DataPartitioning, HierarchyType::DataPartitioning) => true,
-            (HierarchyType::ExtensionBitstream, HierarchyType::ExtensionBitstream) => true,
-            (HierarchyType::PrivateStream, HierarchyType::PrivateStream) => true,
-            (HierarchyType::MultiViewProfile, HierarchyType::MultiViewProfile) => true,
-            (HierarchyType::CombinedScalabilityOrMvHevcSubpartition, HierarchyType::CombinedScalabilityOrMvHevcSubpartition) => true,
-            (HierarchyType::MvcVideoSubBitstreamOrMvcdVideoSubBitstream, HierarchyType::MvcVideoSubBitstreamOrMvcdVideoSubBitstream) => true,
-            (HierarchyType::AuxiliaryPictureLayer, HierarchyType::AuxiliaryPictureLayer) => true,
-            (HierarchyType::BaseLayerOrOtherType, HierarchyType::BaseLayerOrOtherType) => true,
-            _ => false
-        }
+        matches!(
+            (self, other),
+            (HierarchyType::Reserved, HierarchyType::Reserved)
+                | (
+                    HierarchyType::SpatialScalability,
+                    HierarchyType::SpatialScalability
+                )
+                | (HierarchyType::SNRScalability, HierarchyType::SNRScalability)
+                | (
+                    HierarchyType::TemporalScalability,
+                    HierarchyType::TemporalScalability
+                )
+                | (
+                    HierarchyType::DataPartitioning,
+                    HierarchyType::DataPartitioning
+                )
+                | (
+                    HierarchyType::ExtensionBitstream,
+                    HierarchyType::ExtensionBitstream
+                )
+                | (HierarchyType::PrivateStream, HierarchyType::PrivateStream)
+                | (
+                    HierarchyType::MultiViewProfile,
+                    HierarchyType::MultiViewProfile
+                )
+                | (
+                    HierarchyType::CombinedScalabilityOrMvHevcSubpartition,
+                    HierarchyType::CombinedScalabilityOrMvHevcSubpartition
+                )
+                | (
+                    HierarchyType::MvcVideoSubBitstreamOrMvcdVideoSubBitstream,
+                    HierarchyType::MvcVideoSubBitstreamOrMvcdVideoSubBitstream
+                )
+                | (
+                    HierarchyType::AuxiliaryPictureLayer,
+                    HierarchyType::AuxiliaryPictureLayer
+                )
+                | (
+                    HierarchyType::BaseLayerOrOtherType,
+                    HierarchyType::BaseLayerOrOtherType
+                )
+        )
     }
 }
 
@@ -163,7 +192,7 @@ impl From<u8> for HierarchyType {
             9 => HierarchyType::MvcVideoSubBitstreamOrMvcdVideoSubBitstream,
             10 => HierarchyType::AuxiliaryPictureLayer,
             15 => HierarchyType::BaseLayerOrOtherType,
-            _ => HierarchyType::Reserved
+            _ => HierarchyType::Reserved,
         }
     }
 }
@@ -171,8 +200,8 @@ impl From<u8> for HierarchyType {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::mpegts::descriptors::DescriptorHeader;
     use crate::mpegts::descriptors::tags::DescriptorTag;
+    use crate::mpegts::descriptors::DescriptorHeader;
 
     #[test]
     fn test_hierarchy_descriptor_unmarshall() {
@@ -194,7 +223,10 @@ mod tests {
             hierarchy_channel: 0,
         };
 
-        assert_eq!(HierarchyDescriptor::unmarshall(header, &data), Some(descriptor));
+        assert_eq!(
+            HierarchyDescriptor::unmarshall(header, &data),
+            Some(descriptor)
+        );
     }
 
     #[test]
@@ -217,7 +249,10 @@ mod tests {
             hierarchy_channel: 0b0011_1111,
         };
 
-        assert_eq!(HierarchyDescriptor::unmarshall(header, &data), Some(descriptor));
+        assert_eq!(
+            HierarchyDescriptor::unmarshall(header, &data),
+            Some(descriptor)
+        );
     }
 
     #[test]
@@ -241,9 +276,18 @@ mod tests {
         assert_eq!(HierarchyType::from(5), HierarchyType::ExtensionBitstream);
         assert_eq!(HierarchyType::from(6), HierarchyType::PrivateStream);
         assert_eq!(HierarchyType::from(7), HierarchyType::MultiViewProfile);
-        assert_eq!(HierarchyType::from(8), HierarchyType::CombinedScalabilityOrMvHevcSubpartition);
-        assert_eq!(HierarchyType::from(9), HierarchyType::MvcVideoSubBitstreamOrMvcdVideoSubBitstream);
-        assert_eq!(HierarchyType::from(10), HierarchyType::AuxiliaryPictureLayer);
+        assert_eq!(
+            HierarchyType::from(8),
+            HierarchyType::CombinedScalabilityOrMvHevcSubpartition
+        );
+        assert_eq!(
+            HierarchyType::from(9),
+            HierarchyType::MvcVideoSubBitstreamOrMvcdVideoSubBitstream
+        );
+        assert_eq!(
+            HierarchyType::from(10),
+            HierarchyType::AuxiliaryPictureLayer
+        );
         assert_eq!(HierarchyType::from(15), HierarchyType::BaseLayerOrOtherType);
     }
 }

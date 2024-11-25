@@ -1,5 +1,7 @@
+#![allow(unused_imports)]
 pub mod adaptation_field;
 pub mod aggregator;
+pub mod constants;
 pub mod descriptors;
 pub mod header;
 pub mod payload;
@@ -7,21 +9,18 @@ pub mod pes;
 pub mod psi;
 #[cfg(test)]
 mod tests;
-mod constants;
 
 use crate::mpegts::adaptation_field::AdaptationField;
 use crate::mpegts::header::Header;
-#[cfg(not(target_arch = "wasm32"))]
 use crate::mpegts::header::{AdaptationFieldControl, PIDTable, TransportScramblingControl};
 use crate::mpegts::payload::RawPayload;
-use serde::{Deserialize, Serialize};
+use crate::utils::bits::BitReader;
 use constants::*;
-
+use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq)]
 pub struct MpegtsPacket {
     pub number_of_fragments: usize,
-    pub transport_stream_id: u32,
     pub fragments: Vec<MpegtsFragment>,
 }
 
@@ -30,124 +29,125 @@ pub struct MpegtsFragment {
     pub header: Header,
     pub adaptation_field: Option<AdaptationField>,
     pub payload: Option<RawPayload>,
+    pub size: usize,
 }
 
 #[cfg(not(target_arch = "wasm32"))]
 impl MpegtsPacket {
     pub fn build(packet: &super::Packet) -> Option<Self> {
-        let Some(payload) = packet.payload.as_ref() else {
-            return None;
-        };
-        let Some(packet) = Self::unmarshall(payload) else {
-            return None;
-        };
-        Some(packet)
+        packet
+            .payload
+            .as_ref()
+            .and_then(|payload| Self::unmarshall(payload))
     }
 
-    fn unmarshall(buffer: &Vec<u8>) -> Option<Self> {
+    fn unmarshall(buffer: &[u8]) -> Option<Self> {
         if buffer.len() % FRAGMENT_SIZE != 0 || buffer.len() > FRAGMENT_SIZE * MAX_FRAGMENTS {
             return None;
         }
 
-        let expected_fragments = buffer.len() / FRAGMENT_SIZE;
-        let mut fragments: Vec<MpegtsFragment> = Vec::with_capacity(expected_fragments);
 
-        for fragment_index in 0..expected_fragments {
-            let start_index = fragment_index * FRAGMENT_SIZE;
-
-            if (buffer[start_index] & SYNC_BYTE_MASK) != SYNC_BYTE {
-                return None;
-            }
-
-            let Some(fragment) = Self::get_fragment(buffer, start_index, fragment_index) else {
-                return None;
-            };
-            fragments.push(fragment);
-        }
+        let fragments: Vec<_> = (0..buffer.len())
+            .step_by(FRAGMENT_SIZE)
+            .filter_map(|start_index| {
+                ((buffer[start_index] & SYNC_BYTE_MASK) == SYNC_BYTE)
+                    .then(|| Self::get_fragment(buffer, start_index, start_index / FRAGMENT_SIZE))
+                    .flatten()
+            })
+            .collect();
 
         (!fragments.is_empty()).then_some(Self {
             number_of_fragments: fragments.len(),
             fragments,
-            transport_stream_id: 0,
         })
     }
 
     fn get_fragment(
-        buffer: &Vec<u8>,
-        mut start_index: usize,
+        buffer: &[u8],
+        start_index: usize,
         fragment_number: usize,
     ) -> Option<MpegtsFragment> {
-        let Some(header) = Self::get_header(buffer, start_index) else {
-            return None;
-        };
-        start_index += HEADER_SIZE;
+        let header = Self::get_header(buffer, start_index)?;
+        let current_index = start_index + HEADER_SIZE;
 
-        let adaptation_field = match header.adaptation_field_control {
-            AdaptationFieldControl::AdaptationFieldOnly
-            | AdaptationFieldControl::AdaptationFieldAndPaylod => {
-                let Some(adaptation_field) = Self::get_adaptation_field(buffer, start_index) else {
-                    return None;
-                };
-                start_index += adaptation_field.adaptation_field_length as usize + 1;
-                Some(adaptation_field)
-            }
-            _ => None,
-        };
+        let (adaptation_field, payload_start) =
+            Self::process_adaptation_field(&header, buffer, current_index)?;
 
-        let payload = match header.adaptation_field_control {
-            AdaptationFieldControl::PayloadOnly
-            | AdaptationFieldControl::AdaptationFieldAndPaylod => {
-                let Some(payload) = Self::get_payload(buffer, start_index, fragment_number) else {
-                    return None;
-                };
-                Some(payload)
-            }
-            _ => None,
-        };
+        let payload = Self::process_payload(&header, buffer, payload_start, fragment_number);
 
         Some(MpegtsFragment {
             header,
-            adaptation_field,
-            payload,
+            adaptation_field: adaptation_field.clone(),
+            payload: payload.clone(),
+            size: Self::calculate_fragment_size(&adaptation_field, &payload),
         })
     }
 
-    fn get_header(buffer: &Vec<u8>, start_index: usize) -> Option<Header> {
-        let transport_error_indicator = ((buffer[start_index + 1] & TEI_MASK) >> 7) == 1;
-        let payload_unit_start_indicator = ((buffer[start_index + 1] & PUSI_MASK) >> 6) == 1;
-        let transport_priority = ((buffer[start_index + 1] & TP_MASK) >> 5) == 1;
-        let pid = ((buffer[start_index + 1] & PID_MASK_UPPER) as u16) << 8
-            | buffer[start_index + 2] as u16;
-        let pid: PIDTable = PIDTable::from(pid);
+    fn process_adaptation_field(
+        header: &Header,
+        buffer: &[u8],
+        start_index: usize,
+    ) -> Option<(Option<AdaptationField>, usize)> {
+        match header.adaptation_field_control {
+            AdaptationFieldControl::AdaptationFieldOnly
+            | AdaptationFieldControl::AdaptationFieldAndPaylod => {
+                let field = AdaptationField::unmarshall(&buffer[start_index..])?;
+                let next_index = start_index + field.adaptation_field_length as usize + 1;
+                Some((Some(field), next_index))
+            }
+            _ => Some((None, start_index)),
+        }
+    }
 
-        let transport_scrambling_control = match (buffer[start_index + 3] & TSC_MASK) >> 6 {
-            0 => TransportScramblingControl::NotScrambled,
-            val => TransportScramblingControl::UserDefined(val),
-        };
-        let adaptation_field_control = match (buffer[start_index + 3] & AFC_MASK) >> 4 {
-            1 => AdaptationFieldControl::PayloadOnly,
-            2 => AdaptationFieldControl::AdaptationFieldOnly,
-            3 => AdaptationFieldControl::AdaptationFieldAndPaylod,
-            _ => return None,
-        };
-        let continuity_counter = buffer[start_index + 3] & CC_MASK;
+    fn process_payload(
+        header: &Header,
+        buffer: &[u8],
+        start_index: usize,
+        fragment_number: usize,
+    ) -> Option<RawPayload> {
+        match header.adaptation_field_control {
+            AdaptationFieldControl::PayloadOnly
+            | AdaptationFieldControl::AdaptationFieldAndPaylod => {
+                Self::get_payload(buffer, start_index, fragment_number)
+            }
+            _ => None,
+        }
+    }
+
+    fn get_header(buffer: &[u8], start_index: usize) -> Option<Header> {
+        let reader = BitReader::at_position(buffer, start_index);
         Some(Header {
-            transport_error_indicator,
-            payload_unit_start_indicator,
-            transport_priority,
-            pid,
-            transport_scrambling_control,
-            adaptation_field_control,
-            continuity_counter,
+            transport_error_indicator: reader.get_bit(1, 7)?,
+            payload_unit_start_indicator: reader.get_bit(1, 6)?,
+            transport_priority: reader.get_bit(1, 5)?,
+            pid: PIDTable::from(reader.get_bits_u16(1, PID_MASK_UPPER, 0xFF)?),
+            transport_scrambling_control: match reader.get_bits(3, TSC_MASK, 6)? {
+                0 => TransportScramblingControl::NotScrambled,
+                val => TransportScramblingControl::UserDefined(val),
+            },
+            adaptation_field_control: match reader.get_bits(3, AFC_MASK, 4)? {
+                1 => AdaptationFieldControl::PayloadOnly,
+                2 => AdaptationFieldControl::AdaptationFieldOnly,
+                3 => AdaptationFieldControl::AdaptationFieldAndPaylod,
+                _ => return None,
+            },
+            continuity_counter: reader.get_bits(3, CC_MASK, 0)?,
         })
     }
 
-    fn get_adaptation_field(buffer: &Vec<u8>, start_index: usize) -> Option<AdaptationField> {
-        AdaptationField::unmarshall(&buffer[start_index..])
+    fn calculate_fragment_size(
+        adaptation_field: &Option<AdaptationField>,
+        payload: &Option<RawPayload>,
+    ) -> usize {
+        HEADER_SIZE
+            + adaptation_field
+                .as_ref()
+                .map_or(0, |af| af.adaptation_field_length as usize + 1)
+            + payload.as_ref().map_or(0, |p| p.data.len())
     }
 
     fn get_payload(
-        buffer: &Vec<u8>,
+        buffer: &[u8],
         start_index: usize,
         fragment_number: usize,
     ) -> Option<RawPayload> {

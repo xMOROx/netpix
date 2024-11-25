@@ -41,7 +41,7 @@ impl fmt::Display for SessionProtocol {
     }
 }
 
-#[derive(Serialize, Deserialize, PartialEq, Eq, Debug, Copy, Clone, Hash)]
+#[derive(Serialize, Deserialize, Debug, Copy, Clone, Hash, PartialEq, Eq, PartialOrd, Ord)]
 pub enum TransportProtocol {
     Tcp,
     Udp,

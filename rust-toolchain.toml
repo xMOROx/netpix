@@ -1,4 +1,4 @@
 [toolchain]
 
 channel = "nightly-2024-02-04"
-target =["x84_64-unknown-linux-gnu"]
+target = ["x84_64-unknown-linux-gnu"]

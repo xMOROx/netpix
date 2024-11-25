@@ -7,6 +7,7 @@ use crate::mpegts::pes::pes_buffer::PesBuffer;
 use crate::mpegts::psi::pat::ProgramAssociationTable;
 use crate::mpegts::psi::pmt::ProgramMapTable;
 use crate::mpegts::MpegtsFragment;
+use crate::utils::traits::BufferOperations;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
@@ -18,6 +19,12 @@ pub struct MpegtsAggregator {
     pat: Option<ProgramAssociationTable>,
     pmt: HashMap<u16, ProgramMapTable>,
     pes: HashMap<u16, PacketizedElementaryStream>,
+}
+
+impl Default for MpegtsAggregator {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl MpegtsAggregator {

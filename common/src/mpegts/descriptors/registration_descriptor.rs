@@ -1,5 +1,5 @@
-use serde::{Deserialize, Serialize};
 use crate::mpegts::descriptors::{DescriptorHeader, ParsableDescriptor};
+use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Debug, Clone, Ord, PartialOrd, Eq)]
 pub struct RegistrationDescriptor {
@@ -10,8 +10,11 @@ pub struct RegistrationDescriptor {
 
 impl std::fmt::Display for RegistrationDescriptor {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "Format Identifier: {}\nAdditional Identification Info: {:?}",
-            self.format_identifier, self.additional_identification_info)
+        write!(
+            f,
+            "Format Identifier: {}\nAdditional Identification Info: {:?}",
+            self.format_identifier, self.additional_identification_info
+        )
     }
 }
 
@@ -37,7 +40,7 @@ impl ParsableDescriptor<RegistrationDescriptor> for RegistrationDescriptor {
         }
 
         let format_identifier = u32::from_be_bytes([data[0], data[1], data[2], data[3]]);
-        let additional_identification_info = data[4..header.descriptor_length.clone() as usize].to_vec();
+        let additional_identification_info = data[4..header.descriptor_length as usize].to_vec();
 
         Some(RegistrationDescriptor {
             header,
@@ -66,7 +69,9 @@ mod tests {
             additional_identification_info: vec![0, 0],
         };
 
-        assert_eq!(descriptor, RegistrationDescriptor::unmarshall(header, &bytes).unwrap());
+        assert_eq!(
+            descriptor,
+            RegistrationDescriptor::unmarshall(header, &bytes).unwrap()
+        );
     }
-
 }

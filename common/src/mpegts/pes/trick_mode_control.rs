@@ -13,14 +13,11 @@ pub struct TrickModeControl {
 
 impl TrickModeControl {
     pub fn build(data: &[u8]) -> Option<Self> {
-        let Some(trick_mode_control) = Self::unmarshall(data) else {
-            return None;
-        };
-        Some(trick_mode_control)
+        Self::unmarshall(data)
     }
 
     fn unmarshall(data: &[u8]) -> Option<Self> {
-        if data.is_empty() || data.len() < 1 {
+        if data.is_empty() {
             return None;
         }
 

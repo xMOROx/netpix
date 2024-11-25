@@ -16,7 +16,7 @@ use crate::mpegts::descriptors::tags::DescriptorTag::{
 };
 use crate::mpegts::descriptors::video_stream::VideoStreamDescriptor;
 use crate::mpegts::descriptors::{avc_video_descriptor, DescriptorHeader, Descriptors};
-use crate::mpegts::psi::pmt::stream_types::StreamTypes::{
+use crate::mpegts::psi::pmt::stream_types::StreamType::{
     Audio111723, PESPackets, PrivateSections, VideoH264,
 };
 use crate::mpegts::psi::pmt::{ElementaryStreamInfo, PmtFields};

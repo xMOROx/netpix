@@ -2,6 +2,7 @@ pub mod constants;
 pub mod fragmentary_pat;
 pub mod pat_buffer;
 
+use crate::utils::{BitReader, Crc32Reader};
 use constants::*;
 use serde::{Deserialize, Serialize};
 
@@ -49,51 +50,33 @@ impl PartialEq for ProgramAssociationItem {
 
 impl ProgramAssociationTable {
     pub fn build(transport_stream_id: u16, data: &[u8]) -> Option<Self> {
+        let crc_reader = Crc32Reader::new(data);
+
         Some(ProgramAssociationTable {
             transport_stream_id,
-            programs: ProgramAssociationTable::unmarshal_programs(data),
-            crc_32: ProgramAssociationTable::unmarshal_crc_32(data),
+            programs: Self::unmarshal_programs(crc_reader.data_without_crc())?,
+            crc_32: crc_reader.read_crc32()?,
         })
     }
 
-    fn unmarshal_programs(data: &[u8]) -> Vec<ProgramAssociationItem> {
+    fn unmarshal_programs(data: &[u8]) -> Option<Vec<ProgramAssociationItem>> {
+        let reader = BitReader::new(data);
         let mut programs = Vec::new();
-        let mut index = 0;
-        while index < data.len() - 4 {
-            // Skip CRC-32
-            let program_number = ((data[index] as u16) << 8) | data[index + 1] as u16;
-            if program_number == 0 {
-                // 0xrrrnnnnn nnnnnnnn; r = reserved, n = network_pid
-                let network_pid = ((data[index + 2] & PROGRAM_PID_UPPER_MASK) as u16) << 8
-                    | data[index + 3] as u16;
-                programs.push(ProgramAssociationItem {
-                    program_number,
-                    network_pid: Some(network_pid),
-                    program_map_pid: None,
-                });
-                index += PROGRAM_SECTION_SIZE;
-                continue;
-            }
-            // 0xrrrppppp pppppppp; r - reserved, p = program_map_pid
 
-            let program_map_pid =
-                (((data[index + 2] & PROGRAM_PID_UPPER_MASK) as u16) << 8) | data[index + 3] as u16;
+        let mut offset = 0;
+        while offset < data.len() {
+            let (program_number, pid) =
+                reader.read_program_entry(offset, PROGRAM_PID_UPPER_MASK)?;
 
             programs.push(ProgramAssociationItem {
                 program_number,
-                network_pid: None,
-                program_map_pid: Some(program_map_pid),
+                network_pid: (program_number == 0).then_some(pid),
+                program_map_pid: (program_number != 0).then_some(pid),
             });
-            index += PROGRAM_SECTION_SIZE;
-        }
-        programs
-    }
 
-    fn unmarshal_crc_32(data: &[u8]) -> u32 {
-        let crc_32 = ((data[data.len() - 4] as u32) << 24)
-            | ((data[data.len() - 3] as u32) << 16)
-            | ((data[data.len() - 2] as u32) << 8)
-            | data[data.len() - 1] as u32;
-        crc_32
+            offset += PROGRAM_SECTION_SIZE;
+        }
+
+        Some(programs)
     }
 }

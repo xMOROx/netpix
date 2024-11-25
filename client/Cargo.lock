@@ -1719,13 +1719,14 @@ dependencies = [
  "ewebsock",
  "log",
  "rtpeeker_common",
+ "rustc-hash",
  "wasm-bindgen-futures",
  "web-time",
 ]
 
 [[package]]
 name = "rtpeeker_common"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "bincode",
  "etherparse",
@@ -1743,6 +1744,12 @@ name = "rustc-demangle"
 version = "0.1.23"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d626bb9dae77e28219937af045c257c28bfd3f69333c512553507f5f9798cb76"
+
+[[package]]
+name = "rustc-hash"
+version = "2.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "583034fd73374156e66797ed8e5b0d5690409c9226b22d87cb7f19821c05d152"
 
 [[package]]
 name = "same-file"

@@ -1,5 +1,5 @@
-use serde::{Deserialize, Serialize};
 use crate::mpegts::descriptors::{DescriptorHeader, ParsableDescriptor};
+use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Debug, Clone, Ord, PartialOrd, Eq)]
 pub struct CopyrightDescriptor {
@@ -24,31 +24,34 @@ impl ParsableDescriptor<CopyrightDescriptor> for CopyrightDescriptor {
         Some(CopyrightDescriptor {
             header: header.clone(),
             copyright_identifier: u32::from_be_bytes([data[0], data[1], data[2], data[3]]),
-            additional_copyright_info: data[4..header.descriptor_length.clone() as usize].to_vec(),
+            additional_copyright_info: data[4..header.descriptor_length as usize].to_vec(),
         })
     }
 }
 
 impl std::fmt::Display for CopyrightDescriptor {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "Copyright Identifier: {}\nAdditional Copyright Info: {:?}",
-            self.copyright_identifier, self.additional_copyright_info)
+        write!(
+            f,
+            "Copyright Identifier: {}\nAdditional Copyright Info: {:?}",
+            self.copyright_identifier, self.additional_copyright_info
+        )
     }
 }
 
 impl PartialEq for CopyrightDescriptor {
     fn eq(&self, other: &Self) -> bool {
-        self.header == other.header &&
-            self.copyright_identifier == other.copyright_identifier &&
-            self.additional_copyright_info == other.additional_copyright_info
+        self.header == other.header
+            && self.copyright_identifier == other.copyright_identifier
+            && self.additional_copyright_info == other.additional_copyright_info
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::mpegts::descriptors::DescriptorHeader;
     use crate::mpegts::descriptors::tags::DescriptorTag;
+    use crate::mpegts::descriptors::DescriptorHeader;
 
     #[test]
     fn test_copyright_descriptor_unmarshall() {
@@ -63,7 +66,10 @@ mod tests {
             additional_copyright_info: vec![0x05, 0x06],
         };
 
-        assert_eq!(CopyrightDescriptor::unmarshall(header, &data), Some(descriptor));
+        assert_eq!(
+            CopyrightDescriptor::unmarshall(header, &data),
+            Some(descriptor)
+        );
     }
 
     #[test]

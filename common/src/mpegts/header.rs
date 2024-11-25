@@ -11,7 +11,7 @@ pub struct Header {
     pub continuity_counter: u8,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, Hash, Default)]
+#[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
 pub enum PIDTable {
     #[default]
     ProgramAssociation,
@@ -72,9 +72,9 @@ impl From<u16> for PIDTable {
     }
 }
 
-impl Into<u16> for PIDTable {
-    fn into(self) -> u16 {
-        match self {
+impl From<PIDTable> for u16 {
+    fn from(val: PIDTable) -> Self {
+        match val {
             PIDTable::NullPacket => 0x1FFF,
             PIDTable::ProgramAssociation => 0x0000,
             PIDTable::ConditionalAccess => 0x0001,
@@ -86,9 +86,9 @@ impl Into<u16> for PIDTable {
     }
 }
 
-impl Into<u16> for &PIDTable {
-    fn into(self) -> u16 {
-        match self {
+impl From<&PIDTable> for u16 {
+    fn from(val: &PIDTable) -> Self {
+        match val {
             PIDTable::NullPacket => 0x1FFF,
             PIDTable::ProgramAssociation => 0x0000,
             PIDTable::ConditionalAccess => 0x0001,

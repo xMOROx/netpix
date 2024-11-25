@@ -4,7 +4,8 @@ pub mod pmt_buffer;
 pub mod stream_types;
 
 use crate::mpegts::descriptors::Descriptors;
-use crate::mpegts::psi::pmt::stream_types::StreamTypes;
+use crate::mpegts::psi::pmt::stream_types::StreamType;
+use crate::utils::{BitReader, Crc32Reader};
 use constants::*;
 use serde::{Deserialize, Serialize};
 
@@ -46,7 +47,7 @@ impl PartialEq for PmtFields {
 
 #[derive(Serialize, Deserialize, Debug, Clone, Ord, PartialOrd, Eq)]
 pub struct ElementaryStreamInfo {
-    pub stream_type: StreamTypes, // table is defined on page 55 of H.222.0 (03/2017)
+    pub stream_type: StreamType, // table is defined on page 55 of H.222.0 (03/2017)
     pub elementary_pid: u16,
     pub es_info_length: u16,
     pub descriptors: Vec<Descriptors>,
@@ -69,11 +70,15 @@ impl ProgramMapTable {
         descriptors_payload: &[u8],
         payload: &[u8],
     ) -> Option<ProgramMapTable> {
+        let crc_reader = Crc32Reader::new(payload);
+
         Some(ProgramMapTable {
             fields,
-            descriptors: ProgramMapTable::unmarshal_descriptors(descriptors_payload),
-            elementary_streams_info: ProgramMapTable::unmarshal_elementary_streams_info(payload),
-            crc_32: ProgramMapTable::unmarshal_crc_32(payload),
+            descriptors: Self::unmarshal_descriptors(descriptors_payload),
+            elementary_streams_info: Self::unmarshal_elementary_streams_info(
+                crc_reader.data_without_crc(),
+            )?,
+            crc_32: crc_reader.read_crc32()?,
         })
     }
 
@@ -81,39 +86,37 @@ impl ProgramMapTable {
         Descriptors::unmarshall_many(data)
     }
 
-    fn unmarshal_elementary_streams_info(data: &[u8]) -> Vec<ElementaryStreamInfo> {
+    fn unmarshal_elementary_streams_info(data: &[u8]) -> Option<Vec<ElementaryStreamInfo>> {
         let mut elementary_streams_info = Vec::new();
-        let mut index = 0;
+        let reader = BitReader::new(data);
+        let mut offset: u16 = 0;
 
-        while index + STREAM_LENGTH <= data.len() - 4 {
-            // Skip CRC-32
-            let stream_type = data[index];
-            let elementary_pid = (((data[index + 1] & ELEMENTARY_PID_UPPER_MASK as u8) as u16)
-                << 8)
-                | (data[index + 2] & ELEMENTARY_PID_LOWER_MASK as u8) as u16;
-            let es_info_length = (((data[index + 3] & ES_INFO_LENGTH_UPPER_MASK as u8) as u16)
-                << 8)
-                | (data[index + 4] & ES_INFO_LENGTH_LOWER_MASK as u8) as u16;
+        while usize::from(offset + STREAM_LENGTH) <= data.len() {
+            let stream_type = *reader.get_bytes(offset.into(), 1)?.first()?;
+            let elementary_pid = reader.get_bits_u16(
+                (offset + 1).into(),
+                ELEMENTARY_PID_UPPER_MASK,
+                ELEMENTARY_PID_LOWER_MASK,
+            )?;
+            let es_info_length = reader.get_bits_u16(
+                (offset + 3).into(),
+                ES_INFO_LENGTH_UPPER_MASK,
+                ES_INFO_LENGTH_LOWER_MASK,
+            )?;
+
+            let descriptors_data =
+                reader.get_bytes((offset + STREAM_LENGTH).into(), es_info_length as usize)?;
+
             elementary_streams_info.push(ElementaryStreamInfo {
-                stream_type: StreamTypes::from(stream_type),
+                stream_type: StreamType::from(stream_type),
                 elementary_pid,
                 es_info_length,
-                descriptors: Descriptors::unmarshall_many(
-                    &data[index + STREAM_LENGTH..index + STREAM_LENGTH + es_info_length as usize],
-                ),
+                descriptors: Descriptors::unmarshall_many(&descriptors_data),
             });
 
-            index += STREAM_LENGTH + es_info_length as usize;
+            offset += STREAM_LENGTH + es_info_length;
         }
 
-        elementary_streams_info
-    }
-
-    fn unmarshal_crc_32(data: &[u8]) -> u32 {
-        let crc_32_index = data.len() - 4;
-        ((data[crc_32_index] as u32) << 24)
-            | ((data[crc_32_index + 1] as u32) << 16)
-            | ((data[crc_32_index + 2] as u32) << 8)
-            | data[crc_32_index + 3] as u32
+        Some(elementary_streams_info)
     }
 }
