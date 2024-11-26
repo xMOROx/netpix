@@ -1,4 +1,4 @@
-# RTPeeker
+# Netpix
 
 ![CI](https://img.shields.io/github/actions/workflow/status/LVala/rtpeeker/ci.yml)
 ![crates.io](https://img.shields.io/crates/v/rtpeeker)
@@ -11,7 +11,7 @@ _Work in progress..._
 
 Supports Linux and MacOS.
 
-1. RTPeeker depends on `libpcap`, make sure to install it:
+1. Netpix depends on `libpcap`, make sure to install it:
 
 ```shell
 # installed on MacOS by default
@@ -23,10 +23,10 @@ sudo apt install libpcap-dev
 sudo pacman -S libpcap
 ```
 
-2. Install RTPeeker using the [Rust toolchain](https://www.rust-lang.org/tools/install):
+2. Install netpix using the [Rust toolchain](https://www.rust-lang.org/tools/install):
 
 ```shell
-cargo install --locked rtpeeker
+cargo install --locked netpix
 ```
 
 3. Run RTPeeker:
