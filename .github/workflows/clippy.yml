@@ -1,9 +1,6 @@
 name: Clippy Check
 
 on:
-  push:
-    branches:
-      - '**'
   pull_request:
     branches:
       - '**'
