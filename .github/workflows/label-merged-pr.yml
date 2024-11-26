@@ -14,6 +14,7 @@ jobs:
     permissions:
       issues: write
       pull-requests: write
+      contents: write
 
     steps:
       - name: Add merged label
@@ -25,4 +26,15 @@ jobs:
               repo: context.repo.repo,
               issue_number: context.issue.number,
               labels: ['merged']
+            });
+
+      - name: Delete head branch
+        uses: actions/github-script@v6
+        with:
+          script: |
+            const branch = context.payload.pull_request.head.ref;
+            await github.rest.git.deleteRef({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              ref: `heads/${branch}`
             });
