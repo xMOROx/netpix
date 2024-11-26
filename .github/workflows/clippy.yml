@@ -17,8 +17,9 @@ jobs:
     steps:
       - uses: actions/checkout@v3
       
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: dtolnay/rust-toolchain@master
         with:
+          toolchain: 1.82.0-x86_64-unknown-linux-gnu 
           components: clippy
           
       - name: Install libpcap
