@@ -35,4 +35,5 @@ jobs:
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           args: --manifest-path ${{ matrix.dir }}/Cargo.toml -- -D warnings
+
           name: Clippy ${{ matrix.dir }}
