@@ -13,6 +13,7 @@ permissions:
   pull-requests: write
 
 
+
 jobs:
   clippy:
     name: Clippy Analysis
