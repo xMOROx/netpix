@@ -2,8 +2,8 @@ use crate::streams::RefStreams;
 use crate::utils::ntp_to_string;
 use egui::{RichText, Ui};
 use egui_extras::{Column, TableBody, TableBuilder};
-use rtpeeker_common::rtcp::*;
-use rtpeeker_common::{packet::SessionPacket, RtcpPacket};
+use netpix_common::rtcp::*;
+use netpix_common::{packet::SessionPacket, RtcpPacket};
 
 pub struct RtcpPacketsTable {
     streams: RefStreams,

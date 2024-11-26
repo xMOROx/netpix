@@ -1,11 +1,11 @@
 [package]
-name = "rtpeeker_common"
+name = "netpix_common"
 version = "0.2.0"
 edition = "2021"
 license = "MIT"
-description = "Crate with common utilities for rtpeeker"
-homepage = "https://github.com/LVala/rtpeeker/"
-repository = "https://github.com/LVala/rtpeeker/"
+description = "Crate with common utilities for netpix"
+homepage = "https://github.com/xMOROx/netpix"
+repository = "https://github.com/xMOROx/netpix"
 readme = false
 
 [dependencies]

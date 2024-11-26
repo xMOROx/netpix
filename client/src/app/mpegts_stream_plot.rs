@@ -9,11 +9,11 @@ use egui::plot::{
 };
 use egui::Ui;
 use egui::{Align2, RichText};
-use rtpeeker_common::packet::SessionPacket;
-use rtpeeker_common::rtcp::ReceptionReport;
-use rtpeeker_common::rtp::payload_type::MediaType;
-use rtpeeker_common::RtpStreamKey;
-use rtpeeker_common::{Packet, RtcpPacket, RtpPacket};
+use netpix_common::packet::SessionPacket;
+use netpix_common::rtcp::ReceptionReport;
+use netpix_common::rtp::payload_type::MediaType;
+use netpix_common::RtpStreamKey;
+use netpix_common::{Packet, RtcpPacket, RtpPacket};
 use std::cell::Ref;
 use std::collections::HashMap;
 use std::fmt::{Display, Error, Formatter};
@@ -105,13 +105,13 @@ impl MpegTsStreamPlot {
         });
     }
 
-    fn build_help_section(ui: &mut Ui) {}
+    fn build_help_section(_ui: &mut Ui) {}
 
-    fn options_ui(&mut self, ui: &mut Ui) {}
+    fn options_ui(&mut self, _ui: &mut Ui) {}
 
-    fn plot_bounds_ui_options(&mut self, ui: &mut Ui) {}
+    fn plot_bounds_ui_options(&mut self, _ui: &mut Ui) {}
 
-    fn axis_settings(&mut self, ui: &mut Ui) {}
+    fn axis_settings(&mut self, _ui: &mut Ui) {}
 
     fn reset_button(&mut self, ui: &mut Ui) {
         if ui.button("Reset to initial state").clicked() {
@@ -119,28 +119,28 @@ impl MpegTsStreamPlot {
         }
     }
 
-    fn plot_ui(&mut self, ui: &mut Ui) {}
+    fn plot_ui(&mut self, _ui: &mut Ui) {}
 
-    fn draw_points(&mut self, plot_ui: &mut PlotUi) {}
+    fn draw_points(&mut self, _plot_ui: &mut PlotUi) {}
 
     fn refresh_points(&mut self) {
         self.points_data.clear();
         self.stream_separator_lines.clear();
         self.stream_texts.clear();
-        let mut points_x_and_y_top: Vec<(f64, f64)> = Vec::new();
-        let mut previous_stream_max_y = 0.0;
-        let mut biggest_margin = 0.0;
-        let mut previous_stream_height = 0.0;
+        let _points_x_and_y_top: Vec<(f64, f64)> = Vec::new();
+        let _previous_stream_max_y = 0.0;
+        let _biggest_margin = 0.0;
+        let _previous_stream_height = 0.0;
 
-        let mut stream_separator_length = 0.0;
+        let _stream_separator_length = 0.0;
     }
 }
 
 fn get_highest_y(
-    streams: &Ref<Streams>,
-    points_x_and_y_top: &mut Vec<(f64, f64)>,
-    settings_x_axis: SettingsXAxis,
-    this_stream_y_baseline: f64,
+    _streams: &Ref<Streams>,
+    _points_x_and_y_top: &mut Vec<(f64, f64)>,
+    _settings_x_axis: SettingsXAxis,
+    _this_stream_y_baseline: f64,
 ) -> f64 {
     0.0
 }

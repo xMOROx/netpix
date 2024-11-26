@@ -3,8 +3,8 @@ use crate::streams::RefStreams;
 use eframe::epaint::Color32;
 use egui::RichText;
 use egui_extras::{Column, TableBody, TableBuilder};
-use rtpeeker_common::packet::SessionPacket;
-use rtpeeker_common::RtpStreamKey;
+use netpix_common::packet::SessionPacket;
+use netpix_common::RtpStreamKey;
 use std::collections::HashMap;
 
 pub struct RtpPacketsTable {

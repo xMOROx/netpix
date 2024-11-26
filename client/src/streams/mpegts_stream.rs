@@ -5,16 +5,16 @@ use crate::streams::mpegts_stream::substream::{
 use crate::streams::stream_statistics::{
     Bitrate, Bytes, PacketsTime, Statistics, StreamStatistics,
 };
-use rtpeeker_common::mpegts::aggregator::MpegtsAggregator;
-use rtpeeker_common::mpegts::header::{AdaptationFieldControl, PIDTable};
-use rtpeeker_common::mpegts::psi::pat::fragmentary_pat::FragmentaryProgramAssociationTable;
-use rtpeeker_common::mpegts::psi::pat::ProgramAssociationTable;
-use rtpeeker_common::mpegts::psi::pmt::fragmentary_pmt::FragmentaryProgramMapTable;
-use rtpeeker_common::mpegts::psi::pmt::ProgramMapTable;
-use rtpeeker_common::mpegts::psi::psi_buffer::{FragmentaryPsi, PsiBuffer};
-use rtpeeker_common::mpegts::MpegtsFragment;
-use rtpeeker_common::packet::SessionPacket;
-use rtpeeker_common::{MpegtsPacket, Packet, PacketAssociationTable};
+use netpix_common::mpegts::aggregator::MpegtsAggregator;
+use netpix_common::mpegts::header::{AdaptationFieldControl, PIDTable};
+use netpix_common::mpegts::psi::pat::fragmentary_pat::FragmentaryProgramAssociationTable;
+use netpix_common::mpegts::psi::pat::ProgramAssociationTable;
+use netpix_common::mpegts::psi::pmt::fragmentary_pmt::FragmentaryProgramMapTable;
+use netpix_common::mpegts::psi::pmt::ProgramMapTable;
+use netpix_common::mpegts::psi::psi_buffer::{FragmentaryPsi, PsiBuffer};
+use netpix_common::mpegts::MpegtsFragment;
+use netpix_common::packet::SessionPacket;
+use netpix_common::{MpegtsPacket, Packet, PacketAssociationTable};
 use rustc_hash::FxHashMap;
 use std::cmp::{max, min};
 use std::time::Duration;

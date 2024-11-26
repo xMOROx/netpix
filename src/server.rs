@@ -4,9 +4,9 @@ use futures_util::{
     SinkExt, StreamExt, TryFutureExt,
 };
 use log::{error, info, warn};
-use rtpeeker_common::packet::SessionProtocol;
-use rtpeeker_common::{Request, Response, Sdp};
-use rtpeeker_common::{RtpStreamKey, Source};
+use netpix_common::packet::SessionProtocol;
+use netpix_common::{Request, Response, Sdp};
+use netpix_common::{RtpStreamKey, Source};
 use rust_embed::RustEmbed;
 use std::collections::HashMap;
 use std::net::SocketAddr;

@@ -3,7 +3,7 @@ use super::is_mpegts_stream_visible;
 use crate::streams::RefStreams;
 use egui_extras::{Column, TableBody, TableBuilder};
 use ewebsock::WsSender;
-use rtpeeker_common::MpegtsStreamKey;
+use netpix_common::MpegtsStreamKey;
 
 pub struct MpegTsInformationsTable {
     streams: RefStreams,

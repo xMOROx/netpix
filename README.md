@@ -28,8 +28,8 @@ sudo pacman -S libpcap
 cargo install --locked netpix
 ```
 
-3. Run RTPeeker:
+3. Run Netpix:
 
 ```shell
-rtpeeker --help
+netpix --help
 ```

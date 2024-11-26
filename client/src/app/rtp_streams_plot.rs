@@ -10,11 +10,11 @@ use egui::plot::{
 };
 use egui::Ui;
 use egui::{Align2, RichText};
-use rtpeeker_common::packet::SessionPacket;
-use rtpeeker_common::rtcp::ReceptionReport;
-use rtpeeker_common::rtp::payload_type::MediaType;
-use rtpeeker_common::RtpStreamKey;
-use rtpeeker_common::{Packet, RtcpPacket, RtpPacket};
+use netpix_common::packet::SessionPacket;
+use netpix_common::rtcp::ReceptionReport;
+use netpix_common::rtp::payload_type::MediaType;
+use netpix_common::RtpStreamKey;
+use netpix_common::{Packet, RtcpPacket, RtpPacket};
 use std::cell::Ref;
 use std::collections::HashMap;
 use std::fmt::{Display, Error, Formatter};

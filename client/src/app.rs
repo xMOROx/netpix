@@ -4,7 +4,7 @@ use eframe::egui;
 use egui::{ComboBox, Ui};
 use ewebsock::{WsEvent, WsMessage, WsReceiver, WsSender};
 use log::{error, warn};
-use rtpeeker_common::{Request, Response, Source, RtpStreamKey, MpegtsStreamKey};
+use netpix_common::{Request, Response, Source, RtpStreamKey, MpegtsStreamKey};
 
 use packets_table::PacketsTable;
 use rtcp_packets_table::RtcpPacketsTable;
