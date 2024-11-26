@@ -1,7 +1,6 @@
 # Netpix
 
-![CI](https://img.shields.io/github/actions/workflow/status/LVala/rtpeeker/ci.yml)
-![crates.io](https://img.shields.io/crates/v/rtpeeker)
+![crates.io](https://img.shields.io/crates/v/netpix)
 
 RTP/MPEG-TS streams analysis and visualization tool.
 
