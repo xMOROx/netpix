@@ -13,7 +13,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        dir: [., ./client, ./common]
+        dir: [./client, ./common]
     steps:
       - uses: actions/checkout@v3
       
