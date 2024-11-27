@@ -18,6 +18,9 @@ Supports Linux and MacOS.
 # for Ubuntu
 sudo apt install libpcap-dev
 
+# if error appears due to lack of linter `cc` 
+sudo apt install build-essential
+
 # for Arch
 sudo pacman -S libpcap
 ```
