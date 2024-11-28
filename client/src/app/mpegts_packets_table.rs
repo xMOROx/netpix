@@ -60,7 +60,7 @@ impl MpegTsPacketsTable {
             .font(egui::style::TextStyle::Monospace)
             .desired_width(f32::INFINITY)
             .hint_text(
-                "Filter examples: DESC:123, SOURCE:192.168, P1:100, PAYLOAD:>1000, ALIAS:stream1, TYPE:PAT, PID:4096",
+                "Examples: DESC:123 AND TYPE:PAT, SOURCE:192.168 OR DEST:10.0, NOT PID:4096, (TYPE:PMT AND PAYLOAD:>1000)",
             );
 
         ui.horizontal(|ui| {
@@ -102,35 +102,7 @@ impl MpegTsPacketsTable {
         if let Some(filter_type) = parse_filter(&filter) {
             filter_type.matches(&ctx)
         } else {
-            info.packet.id.to_string().contains(&filter)
-                || ctx
-                    .packet
-                    .packet_association_table
-                    .source_addr
-                    .to_string()
-                    .to_lowercase()
-                    .contains(&filter)
-                || ctx
-                    .packet
-                    .packet_association_table
-                    .destination_addr
-                    .to_string()
-                    .to_lowercase()
-                    .contains(&filter)
-                || ctx
-                    .packet
-                    .content
-                    .fragments
-                    .iter()
-                    .any(|fragment| match fragment.header.pid {
-                        PIDTable::PID(pid) => pid.to_string().contains(&filter),
-                        _ => fragment
-                            .header
-                            .pid
-                            .to_string()
-                            .to_lowercase()
-                            .contains(&filter),
-                    })
+            true
         }
     }
 

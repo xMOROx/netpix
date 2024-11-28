@@ -1,6 +1,8 @@
 use crate::streams::mpegts_stream::MpegTsPacketInfo;
 use netpix_common::mpegts::header::{AdaptationFieldControl, PIDTable};
 use std::str::FromStr;
+use log::Level::Debug;
+use log::log;
 
 pub trait PacketFilter {
     fn matches(&self, info: &FilterContext) -> bool;
@@ -23,6 +25,9 @@ pub enum FilterType {
     PacketPID(usize, String),
     PID(u16),
     Type(PacketType),
+    And(Box<FilterType>, Box<FilterType>),
+    Or(Box<FilterType>, Box<FilterType>),
+    Not(Box<FilterType>),
 }
 
 pub enum PacketType {
@@ -104,12 +109,62 @@ impl PacketFilter for FilterType {
                 |fragment| matches!(fragment.header.pid, PIDTable::PID(pid) if pid == *pid_value),
             ),
             FilterType::Type(packet_type) => match_packet_type(ctx, packet_type),
+            FilterType::And(left, right) => left.matches(ctx) && right.matches(ctx),
+            FilterType::Or(left, right) => left.matches(ctx) || right.matches(ctx),
+            FilterType::Not(filter) => !filter.matches(ctx),
         }
     }
 }
 
 pub fn parse_filter(filter: &str) -> Option<FilterType> {
-    if let Some((prefix, value)) = filter.split_once(':') {
+    parse_or_expression(filter.trim())
+}
+
+fn parse_or_expression(input: &str) -> Option<FilterType> {
+    let lower_case = input.trim().to_lowercase();
+    let parts: Vec<&str> = lower_case.split(" or ").collect();
+    if parts.len() == 1 {
+        parse_and_expression(parts[0])
+    } else {
+        parts
+            .into_iter()
+            .map(parse_and_expression)
+            .reduce(|acc, item| Some(FilterType::Or(Box::new(acc?), Box::new(item?))))
+            .flatten()
+    }
+}
+
+fn parse_and_expression(input: &str) -> Option<FilterType> {
+    let lower_case = input.trim().to_lowercase();
+    let parts: Vec<&str> = lower_case.split(" and ").collect();
+    if parts.len() == 1 {
+        parse_not_expression(parts[0])
+    } else {
+        parts
+            .into_iter()
+            .map(parse_not_expression)
+            .reduce(|acc, item| Some(FilterType::And(Box::new(acc?), Box::new(item?))))
+            .flatten()
+    }
+}
+
+fn parse_not_expression(input: &str) -> Option<FilterType> {
+    let lower_case = input.trim().to_lowercase();
+    if lower_case.starts_with("not ") {
+        let inner = parse_basic_filter(&input[4..])?;
+        Some(FilterType::Not(Box::new(inner)))
+    } else {
+        parse_basic_filter(input)
+    }
+}
+
+fn parse_basic_filter(input: &str) -> Option<FilterType> {
+    let input = input.trim();
+    if input.starts_with('(') && input.ends_with(')') {
+        return parse_or_expression(&input[1..input.len() - 1]);
+    }
+
+    if let Some((prefix, value)) = input.split_once(':') {
         let value = value.trim().to_lowercase();
         match prefix.trim() {
             "desc" => Some(FilterType::Description(value)),
