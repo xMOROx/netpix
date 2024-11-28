@@ -1,3 +1,4 @@
+use crate::app::filters::{parse_filter, FilterContext, PacketFilter};
 use crate::app::is_mpegts_stream_visible;
 use crate::streams::mpegts_stream::MpegTsPacketInfo;
 use crate::streams::RefStreams;
@@ -84,140 +85,39 @@ impl MpegTsPacketsTable {
 
         let filter = self.filter_buffer.trim().to_lowercase();
 
-        if let Some(prefix_filter) = filter.split_once(':') {
-            let (prefix, value) = (prefix_filter.0.trim(), prefix_filter.1.trim());
+        let streams = self.streams.borrow();
+        let stream_alias = streams
+            .mpeg_ts_streams
+            .get(&info.key)
+            .map(|s| s.alias.to_string());
 
-            match prefix {
-                "desc" => info.packet.id.to_string().contains(value),
-                "source" => {
-                    let source = info
-                        .packet
-                        .packet_association_table
-                        .source_addr
-                        .to_string()
-                        .to_lowercase();
-                    source.contains(value)
-                }
-                "dest" => {
-                    let dest = info
-                        .packet
-                        .packet_association_table
-                        .destination_addr
-                        .to_string()
-                        .to_lowercase();
-                    dest.contains(value)
-                }
-                "alias" => {
-                    let streams = self.streams.borrow();
-                    if let Some(stream) = streams.mpeg_ts_streams.get(&info.key) {
-                        stream.alias.to_lowercase().contains(value)
-                    } else {
-                        false
-                    }
-                }
-                "payload" => {
-                    let payload_size = info
-                        .packet
-                        .content
-                        .fragments
-                        .iter()
-                        .filter(|f| {
-                            f.header.adaptation_field_control
-                                != AdaptationFieldControl::AdaptationFieldOnly
-                        })
-                        .filter_map(|f| f.payload.as_ref())
-                        .map(|p| p.data.len())
-                        .sum::<usize>();
+        let ctx = FilterContext {
+            packet: info.packet,
+            pmt_pids,
+            es_pids,
+            pcr_pids,
+            stream_alias,
+        };
 
-                    match value.trim() {
-                        v if v.starts_with('>') => {
-                            if let Ok(size) = v[1..].trim().parse::<usize>() {
-                                payload_size > size
-                            } else {
-                                false
-                            }
-                        }
-                        v if v.starts_with('<') => {
-                            if let Ok(size) = v[1..].trim().parse::<usize>() {
-                                payload_size < size
-                            } else {
-                                false
-                            }
-                        }
-                        v => payload_size.to_string().contains(v),
-                    }
-                }
-                "p1" | "p2" | "p3" | "p4" | "p5" | "p6" | "p7" => {
-                    let packet_index = prefix[1..].parse::<usize>().unwrap_or(1) - 1;
-                    if let Some(fragment) = info.packet.content.fragments.get(packet_index) {
-                        match &fragment.header.pid {
-                            PIDTable::PID(pid) => pid.to_string().contains(value),
-                            _ => fragment
-                                .header
-                                .pid
-                                .to_string()
-                                .to_lowercase()
-                                .contains(value),
-                        }
-                    } else {
-                        false
-                    }
-                }
-                "pid" => {
-                    if let Ok(pid_value) = value.parse::<u16>() {
-                        info.packet.content.fragments.iter().any(|fragment| {
-                            match fragment.header.pid {
-                                PIDTable::PID(pid) => pid == pid_value,
-                                _ => false,
-                            }
-                        })
-                    } else {
-                        false
-                    }
-                }
-                "type" => {
-                    let type_filter = value.to_uppercase();
-                    info.packet
-                        .content
-                        .fragments
-                        .iter()
-                        .any(|fragment| match fragment.header.pid {
-                            PIDTable::ProgramAssociation if type_filter == "PAT" => true,
-                            PIDTable::PID(pid) => {
-                                let is_pmt = pmt_pids.contains(&PIDTable::PID(pid));
-                                let is_es = es_pids.contains(&PIDTable::PID(pid));
-                                let is_pcr = pcr_pids.contains(&PIDTable::PID(pid));
-
-                                match (type_filter.as_str(), is_pmt, is_es, is_pcr) {
-                                    ("PMT", true, _, _) => true,
-                                    ("PCR+ES", _, true, true) => true,
-                                    ("ES", _, true, false) => true,
-                                    ("PCR", _, false, true) => true,
-                                    _ => false,
-                                }
-                            }
-                            _ => false,
-                        })
-                }
-                _ => false,
-            }
+        if let Some(filter_type) = parse_filter(&filter) {
+            filter_type.matches(&ctx)
         } else {
             info.packet.id.to_string().contains(&filter)
-                || info
+                || ctx
                     .packet
                     .packet_association_table
                     .source_addr
                     .to_string()
                     .to_lowercase()
                     .contains(&filter)
-                || info
+                || ctx
                     .packet
                     .packet_association_table
                     .destination_addr
                     .to_string()
                     .to_lowercase()
                     .contains(&filter)
-                || info
+                || ctx
                     .packet
                     .content
                     .fragments
