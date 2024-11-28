@@ -23,23 +23,3 @@ jobs:
               issue_number: context.issue.number,
               assignees: [context.payload.pull_request.user.login]
             });
-
-      - name: Add to Netpix project
-        uses: actions/github-script@v6
-        with:
-          script: |
-            const query = `mutation($projectId: ID!, $prId: ID!) {
-              addProjectV2ItemById(input: {projectId: $projectId, contentId: $prId}) {
-                item {
-                  id
-                }
-              }
-            }`;
-            
-            const projectId = '4';
-            const prId = context.payload.pull_request.node_id;
-            
-            await github.graphql(query, {
-              projectId: projectId,
-              prId: prId
-            });
