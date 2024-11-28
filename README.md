@@ -8,9 +8,14 @@ _Work in progress..._
 
 ## Installation
 
+1. Install Rust
+```shell
+curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+```
+
 Supports Linux and MacOS.
 
-1. Netpix depends on `libpcap`, make sure to install it:
+2. Netpix depends on `libpcap`, make sure to install it:
 
 ```shell
 # installed on MacOS by default
@@ -25,13 +30,13 @@ sudo apt install build-essential
 sudo pacman -S libpcap
 ```
 
-2. Install netpix using the [Rust toolchain](https://www.rust-lang.org/tools/install):
+3. Install netpix using the [Rust toolchain](https://www.rust-lang.org/tools/install):
 
 ```shell
 cargo install --locked netpix
 ```
 
-3. Run Netpix:
+4. Run Netpix:
 
 ```shell
 netpix --help
