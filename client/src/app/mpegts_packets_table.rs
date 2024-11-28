@@ -1,7 +1,7 @@
 use crate::app::is_mpegts_stream_visible;
 use crate::streams::mpegts_stream::MpegTsPacketInfo;
 use crate::streams::RefStreams;
-use egui::{Color32, RichText};
+use egui::{Color32, RichText, TextEdit};
 use egui_extras::{Column, TableBody, TableBuilder};
 use netpix_common::mpegts::header::{AdaptationFieldControl, PIDTable};
 use netpix_common::mpegts::MpegtsFragment;
@@ -24,13 +24,14 @@ const PID_FORMAT: &str = "PID";
 pub struct MpegTsPacketsTable {
     streams: RefStreams,
     streams_visibility: HashMap<MpegtsStreamKey, bool>,
+    filter_buffer: String,
 }
 
 #[derive(Clone)]
 struct PacketInfo<'a> {
     packet: &'a MpegTsPacketInfo,
     timestamp: Duration,
-    key: RtpStreamKey,
+    key: MpegtsStreamKey,
 }
 
 impl MpegTsPacketsTable {
@@ -39,14 +40,198 @@ impl MpegTsPacketsTable {
         Self {
             streams,
             streams_visibility: HashMap::with_capacity(capacity),
+            filter_buffer: String::new(),
         }
     }
 
     pub fn ui(&mut self, ctx: &egui::Context) {
+        egui::TopBottomPanel::top("filter_bar").show(ctx, |ui| {
+            self.build_filter(ui);
+        });
         egui::CentralPanel::default().show(ctx, |ui| {
             self.options_ui(ui);
             self.build_table(ui);
         });
+    }
+
+    fn build_filter(&mut self, ui: &mut egui::Ui) {
+        let text_edit = TextEdit::singleline(&mut self.filter_buffer)
+            .font(egui::style::TextStyle::Monospace)
+            .desired_width(f32::INFINITY)
+            .hint_text(
+                "Filter examples: DESC:123, SOURCE:192.168, P1:100, PAYLOAD:>1000, ALIAS:stream1, TYPE:PAT, PID:4096",
+            );
+
+        ui.horizontal(|ui| {
+            if ui.button("↻").on_hover_text("Reset the filter").clicked() {
+                // self.filter_buffer.clear();
+            }
+            ui.button("⏵").on_hover_text("Apply the filter");
+            ui.add(text_edit);
+        });
+    }
+
+    fn packet_matches_filter(
+        &self,
+        info: &PacketInfo,
+        pmt_pids: &[PIDTable],
+        es_pids: &[PIDTable],
+        pcr_pids: &[PIDTable],
+    ) -> bool {
+        if self.filter_buffer.is_empty() {
+            return true;
+        }
+
+        let filter = self.filter_buffer.trim().to_lowercase();
+
+        if let Some(prefix_filter) = filter.split_once(':') {
+            let (prefix, value) = (prefix_filter.0.trim(), prefix_filter.1.trim());
+
+            match prefix {
+                "desc" => info.packet.id.to_string().contains(value),
+                "source" => {
+                    let source = info
+                        .packet
+                        .packet_association_table
+                        .source_addr
+                        .to_string()
+                        .to_lowercase();
+                    source.contains(value)
+                }
+                "dest" => {
+                    let dest = info
+                        .packet
+                        .packet_association_table
+                        .destination_addr
+                        .to_string()
+                        .to_lowercase();
+                    dest.contains(value)
+                }
+                "alias" => {
+                    let streams = self.streams.borrow();
+                    if let Some(stream) = streams.mpeg_ts_streams.get(&info.key) {
+                        stream.alias.to_lowercase().contains(value)
+                    } else {
+                        false
+                    }
+                }
+                "payload" => {
+                    let payload_size = info
+                        .packet
+                        .content
+                        .fragments
+                        .iter()
+                        .filter(|f| {
+                            f.header.adaptation_field_control
+                                != AdaptationFieldControl::AdaptationFieldOnly
+                        })
+                        .filter_map(|f| f.payload.as_ref())
+                        .map(|p| p.data.len())
+                        .sum::<usize>();
+
+                    match value.trim() {
+                        v if v.starts_with('>') => {
+                            if let Ok(size) = v[1..].trim().parse::<usize>() {
+                                payload_size > size
+                            } else {
+                                false
+                            }
+                        }
+                        v if v.starts_with('<') => {
+                            if let Ok(size) = v[1..].trim().parse::<usize>() {
+                                payload_size < size
+                            } else {
+                                false
+                            }
+                        }
+                        v => payload_size.to_string().contains(v),
+                    }
+                }
+                "p1" | "p2" | "p3" | "p4" | "p5" | "p6" | "p7" => {
+                    let packet_index = prefix[1..].parse::<usize>().unwrap_or(1) - 1;
+                    if let Some(fragment) = info.packet.content.fragments.get(packet_index) {
+                        match &fragment.header.pid {
+                            PIDTable::PID(pid) => pid.to_string().contains(value),
+                            _ => fragment
+                                .header
+                                .pid
+                                .to_string()
+                                .to_lowercase()
+                                .contains(value),
+                        }
+                    } else {
+                        false
+                    }
+                }
+                "pid" => {
+                    if let Ok(pid_value) = value.parse::<u16>() {
+                        info.packet.content.fragments.iter().any(|fragment| {
+                            match fragment.header.pid {
+                                PIDTable::PID(pid) => pid == pid_value,
+                                _ => false,
+                            }
+                        })
+                    } else {
+                        false
+                    }
+                }
+                "type" => {
+                    let type_filter = value.to_uppercase();
+                    info.packet
+                        .content
+                        .fragments
+                        .iter()
+                        .any(|fragment| match fragment.header.pid {
+                            PIDTable::ProgramAssociation if type_filter == "PAT" => true,
+                            PIDTable::PID(pid) => {
+                                let is_pmt = pmt_pids.contains(&PIDTable::PID(pid));
+                                let is_es = es_pids.contains(&PIDTable::PID(pid));
+                                let is_pcr = pcr_pids.contains(&PIDTable::PID(pid));
+
+                                match (type_filter.as_str(), is_pmt, is_es, is_pcr) {
+                                    ("PMT", true, _, _) => true,
+                                    ("PCR+ES", _, true, true) => true,
+                                    ("ES", _, true, false) => true,
+                                    ("PCR", _, false, true) => true,
+                                    _ => false,
+                                }
+                            }
+                            _ => false,
+                        })
+                }
+                _ => false,
+            }
+        } else {
+            info.packet.id.to_string().contains(&filter)
+                || info
+                    .packet
+                    .packet_association_table
+                    .source_addr
+                    .to_string()
+                    .to_lowercase()
+                    .contains(&filter)
+                || info
+                    .packet
+                    .packet_association_table
+                    .destination_addr
+                    .to_string()
+                    .to_lowercase()
+                    .contains(&filter)
+                || info
+                    .packet
+                    .content
+                    .fragments
+                    .iter()
+                    .any(|fragment| match fragment.header.pid {
+                        PIDTable::PID(pid) => pid.to_string().contains(&filter),
+                        _ => fragment
+                            .header
+                            .pid
+                            .to_string()
+                            .to_lowercase()
+                            .contains(&filter),
+                    })
+        }
     }
 
     fn options_ui(&mut self, ui: &mut egui::Ui) {
@@ -71,6 +256,7 @@ impl MpegTsPacketsTable {
     fn build_table(&mut self, ui: &mut egui::Ui) {
         let header_labels = [
             ("No.", "Packet number (including skipped packets)"),
+            ("Alias", "Stream alias"),
             ("Time", "Packet arrival timestamp"),
             ("Source", "Source IP address and port"),
             ("Destination", "Destination IP address and port"),
@@ -90,10 +276,11 @@ impl MpegTsPacketsTable {
             .striped(true)
             .resizable(true)
             .stick_to_bottom(true)
-            .column(Column::remainder().at_least(40.0))
-            .column(Column::remainder().at_least(80.0))
-            .columns(Column::remainder().at_least(100.0), 2)
-            .columns(Column::remainder().at_least(160.0), 7)
+            .column(Column::initial(40.0).at_least(40.0).at_most(50.0))
+            .column(Column::initial(40.0).at_least(40.0).at_most(50.0))
+            .column(Column::initial(80.0).at_least(80.0))
+            .columns(Column::initial(140.0).at_least(140.0).at_most(155.0), 2)
+            .columns(Column::initial(160.0).at_least(160.0), 7)
             .column(Column::remainder().at_least(80.0))
             .header(HEADER_HEIGHT, |mut header| {
                 header_labels.iter().for_each(|(label, desc)| {
@@ -177,7 +364,6 @@ impl MpegTsPacketsTable {
                     packet.packet_association_table.source_addr,
                     packet.packet_association_table.destination_addr,
                     packet.packet_association_table.protocol,
-                    0,
                 );
                 PacketInfo {
                     packet,
@@ -186,12 +372,25 @@ impl MpegTsPacketsTable {
                 }
             })
             .collect();
-        body.rows(ROW_HEIGHT, mpegts_packets.len(), |row_ix, mut row| {
-            let info = &packets_with_info[row_ix];
+
+        let filtered_packets: Vec<_> = packets_with_info
+            .into_iter()
+            .filter(|info| self.packet_matches_filter(info, &pmt_pids, &es_pids, &pcr_pids))
+            .collect();
+
+        body.rows(ROW_HEIGHT, filtered_packets.len(), |row_ix, mut row| {
+            let info = &filtered_packets[row_ix];
 
             row.col(|ui| {
                 ui.label(info.packet.id.to_string());
             });
+
+            row.col(|ui| {
+                let binding = String::new();
+                let alias = alias_to_display.get(&info.key).unwrap_or(&binding);
+                ui.label(alias);
+            });
+
             row.col(|ui| {
                 let timestamp = info.packet.time.saturating_sub(first_ts);
                 ui.label(format!("{:.4}", timestamp.as_secs_f64()));
@@ -200,7 +399,12 @@ impl MpegTsPacketsTable {
                 ui.label(info.packet.packet_association_table.source_addr.to_string());
             });
             row.col(|ui| {
-                ui.label(info.packet.packet_association_table.destination_addr.to_string());
+                ui.label(
+                    info.packet
+                        .packet_association_table
+                        .destination_addr
+                        .to_string(),
+                );
             });
 
             let mut labels = info
