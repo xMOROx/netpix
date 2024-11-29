@@ -101,6 +101,13 @@ impl MpegTsPacketsTable {
         }
         aliases.sort_by(|(_, a), (_, b)| a.cmp(b));
 
+        ui.horizontal_wrapped(|ui| {
+            ui.label("Aliases: ");
+            for (_, alias) in &aliases {
+                ui.label(alias);
+            }
+        });
+
         ui.add_space(self.config.space_after_filter);
     }
 
@@ -170,10 +177,29 @@ impl MpegTsPacketsTable {
     fn build_table_body(&mut self, body: TableBody) {
         let streams = &self.streams.borrow();
 
-        let mpegts_packets: Vec<_> = streams
+        let mut alias_to_display: HashMap<MpegtsStreamKey, String> = HashMap::default();
+        streams.mpeg_ts_streams.iter().for_each(|(key, stream)| {
+            alias_to_display.insert(*key, stream.alias.to_string());
+        });
+
+        let mut mpegts_packets: Vec<_> = streams
             .mpeg_ts_streams
             .iter()
-            .flat_map(|(_, stream)| stream.stream_info.packets.iter())
+            .flat_map(|(key, stream)| {
+                stream
+                    .stream_info
+                    .packets
+                    .iter()
+                    .map(move |packet| (key, packet))
+            })
+            .collect();
+
+        mpegts_packets
+            .sort_by(|(_key1, packet1), (_key2, packet2)| packet1.time.cmp(&packet2.time));
+
+        let mpegts_packets: Vec<_> = mpegts_packets
+            .into_iter()
+            .map(|(_, packet)| packet)
             .collect();
 
         if mpegts_packets.is_empty() {
