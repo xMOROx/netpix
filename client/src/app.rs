@@ -33,7 +33,6 @@ mod mpegts_packets_table;
 mod mpegts_stream_plot;
 mod mpegts_streams_table;
 
-mod filters;
 mod tab;
 
 const SOURCE_KEY: &str = "source";
