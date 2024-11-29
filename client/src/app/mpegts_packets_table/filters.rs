@@ -1,5 +1,58 @@
+//! MPEG-TS Packet Filtering
+//!
+//! This module provides a filtering system for MPEG-TS packets with support for complex queries.
+//!
+//! # Filter Syntax
+//!
+//! The basic filter syntax is: `field:value`
+//!
+//! Multiple filters can be combined using:
+//! - `AND` - both conditions must match
+//! - `OR` - either condition must match
+//! - `NOT` - negates the condition
+//! - Parentheses `()` for grouping
+//!
+//! # Available Filters
+//!
+//! ## Basic Filters
+//! - `desc:value` - Matches packet ID containing the value
+//! - `source:value` - Matches source IP address containing the value
+//! - `dest:value` - Matches destination IP address containing the value
+//! - `alias:value` - Matches stream alias containing the value
+//!
+//! ## PID Filters
+//! - `pid:number` - Matches exact PID number
+//! - `p1:value` to `p7:value` - Matches PID at specific position (1-7) containing the value
+//!
+//! ## Payload Size Filters
+//! - `payload:number` - Matches exact payload size
+//! - `payload:>number` - Matches payload size greater than number
+//! - `payload:>=number` - Matches payload size greater or equal to number
+//! - `payload:<number` - Matches payload size less than number
+//! - `payload:<=number` - Matches payload size less or equal to number
+//!
+//! ## Packet Type Filters
+//! - `type:PAT` - Program Association Table packets
+//! - `type:PMT` - Program Map Table packets
+//! - `type:PCR+ES` - Packets containing both PCR and Elementary Stream
+//! - `type:ES` - Elementary Stream packets
+//! - `type:PCR` - Program Clock Reference packets
+//!
+//! # Examples
+//!
+//! Simple filters:
+//! - `desc:123` - Matches packets with ID containing "123"
+//! - `source:192.168` - Matches packets from IP addresses containing "192.168"
+//! - `pid:256` - Matches packets with PID 256
+//! - `type:PAT` - Matches PAT packets
+//!
+//! Complex filters:
+//! - `type:ES AND payload:>184` - ES packets with payload larger than 184 bytes
+//! - `(source:10.0.0 OR source:192.168) AND NOT type:PCR` - Non-PCR packets from specific networks
+//! - `pid:256 AND (type:ES OR type:PCR+ES)` - ES or PCR+ES packets with PID 256
+//! - `alias:A AND payload:>=188` - Packets from stream aliased as "A" with full payloads
+
 use crate::streams::mpegts_stream::MpegTsPacketInfo;
-use log::{log, Level};
 use netpix_common::mpegts::header::{AdaptationFieldControl, PIDTable};
 use std::collections::VecDeque;
 use std::str::FromStr;
@@ -280,7 +333,7 @@ fn parse_payload_filter(value: &str) -> Option<FilterType> {
             .parse()
             .ok()
             .map(PayloadFilter::GreaterThan)
-    } else if value.starts_with("=>") {
+    } else if value.starts_with(">=") {
         value[2..]
             .trim()
             .parse()
