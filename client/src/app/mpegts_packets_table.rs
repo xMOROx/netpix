@@ -11,7 +11,6 @@ use types::{PacketInfo, TableConfig};
 
 use crate::app::is_mpegts_stream_visible;
 use crate::app::mpegts_packets_table::filters::{parse_filter, FilterContext, PacketFilter};
-use crate::streams::mpegts_stream::MpegTsPacketInfo;
 use egui::{Color32, RichText, TextEdit};
 use netpix_common::mpegts::header::{AdaptationFieldControl, PIDTable};
 use netpix_common::mpegts::MpegtsFragment;

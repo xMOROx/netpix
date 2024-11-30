@@ -52,10 +52,10 @@
 //! - `pid:256 AND (type:ES OR type:PCR+ES)` - ES or PCR+ES packets with PID 256
 //! - `alias:A AND payload:>=188` - Packets from stream aliased as "A" with full payloads
 
-use crate::streams::mpegts_stream::MpegTsPacketInfo;
 use netpix_common::mpegts::header::{AdaptationFieldControl, PIDTable};
 use std::collections::VecDeque;
 use std::str::FromStr;
+use crate::streams::mpegts_stream::packet_info::MpegTsPacketInfo;
 
 pub trait PacketFilter {
     fn matches(&self, info: &FilterContext) -> bool;
