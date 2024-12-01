@@ -1,18 +1,18 @@
 [package]
-name = "rtpeeker"
+name = "netpix"
 version = "0.2.0"
 edition = "2021"
 license = "MIT"
 description = "Multicast streams analysis and visualization tool"
-homepage = "https://github.com/xMOROx/rtpeeker"
-repository = "https://github.com/xMOROx/rtpeeker"
+homepage = "https://github.com/xMOROx/netpix"
+repository = "https://github.com/xMOROx/netpix"
 readme = "README.md"
 keywords = ["streaming", "RTP", "networking", "MPEG-TS"]
 categories = ["development-tools", "multimedia", "visualization"]
 include = ["/src/", "/dist/"]
 
 [dependencies]
-rtpeeker_common = { path = "./common", version = "0.2" }
+netpix_common = { path = "./common", version = "0.2" }
 log = "0.4"
 pretty_env_logger = "0.4"
 tokio = { version = "1", features = [ "full" ] }

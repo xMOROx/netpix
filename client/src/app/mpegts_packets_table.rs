@@ -3,9 +3,9 @@ use crate::streams::mpegts_stream::MpegTsPacketInfo;
 use crate::streams::RefStreams;
 use egui::{Color32, RichText};
 use egui_extras::{Column, TableBody, TableBuilder};
-use rtpeeker_common::mpegts::header::{AdaptationFieldControl, PIDTable};
-use rtpeeker_common::mpegts::MpegtsFragment;
-use rtpeeker_common::{MpegtsStreamKey, RtpStreamKey};
+use netpix_common::mpegts::header::{AdaptationFieldControl, PIDTable};
+use netpix_common::mpegts::MpegtsFragment;
+use netpix_common::{MpegtsStreamKey, RtpStreamKey};
 use std::collections::HashMap;
 use web_time::Duration;
 

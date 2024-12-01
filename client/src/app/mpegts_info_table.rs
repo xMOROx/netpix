@@ -3,12 +3,12 @@ use super::is_mpegts_stream_visible;
 use crate::streams::RefStreams;
 use egui_extras::{Column, TableBody, TableBuilder};
 use ewebsock::WsSender;
-use rtpeeker_common::MpegtsStreamKey;
 use std::net::SocketAddr;
 use std::time::Duration;
 use rtpeeker_common::mpegts::header::PIDTable;
 use rtpeeker_common::mpegts::psi::pat::pat_buffer::PatBuffer;
 use rtpeeker_common::mpegts::psi::pmt::pmt_buffer::PmtBuffer;
+use netpix_common::MpegtsStreamKey;
 
 enum MpegTsInfo {
     PatBuffer(* const PatBuffer),

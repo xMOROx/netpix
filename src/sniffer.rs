@@ -1,6 +1,6 @@
 use futures_util::StreamExt;
 use pcap::{Capture, PacketCodec, PacketStream};
-use rtpeeker_common::{Packet, Source};
+use netpix_common::{Packet, Source};
 
 #[derive(Debug)]
 pub enum Error {

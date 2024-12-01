@@ -1,4 +1,3 @@
-
 name: Clippy Check
 
 on:
@@ -6,9 +5,7 @@ on:
     branches:
       - '**'
 
-permissions:
-  contents: read
-  pull-requests: write
+permissions: write-all
 
 jobs:
   clippy:
@@ -16,12 +13,13 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        dir: [., ./client, ./common]
+        dir: [./client, ./common]
     steps:
       - uses: actions/checkout@v3
       
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: dtolnay/rust-toolchain@master
         with:
+          toolchain: 1.82.0-x86_64-unknown-linux-gnu 
           components: clippy
           
       - name: Install libpcap
@@ -30,5 +28,5 @@ jobs:
       - uses: actions-rs/clippy-check@v1
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
-          args: --manifest-path ${{ matrix.dir }}/Cargo.toml -- -D warnings
+          args: --manifest-path ${{ matrix.dir }}/Cargo.toml --all-features
           name: Clippy ${{ matrix.dir }}

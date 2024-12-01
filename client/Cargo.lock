@@ -1262,6 +1262,37 @@ dependencies = [
 ]
 
 [[package]]
+name = "netpix_client"
+version = "0.2.0"
+dependencies = [
+ "chrono",
+ "eframe",
+ "egui",
+ "egui_extras",
+ "ewebsock",
+ "log",
+ "netpix_common",
+ "rustc-hash",
+ "wasm-bindgen-futures",
+ "web-time",
+]
+
+[[package]]
+name = "netpix_common"
+version = "0.2.0"
+dependencies = [
+ "bincode",
+ "etherparse",
+ "log",
+ "pcap",
+ "rtcp",
+ "rtp",
+ "serde",
+ "webrtc-sdp",
+ "webrtc-util",
+]
+
+[[package]]
 name = "nix"
 version = "0.24.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1705,37 +1736,6 @@ dependencies = [
  "rand",
  "serde",
  "thiserror",
- "webrtc-util",
-]
-
-[[package]]
-name = "rtpeeker_client"
-version = "0.2.0"
-dependencies = [
- "chrono",
- "eframe",
- "egui",
- "egui_extras",
- "ewebsock",
- "log",
- "rtpeeker_common",
- "rustc-hash",
- "wasm-bindgen-futures",
- "web-time",
-]
-
-[[package]]
-name = "rtpeeker_common"
-version = "0.2.0"
-dependencies = [
- "bincode",
- "etherparse",
- "log",
- "pcap",
- "rtcp",
- "rtp",
- "serde",
- "webrtc-sdp",
  "webrtc-util",
 ]
 

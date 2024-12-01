@@ -721,6 +721,39 @@ dependencies = [
 ]
 
 [[package]]
+name = "netpix"
+version = "0.2.0"
+dependencies = [
+ "clap",
+ "etherparse",
+ "futures-util",
+ "log",
+ "mime_guess",
+ "netpix_common",
+ "pcap",
+ "pretty_env_logger",
+ "rust-embed",
+ "tokio",
+ "tokio-stream",
+ "warp",
+]
+
+[[package]]
+name = "netpix_common"
+version = "0.2.0"
+dependencies = [
+ "bincode",
+ "etherparse",
+ "log",
+ "pcap",
+ "rtcp",
+ "rtp",
+ "serde",
+ "webrtc-sdp",
+ "webrtc-util",
+]
+
+[[package]]
 name = "nix"
 version = "0.26.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -978,39 +1011,6 @@ dependencies = [
  "rand",
  "serde",
  "thiserror",
- "webrtc-util",
-]
-
-[[package]]
-name = "rtpeeker"
-version = "0.2.0"
-dependencies = [
- "clap",
- "etherparse",
- "futures-util",
- "log",
- "mime_guess",
- "pcap",
- "pretty_env_logger",
- "rtpeeker_common",
- "rust-embed",
- "tokio",
- "tokio-stream",
- "warp",
-]
-
-[[package]]
-name = "rtpeeker_common"
-version = "0.2.0"
-dependencies = [
- "bincode",
- "etherparse",
- "log",
- "pcap",
- "rtcp",
- "rtp",
- "serde",
- "webrtc-sdp",
  "webrtc-util",
 ]
 

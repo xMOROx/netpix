@@ -1,6 +1,6 @@
 #![allow(dead_code)]
 use crate::streams::{int_to_letter, stream_statistics::*};
-use rtpeeker_common::{
+use netpix_common::{
     mpegts::{
         header::PIDTable,
         psi::{

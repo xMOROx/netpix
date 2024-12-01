@@ -2,8 +2,8 @@ use crate::streams::RefStreams;
 use egui::widgets::TextEdit;
 use egui_extras::{Column, TableBody, TableBuilder};
 use ewebsock::{WsMessage, WsSender};
-use rtpeeker_common::packet::{Packet, SessionProtocol};
-use rtpeeker_common::Request;
+use netpix_common::packet::{Packet, SessionProtocol};
+use netpix_common::Request;
 
 pub struct PacketsTable {
     streams: RefStreams,
