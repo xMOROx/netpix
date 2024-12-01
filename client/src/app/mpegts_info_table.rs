@@ -22,6 +22,12 @@ struct MpegTsInfoRow {
     counter: usize,
 }
 
+#[derive(Hash, Eq, PartialEq)]
+struct RowKey {
+    pid: PIDTable,
+    alias: String,
+}
+
 pub struct MpegTsInformationTable {
     streams: RefStreams,
     ws_sender: WsSender,
@@ -68,6 +74,7 @@ impl MpegTsInformationTable {
 
     fn build_table(&mut self, ui: &mut egui::Ui) {
         let header_labels = [
+            ("Stream alias", "Stream alias"),
             ("Time", "Packet arrival timestamp"),
             ("Source", "Source IP address and port"),
             ("Destination", "Destination IP address and port"),
@@ -80,7 +87,7 @@ impl MpegTsInformationTable {
             .striped(true)
             .resizable(true)
             .stick_to_bottom(true)
-            .column(Column::remainder().at_least(80.0))
+            .columns(Column::remainder().at_least(80.0), 2)
             .columns(Column::remainder().at_least(130.0), 2)
             .columns(Column::remainder().at_least(40.0), 3)
             .column(Column::remainder().at_least(800.0))
@@ -100,28 +107,29 @@ impl MpegTsInformationTable {
     fn build_table_body(&mut self, body: TableBody) {
         let streams = &self.streams.borrow();
 
-        let mut mpegts_rows: HashMap<PIDTable, MpegTsInfoRow> = HashMap::default();
+        let mut mpegts_rows: HashMap<RowKey, MpegTsInfoRow> = HashMap::default();
         streams.mpeg_ts_streams.iter().for_each(|(key, stream)| {
-            let aggregator = &stream.mpegts_aggregator;
-            stream.mpegts_stream_info.packets.iter().for_each(|packet| {
+            let aggregator = &stream.aggregator;
+            stream.stream_info.packets.iter().for_each(|packet| {
                 packet.content.fragments.iter().for_each(|fragment| {
                     let header = &fragment.header;
                     // TODO: handle multiple streams
                     if let PIDTable::ProgramAssociation = header.pid {
                         if aggregator.is_pat_complete() {
                             let info = MpegTsInfo::PatBuffer(&aggregator.pat_buffer);
-                            if mpegts_rows.contains_key(&header.pid) {
-                                let val = mpegts_rows.get_mut(&header.pid).unwrap();
+                            let key = RowKey {pid: header.pid, alias: stream.alias.clone()};
+                            if mpegts_rows.contains_key(&key) {
+                                let val = mpegts_rows.get_mut(&key).unwrap();
                                 val.counter += 1;
                                 val.time = packet.time;
                             } else {
                                 mpegts_rows.insert(
-                                    header.pid.clone(),
+                                    key,
                                     MpegTsInfoRow {
                                         info,
                                         counter: 0,
-                                        source_addr: packet.source_addr,
-                                        destination_addr: packet.destination_addr,
+                                        source_addr: packet.packet_association_table.source_addr,
+                                        destination_addr: packet.packet_association_table.destination_addr,
                                         time: packet.time
                                     });
                             }
@@ -131,18 +139,19 @@ impl MpegTsInformationTable {
                             let info = MpegTsInfo::PmtBuffer(
                                 aggregator.pmt_buffers.get(&pid).unwrap()
                             );
-                            if mpegts_rows.contains_key(&header.pid) {
-                                let val = mpegts_rows.get_mut(&header.pid).unwrap();
+                            let key = RowKey {pid: header.pid, alias: stream.alias.clone()};
+                            if mpegts_rows.contains_key(&key) {
+                                let val = mpegts_rows.get_mut(&key).unwrap();
                                 val.counter += 1;
                                 val.time = packet.time;
                             } else {
                                 mpegts_rows.insert(
-                                    header.pid.clone(),
+                                    key,
                                     MpegTsInfoRow {
                                         info,
                                         counter: 0,
-                                        source_addr: packet.source_addr,
-                                        destination_addr: packet.destination_addr,
+                                        source_addr: packet.packet_association_table.source_addr,
+                                        destination_addr: packet.packet_association_table.destination_addr,
                                         time: packet.time
                                     });
                             }
@@ -158,6 +167,9 @@ impl MpegTsInformationTable {
             let mpegts_info = &mpegts_row.info;
 
             row.col(|ui| {
+                ui.label(&key.alias);
+            });
+            row.col(|ui| {
                 let timestamp = mpegts_row.time;
                 ui.label(format!("{:.4}", timestamp.as_secs_f64()));
             });
@@ -168,7 +180,7 @@ impl MpegTsInformationTable {
                 ui.label(mpegts_row.destination_addr.to_string());
             });
             row.col(|ui| {
-                ui.label(key.to_string());
+                ui.label(key.pid.to_string());
             });
             row.col(|ui| {
                 ui.label(&mpegts_row.counter.to_string());
