@@ -1,13 +1,14 @@
-use std::collections::HashMap;
+use std::cmp::Ordering;
+use std::collections::{BTreeMap, HashMap};
 use super::is_mpegts_stream_visible;
 use crate::streams::RefStreams;
 use egui_extras::{Column, TableBody, TableBuilder};
 use ewebsock::WsSender;
 use std::net::SocketAddr;
 use std::time::Duration;
-use rtpeeker_common::mpegts::header::PIDTable;
-use rtpeeker_common::mpegts::psi::pat::pat_buffer::PatBuffer;
-use rtpeeker_common::mpegts::psi::pmt::pmt_buffer::PmtBuffer;
+use netpix_common::mpegts::header::PIDTable;
+use netpix_common::mpegts::psi::pat::pat_buffer::PatBuffer;
+use netpix_common::mpegts::psi::pmt::pmt_buffer::PmtBuffer;
 use netpix_common::MpegtsStreamKey;
 
 enum MpegTsInfo {
@@ -22,10 +23,28 @@ struct MpegTsInfoRow {
     counter: usize,
 }
 
-#[derive(Hash, Eq, PartialEq)]
+#[derive(Hash, Eq, PartialEq, Ord)]
 struct RowKey {
     pid: PIDTable,
     alias: String,
+}
+
+// impl Ord for RowKey {
+//     fn cmp(&self, other: &Self) -> Ordering {
+//         if !self.alias.eq(&other.alias) {
+//             return self.alias.cmp(&other.alias);
+//         }
+//         self.pid.cmp(&other.pid)
+//     }
+// }
+
+impl PartialOrd for RowKey {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        if !self.alias.eq(&other.alias) {
+            return self.alias.partial_cmp(&other.alias);
+        }
+        self.pid.partial_cmp(&other.pid)
+    }
 }
 
 pub struct MpegTsInformationTable {
@@ -75,7 +94,6 @@ impl MpegTsInformationTable {
     fn build_table(&mut self, ui: &mut egui::Ui) {
         let header_labels = [
             ("Stream alias", "Stream alias"),
-            ("Time", "Packet arrival timestamp"),
             ("Source", "Source IP address and port"),
             ("Destination", "Destination IP address and port"),
             ("Type", "Type of mpegts packet"),
@@ -87,7 +105,7 @@ impl MpegTsInformationTable {
             .striped(true)
             .resizable(true)
             .stick_to_bottom(true)
-            .columns(Column::remainder().at_least(80.0), 2)
+            .column(Column::remainder().at_least(80.0))
             .columns(Column::remainder().at_least(130.0), 2)
             .columns(Column::remainder().at_least(40.0), 3)
             .column(Column::remainder().at_least(800.0))
@@ -107,7 +125,7 @@ impl MpegTsInformationTable {
     fn build_table_body(&mut self, body: TableBody) {
         let streams = &self.streams.borrow();
 
-        let mut mpegts_rows: HashMap<RowKey, MpegTsInfoRow> = HashMap::default();
+        let mut mpegts_rows: BTreeMap<RowKey, MpegTsInfoRow> = BTreeMap::default();
         streams.mpeg_ts_streams.iter().for_each(|(key, stream)| {
             let aggregator = &stream.aggregator;
             stream.stream_info.packets.iter().for_each(|packet| {
@@ -163,7 +181,7 @@ impl MpegTsInformationTable {
         let keys = mpegts_rows.keys().collect::<Vec<_>>();
         body.rows(25.0, mpegts_rows.len(), |row_ix, mut row| {
             let key = keys.get(row_ix).unwrap();
-            let mpegts_row = mpegts_rows.get(key).unwrap().clone();
+            let mpegts_row = mpegts_rows.get(key).unwrap();
             let mpegts_info = &mpegts_row.info;
 
             row.col(|ui| {
