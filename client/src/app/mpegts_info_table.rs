@@ -1,17 +1,59 @@
-use std::collections::HashMap;
+use std::cmp::Ordering;
+use std::collections::{BTreeMap, HashMap};
 use super::is_mpegts_stream_visible;
 use crate::streams::RefStreams;
 use egui_extras::{Column, TableBody, TableBuilder};
 use ewebsock::WsSender;
+use std::net::SocketAddr;
+use std::time::Duration;
+use netpix_common::mpegts::header::PIDTable;
+use netpix_common::mpegts::psi::pat::pat_buffer::PatBuffer;
+use netpix_common::mpegts::psi::pmt::pmt_buffer::PmtBuffer;
 use netpix_common::MpegtsStreamKey;
 
-pub struct MpegTsInformationsTable {
+enum MpegTsInfo {
+    PatBuffer(* const PatBuffer),
+    PmtBuffer(* const PmtBuffer),
+}
+struct MpegTsInfoRow {
+    source_addr: SocketAddr,
+    destination_addr: SocketAddr,
+    time: Duration,
+    info: MpegTsInfo,
+    counter: usize,
+}
+
+#[derive(Hash, Eq, PartialEq, Ord)]
+struct RowKey {
+    pid: PIDTable,
+    alias: String,
+}
+
+// impl Ord for RowKey {
+//     fn cmp(&self, other: &Self) -> Ordering {
+//         if !self.alias.eq(&other.alias) {
+//             return self.alias.cmp(&other.alias);
+//         }
+//         self.pid.cmp(&other.pid)
+//     }
+// }
+
+impl PartialOrd for RowKey {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        if !self.alias.eq(&other.alias) {
+            return self.alias.partial_cmp(&other.alias);
+        }
+        self.pid.partial_cmp(&other.pid)
+    }
+}
+
+pub struct MpegTsInformationTable {
     streams: RefStreams,
     ws_sender: WsSender,
     streams_visibility: HashMap<MpegtsStreamKey, bool>,
 }
 
-impl MpegTsInformationsTable {
+impl MpegTsInformationTable {
     pub fn new(streams: RefStreams, ws_sender: WsSender) -> Self {
         Self {
             streams,
@@ -51,11 +93,11 @@ impl MpegTsInformationsTable {
 
     fn build_table(&mut self, ui: &mut egui::Ui) {
         let header_labels = [
-            ("No.", "Packet number (including skipped packets)"),
-            ("Time", "Packet arrival timestamp"),
+            ("Stream alias", "Stream alias"),
             ("Source", "Source IP address and port"),
             ("Destination", "Destination IP address and port"),
-            ("Type", "Type of mpegts packet"), 
+            ("Type", "Type of mpegts packet"),
+            ("Duplications", "Number of duplicated packets"),
             ("Packet count", "Number of packets in mpegts packet"),
             ("Addition information", "Additional information"),
         ];
@@ -63,11 +105,10 @@ impl MpegTsInformationsTable {
             .striped(true)
             .resizable(true)
             .stick_to_bottom(true)
-            .column(Column::remainder().at_least(40.0))
             .column(Column::remainder().at_least(80.0))
             .columns(Column::remainder().at_least(130.0), 2)
-            .columns(Column::remainder().at_least(80.0), 2)
-            .column(Column::remainder().at_least(200.0))
+            .columns(Column::remainder().at_least(40.0), 3)
+            .column(Column::remainder().at_least(800.0))
             .header(30.0, |mut header| {
                 header_labels.iter().for_each(|(label, desc)| {
                     header.col(|ui| {
@@ -81,5 +122,93 @@ impl MpegTsInformationsTable {
             });
     }
 
-    fn build_table_body(&mut self, _body: TableBody) {}
+    fn build_table_body(&mut self, body: TableBody) {
+        let streams = &self.streams.borrow();
+
+        let mut mpegts_rows: BTreeMap<RowKey, MpegTsInfoRow> = BTreeMap::default();
+        streams.mpeg_ts_streams.iter().for_each(|(key, stream)| {
+            let aggregator = &stream.aggregator;
+            stream.stream_info.packets.iter().for_each(|packet| {
+                packet.content.fragments.iter().for_each(|fragment| {
+                    let header = &fragment.header;
+                    // TODO: handle multiple streams
+                    if let PIDTable::ProgramAssociation = header.pid {
+                        if aggregator.is_pat_complete() {
+                            let info = MpegTsInfo::PatBuffer(&aggregator.pat_buffer);
+                            let key = RowKey {pid: header.pid, alias: stream.alias.clone()};
+                            if mpegts_rows.contains_key(&key) {
+                                let val = mpegts_rows.get_mut(&key).unwrap();
+                                val.counter += 1;
+                                val.time = packet.time;
+                            } else {
+                                mpegts_rows.insert(
+                                    key,
+                                    MpegTsInfoRow {
+                                        info,
+                                        counter: 0,
+                                        source_addr: packet.packet_association_table.source_addr,
+                                        destination_addr: packet.packet_association_table.destination_addr,
+                                        time: packet.time
+                                    });
+                            }
+                        }
+                    } else if let PIDTable::PID(pid) = header.pid {
+                        if aggregator.is_pmt_complete(pid) {
+                            let info = MpegTsInfo::PmtBuffer(
+                                aggregator.pmt_buffers.get(&pid).unwrap()
+                            );
+                            let key = RowKey {pid: header.pid, alias: stream.alias.clone()};
+                            if mpegts_rows.contains_key(&key) {
+                                let val = mpegts_rows.get_mut(&key).unwrap();
+                                val.counter += 1;
+                                val.time = packet.time;
+                            } else {
+                                mpegts_rows.insert(
+                                    key,
+                                    MpegTsInfoRow {
+                                        info,
+                                        counter: 0,
+                                        source_addr: packet.packet_association_table.source_addr,
+                                        destination_addr: packet.packet_association_table.destination_addr,
+                                        time: packet.time
+                                    });
+                            }
+                        }
+                    }
+                })
+            })
+        });
+        let keys = mpegts_rows.keys().collect::<Vec<_>>();
+        body.rows(25.0, mpegts_rows.len(), |row_ix, mut row| {
+            let key = keys.get(row_ix).unwrap();
+            let mpegts_row = mpegts_rows.get(key).unwrap();
+            let mpegts_info = &mpegts_row.info;
+
+            row.col(|ui| {
+                ui.label(&key.alias);
+            });
+            row.col(|ui| {
+                let timestamp = mpegts_row.time;
+                ui.label(format!("{:.4}", timestamp.as_secs_f64()));
+            });
+            row.col(|ui| {
+                ui.label(mpegts_row.source_addr.to_string());
+            });
+            row.col(|ui| {
+                ui.label(mpegts_row.destination_addr.to_string());
+            });
+            row.col(|ui| {
+                ui.label(key.pid.to_string());
+            });
+            row.col(|ui| {
+                ui.label(&mpegts_row.counter.to_string());
+            });
+            row.col(|ui| {
+                ui.label("Placeholder");
+            });
+            row.col(|ui| {
+                ui.label("Lorem ipsum dolor sit amet");
+            });
+        })
+    }
 }
