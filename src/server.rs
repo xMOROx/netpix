@@ -76,7 +76,7 @@ pub async fn run(sniffers: HashMap<String, Sniffer>, addr: SocketAddr) {
 
     let routes = ws.or(index_html).or(other);
 
-    println!("RTPeeker running on http://{}/", addr);
+    println!("Netpix running on http://{}/", addr);
     warp::serve(routes).try_bind(addr).await;
 }
 
