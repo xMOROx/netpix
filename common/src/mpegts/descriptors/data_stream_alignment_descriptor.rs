@@ -1,5 +1,6 @@
-use serde::{Deserialize, Serialize};
 use crate::mpegts::descriptors::{DescriptorHeader, ParsableDescriptor};
+use crate::utils::bits::BitReader;
+use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Debug, Clone, Ord, PartialOrd, Eq)]
 pub struct DataStreamAlignmentDescriptor {
@@ -38,8 +39,7 @@ impl std::fmt::Display for AlignmentType {
 
 impl PartialEq for DataStreamAlignmentDescriptor {
     fn eq(&self, other: &Self) -> bool {
-        self.header == other.header
-            && self.alignment_type == other.alignment_type
+        self.header == other.header && self.alignment_type == other.alignment_type
     }
 }
 
@@ -84,7 +84,8 @@ impl ParsableDescriptor<DataStreamAlignmentDescriptor> for DataStreamAlignmentDe
             return None;
         }
 
-        let alignment_type = AlignmentType::from(data[0]);
+        let reader = BitReader::new(data);
+        let alignment_type = AlignmentType::from(reader.get_bits(0, 0xFF, 0)?);
 
         Some(DataStreamAlignmentDescriptor {
             header,
@@ -93,12 +94,11 @@ impl ParsableDescriptor<DataStreamAlignmentDescriptor> for DataStreamAlignmentDe
     }
 }
 
-
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::mpegts::descriptors::DescriptorHeader;
     use crate::mpegts::descriptors::tags::DescriptorTag;
+    use crate::mpegts::descriptors::DescriptorHeader;
 
     #[test]
     fn test_data_stream_alignment_descriptor_unmarshall() {
@@ -112,7 +112,10 @@ mod tests {
             alignment_type: AlignmentType::Slice,
         };
 
-        assert_eq!(DataStreamAlignmentDescriptor::unmarshall(header, &data), Some(descriptor));
+        assert_eq!(
+            DataStreamAlignmentDescriptor::unmarshall(header, &data),
+            Some(descriptor)
+        );
     }
 
     #[test]
@@ -123,14 +126,20 @@ mod tests {
             descriptor_length: 0x02,
         };
 
-        assert_eq!(DataStreamAlignmentDescriptor::unmarshall(header, &data), None);
+        assert_eq!(
+            DataStreamAlignmentDescriptor::unmarshall(header, &data),
+            None
+        );
     }
 
     #[test]
     fn test_alignment_type_from() {
         assert_eq!(AlignmentType::from(0), AlignmentType::Reserved);
         assert_eq!(AlignmentType::from(1), AlignmentType::Slice);
-        assert_eq!(AlignmentType::from(2), AlignmentType::SliceOrVideoAccessUnit);
+        assert_eq!(
+            AlignmentType::from(2),
+            AlignmentType::SliceOrVideoAccessUnit
+        );
         assert_eq!(AlignmentType::from(3), AlignmentType::GOPorSEQ);
         assert_eq!(AlignmentType::from(4), AlignmentType::SEQ);
         assert_eq!(AlignmentType::from(5), AlignmentType::Custom(5));

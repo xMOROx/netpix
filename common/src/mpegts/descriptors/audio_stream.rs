@@ -1,10 +1,9 @@
-use serde::{Deserialize, Serialize};
 use crate::mpegts::descriptors::{DescriptorHeader, ParsableDescriptor};
+use crate::utils::bits::BitReader;
+use serde::{Deserialize, Serialize};
 
-const FREE_FORMAT_FLAG: u8 = 0b1000_0000;
 const ID: u8 = 0b0100_0000;
 const LAYER: u8 = 0b0011_0000;
-const VARIABLE_RATE_AUDIO_INDICATOR: u8 = 0b0000_1000;
 
 #[derive(Serialize, Deserialize, Debug, Clone, Ord, PartialOrd, Eq)]
 pub struct AudioStreamDescriptor {
@@ -29,24 +28,25 @@ impl ParsableDescriptor<AudioStreamDescriptor> for AudioStreamDescriptor {
             return None;
         }
 
-        let free_format_flag = (data[0] & FREE_FORMAT_FLAG) != 0;
-        let id = (data[0] & ID) >> 6;
-        let layer = (data[0] & LAYER) >> 4;
-        let variable_rate_audio_indicator = (data[0] & VARIABLE_RATE_AUDIO_INDICATOR) != 0;
+        let reader = BitReader::new(data);
 
         Some(AudioStreamDescriptor {
             header,
-            free_format_flag,
-            id,
-            layer,
-            variable_rate_audio_indicator,
+            free_format_flag: reader.get_bit(0, 7)?,
+            id: reader.get_bits(0, ID, 6)?,
+            layer: reader.get_bits(0, LAYER, 4)?,
+            variable_rate_audio_indicator: reader.get_bit(0, 3)?,
         })
     }
 }
 
 impl std::fmt::Display for AudioStreamDescriptor {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "Free Format Flag: {}\nID: {}\nLayer: {}\nVariable Rate Audio Indicator: {}", self.free_format_flag, self.id, self.layer, self.variable_rate_audio_indicator)
+        write!(
+            f,
+            "Free Format Flag: {}\nID: {}\nLayer: {}\nVariable Rate Audio Indicator: {}",
+            self.free_format_flag, self.id, self.layer, self.variable_rate_audio_indicator
+        )
     }
 }
 
@@ -63,8 +63,8 @@ impl PartialEq for AudioStreamDescriptor {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::mpegts::descriptors::DescriptorHeader;
     use crate::mpegts::descriptors::tags::DescriptorTag;
+    use crate::mpegts::descriptors::DescriptorHeader;
 
     #[test]
     fn test_audio_stream_descriptor_unmarshall() {
@@ -81,7 +81,10 @@ mod tests {
             variable_rate_audio_indicator: true,
         };
 
-        assert_eq!(AudioStreamDescriptor::unmarshall(header, &data), Some(descriptor));
+        assert_eq!(
+            AudioStreamDescriptor::unmarshall(header, &data),
+            Some(descriptor)
+        );
     }
 
     #[test]

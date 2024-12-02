@@ -1,22 +1,8 @@
-use serde::{Deserialize, Serialize};
 use crate::mpegts::descriptors::{DescriptorHeader, ParsableDescriptor};
-
-const CONSTRAINED_SET0_FLAG: u8 = 0b1000_0000;
-const CONSTRAINED_SET1_FLAG: u8 = 0b0100_0000;
-const CONSTRAINED_SET2_FLAG: u8 = 0b0010_0000;
-const CONSTRAINED_SET3_FLAG: u8 = 0b0001_0000;
-const CONSTRAINED_SET4_FLAG: u8 = 0b0000_1000;
-
-const CONSTRAINED_SET5_FLAG: u8 = 0b0000_0100;
+use crate::utils::bits::BitReader;
+use serde::{Deserialize, Serialize};
 
 const AVC_COMPATIBLE_FLAGS_MASK: u8 = 0b0000_0011;
-
-const AVC_STILL_PRESENT_FLAG: u8 = 0b1000_0000;
-
-const AVC_24_HOUR_PICTURE_FLAG: u8 = 0b0100_0000;
-
-const FRAME_PACKING_SEI_FLAG: u8 = 0b0010_0000;
-
 
 #[derive(Serialize, Deserialize, Debug, Clone, Ord, PartialOrd, Eq)]
 pub struct AvcVideoDescriptor {
@@ -49,34 +35,22 @@ impl ParsableDescriptor<AvcVideoDescriptor> for AvcVideoDescriptor {
             return None;
         }
 
-        let profile_idc = data[0];
-        let flags = data[1];
-        let level_idc = data[2];
-        let avc_compatible_flags = flags & AVC_COMPATIBLE_FLAGS_MASK;
-        let constraint_set0_flag = flags & CONSTRAINED_SET0_FLAG == CONSTRAINED_SET0_FLAG;
-        let constraint_set1_flag = flags & CONSTRAINED_SET1_FLAG == CONSTRAINED_SET1_FLAG;
-        let constraint_set2_flag = flags & CONSTRAINED_SET2_FLAG == CONSTRAINED_SET2_FLAG;
-        let constraint_set3_flag = flags & CONSTRAINED_SET3_FLAG == CONSTRAINED_SET3_FLAG;
-        let constraint_set4_flag = flags & CONSTRAINED_SET4_FLAG == CONSTRAINED_SET4_FLAG;
-        let constraint_set5_flag = flags & CONSTRAINED_SET5_FLAG == CONSTRAINED_SET5_FLAG;
-        let avc_still_present = flags & AVC_STILL_PRESENT_FLAG == AVC_STILL_PRESENT_FLAG;
-        let avc_24_hour_picture_flag = flags & AVC_24_HOUR_PICTURE_FLAG == AVC_24_HOUR_PICTURE_FLAG;
-        let frame_packing_sei_flag = flags & FRAME_PACKING_SEI_FLAG == FRAME_PACKING_SEI_FLAG;
+        let reader = BitReader::new(data);
 
         Some(AvcVideoDescriptor {
             header,
-            profile_idc,
-            constraint_set0_flag,
-            constraint_set1_flag,
-            constraint_set2_flag,
-            constraint_set3_flag,
-            constraint_set4_flag,
-            constraint_set5_flag,
-            avc_compatible_flags,
-            level_idc,
-            avc_still_present,
-            avc_24_hour_picture_flag,
-            frame_packing_sei_flag,
+            profile_idc: data[0],
+            constraint_set0_flag: reader.get_bit(1, 7)?,
+            constraint_set1_flag: reader.get_bit(1, 6)?,
+            constraint_set2_flag: reader.get_bit(1, 5)?,
+            constraint_set3_flag: reader.get_bit(1, 4)?,
+            constraint_set4_flag: reader.get_bit(1, 3)?,
+            constraint_set5_flag: reader.get_bit(1, 2)?,
+            avc_compatible_flags: reader.get_bits(1, AVC_COMPATIBLE_FLAGS_MASK, 0)?,
+            level_idc: data[2],
+            avc_still_present: reader.get_bit(3, 7)?,
+            avc_24_hour_picture_flag: reader.get_bit(3, 6)?,
+            frame_packing_sei_flag: reader.get_bit(3, 5)?,
         })
     }
 }

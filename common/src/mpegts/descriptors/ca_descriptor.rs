@@ -1,8 +1,8 @@
-use serde::{Deserialize, Serialize};
 use crate::mpegts::descriptors::{DescriptorHeader, ParsableDescriptor};
+use crate::utils::bits::BitReader;
+use serde::{Deserialize, Serialize};
 
-
-const CA_PID: u8 = 0b0001_1111;
+const CA_PID_MASK: u8 = 0b0001_1111;
 
 #[derive(Serialize, Deserialize, Debug, Clone, Ord, PartialOrd, Eq)]
 pub struct CaDescriptor {
@@ -25,27 +25,36 @@ impl ParsableDescriptor<CaDescriptor> for CaDescriptor {
         if data.len() < 4 {
             return None;
         }
+
+        let reader = BitReader::new(data);
+        let ca_system_id = reader.get_bits_u16(0, 0xFF, 0xFF)?;
+        let ca_pid = reader.get_bits_u16_with_shift(2, CA_PID_MASK, 0xFF, 5)?;
+
         Some(CaDescriptor {
             header,
-            ca_system_id: u16::from_be_bytes([data[0], data[1]]),
-            ca_pid: ((data[2] & CA_PID) as u16) << 5 | data[3] as u16,
-            private_data: data[4..].to_vec(),
+            ca_system_id,
+            ca_pid,
+            private_data: reader.remaining_from(4)?,
         })
     }
 }
 
 impl std::fmt::Display for CaDescriptor {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "CA System ID: {}\nCA PID: {}\nPrivate Data: {:?}", self.ca_system_id, self.ca_pid, self.private_data)
+        write!(
+            f,
+            "CA System ID: {}\nCA PID: {}\nPrivate Data: {:?}",
+            self.ca_system_id, self.ca_pid, self.private_data
+        )
     }
 }
 
 impl PartialEq for CaDescriptor {
     fn eq(&self, other: &Self) -> bool {
-        self.header == other.header &&
-            self.ca_system_id == other.ca_system_id &&
-            self.ca_pid == other.ca_pid &&
-            self.private_data == other.private_data
+        self.header == other.header
+            && self.ca_system_id == other.ca_system_id
+            && self.ca_pid == other.ca_pid
+            && self.private_data == other.private_data
     }
 }
 

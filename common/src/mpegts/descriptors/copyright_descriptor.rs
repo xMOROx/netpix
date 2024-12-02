@@ -1,4 +1,5 @@
 use crate::mpegts::descriptors::{DescriptorHeader, ParsableDescriptor};
+use crate::utils::bits::BitReader;
 use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Debug, Clone, Ord, PartialOrd, Eq)]
@@ -21,10 +22,14 @@ impl ParsableDescriptor<CopyrightDescriptor> for CopyrightDescriptor {
         if data.len() < 4 {
             return None;
         }
+
+        let reader = BitReader::new(data);
+        let copyright_identifier = reader.get_bits_u32(0)?;
+
         Some(CopyrightDescriptor {
-            header: header.clone(),
-            copyright_identifier: u32::from_be_bytes([data[0], data[1], data[2], data[3]]),
-            additional_copyright_info: data[4..header.descriptor_length as usize].to_vec(),
+            header,
+            copyright_identifier,
+            additional_copyright_info: reader.remaining_from(4)?,
         })
     }
 }

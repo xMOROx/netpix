@@ -35,6 +35,22 @@ impl<'a> BitReader<'a> {
 
         Some((upper << 8) | lower)
     }
+    pub fn get_bits_u16_with_shift(
+        &self,
+        byte_offset: usize,
+        upper_mask: u8,
+        lower_mask: u8,
+        shift: u8,
+    ) -> Option<u16> {
+        if self.position + byte_offset + 1 >= self.data.len() {
+            return None;
+        }
+
+        let upper = (self.data[self.position + byte_offset] & upper_mask) as u16;
+        let lower = (self.data[self.position + byte_offset + 1] & lower_mask) as u16;
+
+        Some((upper << shift) | lower)
+    }
 
     pub fn get_bits_u24(&self, byte_offset: usize) -> Option<u32> {
         if self.position + byte_offset + 2 >= self.data.len() {
@@ -46,6 +62,19 @@ impl<'a> BitReader<'a> {
         let b2 = self.data[self.position + byte_offset + 2] as u32;
 
         Some((b0 << 16) | (b1 << 8) | b2)
+    }
+
+    pub fn get_bits_u32(&self, byte_offset: usize) -> Option<u32> {
+        if self.position + byte_offset + 3 >= self.data.len() {
+            return None;
+        }
+
+        let b0 = self.data[self.position + byte_offset] as u32;
+        let b1 = self.data[self.position + byte_offset + 1] as u32;
+        let b2 = self.data[self.position + byte_offset + 2] as u32;
+        let b3 = self.data[self.position + byte_offset + 3] as u32;
+
+        Some((b0 << 24) | (b1 << 16) | (b2 << 8) | b3)
     }
 
     pub fn get_bytes(&self, byte_offset: usize, length: usize) -> Option<Vec<u8>> {
