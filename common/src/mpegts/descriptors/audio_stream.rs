@@ -1,70 +1,39 @@
-use serde::{Deserialize, Serialize};
+use crate::implement_descriptor;
 use crate::mpegts::descriptors::{DescriptorHeader, ParsableDescriptor};
+use crate::utils::bits::BitReader;
 
-const FREE_FORMAT_FLAG: u8 = 0b1000_0000;
 const ID: u8 = 0b0100_0000;
 const LAYER: u8 = 0b0011_0000;
-const VARIABLE_RATE_AUDIO_INDICATOR: u8 = 0b0000_1000;
 
-#[derive(Serialize, Deserialize, Debug, Clone, Ord, PartialOrd, Eq)]
-pub struct AudioStreamDescriptor {
-    pub header: DescriptorHeader,
-    pub free_format_flag: bool,
-    pub id: u8,
-    pub layer: u8,
-    pub variable_rate_audio_indicator: bool,
-}
-
-impl ParsableDescriptor<AudioStreamDescriptor> for AudioStreamDescriptor {
-    fn descriptor_tag(&self) -> u8 {
-        self.header.descriptor_tag.to_u8()
+implement_descriptor! {
+    pub struct AudioStreamDescriptor {
+        pub free_format_flag: bool,
+        pub id: u8,
+        pub layer: u8,
+        pub variable_rate_audio_indicator: bool,
     }
-
-    fn descriptor_length(&self) -> u8 {
-        self.header.descriptor_length
-    }
-
-    fn unmarshall(header: DescriptorHeader, data: &[u8]) -> Option<AudioStreamDescriptor> {
+    unmarshall_impl: |header, data| {
         if data.len() != 1 {
             return None;
         }
 
-        let free_format_flag = (data[0] & FREE_FORMAT_FLAG) != 0;
-        let id = (data[0] & ID) >> 6;
-        let layer = (data[0] & LAYER) >> 4;
-        let variable_rate_audio_indicator = (data[0] & VARIABLE_RATE_AUDIO_INDICATOR) != 0;
+        let reader = BitReader::new(data);
 
         Some(AudioStreamDescriptor {
             header,
-            free_format_flag,
-            id,
-            layer,
-            variable_rate_audio_indicator,
+            free_format_flag: reader.get_bit(0, 7)?,
+            id: reader.get_bits(0, ID, 6)?,
+            layer: reader.get_bits(0, LAYER, 4)?,
+            variable_rate_audio_indicator: reader.get_bit(0, 3)?,
         })
-    }
-}
-
-impl std::fmt::Display for AudioStreamDescriptor {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "Free Format Flag: {}\nID: {}\nLayer: {}\nVariable Rate Audio Indicator: {}", self.free_format_flag, self.id, self.layer, self.variable_rate_audio_indicator)
-    }
-}
-
-impl PartialEq for AudioStreamDescriptor {
-    fn eq(&self, other: &Self) -> bool {
-        self.header == other.header
-            && self.free_format_flag == other.free_format_flag
-            && self.id == other.id
-            && self.layer == other.layer
-            && self.variable_rate_audio_indicator == other.variable_rate_audio_indicator
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::mpegts::descriptors::DescriptorHeader;
     use crate::mpegts::descriptors::tags::DescriptorTag;
+    use crate::mpegts::descriptors::DescriptorHeader;
 
     #[test]
     fn test_audio_stream_descriptor_unmarshall() {
@@ -81,7 +50,10 @@ mod tests {
             variable_rate_audio_indicator: true,
         };
 
-        assert_eq!(AudioStreamDescriptor::unmarshall(header, &data), Some(descriptor));
+        assert_eq!(
+            AudioStreamDescriptor::unmarshall(header, &data),
+            Some(descriptor)
+        );
     }
 
     #[test]
@@ -99,5 +71,25 @@ mod tests {
         };
 
         assert_eq!(descriptor, descriptor);
+    }
+
+    #[test]
+    fn test_should_display_audio_stream_descriptor() {
+        let header = DescriptorHeader {
+            descriptor_tag: DescriptorTag::from(0x03),
+            descriptor_length: 0x01,
+        };
+        let descriptor = AudioStreamDescriptor {
+            header,
+            free_format_flag: true,
+            id: 0x01,
+            layer: 0x02,
+            variable_rate_audio_indicator: true,
+        };
+
+        assert_eq!(
+            format!("{}", descriptor),
+            "Audio Stream Descriptor\nFree Format Flag: true\nId: 1\nLayer: 2\nVariable Rate Audio Indicator: true\n"
+        );
     }
 }

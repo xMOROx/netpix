@@ -116,9 +116,9 @@ fn test_get_header() {
     buffer[3] = 0b01010000; // TSC: 01, AFC: 01, CC: 0000
 
     let header = MpegtsPacket::get_header(&buffer, 0).unwrap();
-    assert_eq!(header.transport_error_indicator, false);
-    assert_eq!(header.payload_unit_start_indicator, true);
-    assert_eq!(header.transport_priority, false);
+    assert!(!header.transport_error_indicator);
+    assert!(header.payload_unit_start_indicator);
+    assert!(!header.transport_priority);
     assert_eq!(header.pid, PIDTable::PID(0x64));
     assert!(matches!(
         header.transport_scrambling_control,

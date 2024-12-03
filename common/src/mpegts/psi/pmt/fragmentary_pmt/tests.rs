@@ -19,10 +19,10 @@ fn test_unmarshall() {
     ];
     let fragmentary_pmt = FragmentaryProgramMapTable::unmarshall(&data, true).unwrap();
     assert_eq!(fragmentary_pmt.header.table_id, 0x02);
-    assert_eq!(fragmentary_pmt.header.section_syntax_indicator, true);
+    assert!(fragmentary_pmt.header.section_syntax_indicator);
     assert_eq!(fragmentary_pmt.header.section_length, 144);
     assert_eq!(fragmentary_pmt.header.version_number, 0x0a);
-    assert_eq!(fragmentary_pmt.header.current_next_indicator, true);
+    assert!(fragmentary_pmt.header.current_next_indicator);
     assert_eq!(fragmentary_pmt.header.section_number, 0);
     assert_eq!(fragmentary_pmt.header.last_section_number, 0);
     assert_eq!(fragmentary_pmt.fields.program_number, 0x0021);

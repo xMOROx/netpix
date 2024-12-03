@@ -117,7 +117,7 @@ impl MpegtsAggregator {
     }
 
     pub fn is_pmt_complete(&self, pid: u16) -> bool {
-        self.pmt.get(&pid).is_some()
+        self.pmt.contains_key(&pid)
     }
 
     pub fn clear(&mut self) {
