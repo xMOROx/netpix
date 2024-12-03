@@ -12,7 +12,7 @@ eframe = { version = "0.22.0", default-features = false, features = [
     "glow"
 ] }
 log = "0.4"
-wasm-bindgen-futures = "0.4"
+wasm-bindgen-futures = "0.4.45"
 ewebsock = "0.2"
 chrono = "0.4"
 web-time = "1.0.0"
