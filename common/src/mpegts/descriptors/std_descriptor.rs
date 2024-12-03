@@ -1,24 +1,15 @@
+use crate::implement_descriptor;
 use crate::mpegts::descriptors::{DescriptorHeader, ParsableDescriptor};
 use crate::utils::bits::BitReader;
 use serde::{Deserialize, Serialize};
 
 const LEAK_VALID_FLAG: u8 = 0b0000_0001;
-#[derive(Serialize, Deserialize, Debug, Clone, Ord, PartialOrd, Eq)]
-pub struct StdDescriptor {
-    pub header: DescriptorHeader,
-    pub leak_valid_flag: bool,
-}
 
-impl ParsableDescriptor<StdDescriptor> for StdDescriptor {
-    fn descriptor_tag(&self) -> u8 {
-        self.header.descriptor_tag.to_u8()
+implement_descriptor! {
+    pub struct StdDescriptor {
+        pub leak_valid_flag: bool
     }
-
-    fn descriptor_length(&self) -> u8 {
-        self.header.descriptor_length
-    }
-
-    fn unmarshall(header: DescriptorHeader, data: &[u8]) -> Option<StdDescriptor> {
+    unmarshall_impl: |header, data| {
         if data.len() != 1 {
             return None;
         }
@@ -30,18 +21,6 @@ impl ParsableDescriptor<StdDescriptor> for StdDescriptor {
             header,
             leak_valid_flag,
         })
-    }
-}
-
-impl std::fmt::Display for StdDescriptor {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "Leak Valid Flag: {}", self.leak_valid_flag)
-    }
-}
-
-impl PartialEq for StdDescriptor {
-    fn eq(&self, other: &Self) -> bool {
-        self.header == other.header && self.leak_valid_flag == other.leak_valid_flag
     }
 }
 
@@ -59,5 +38,22 @@ mod tests {
         };
         let descriptor = StdDescriptor::unmarshall(header, &data).unwrap();
         assert_eq!(descriptor.leak_valid_flag, true);
+    }
+
+    #[test]
+    fn test_should_display_audio_stream_descriptor() {
+        let header = DescriptorHeader {
+            descriptor_tag: 0x0A.into(),
+            descriptor_length: 1,
+        };
+        let descriptor = StdDescriptor {
+            header: header.clone(),
+            leak_valid_flag: true,
+        };
+
+        assert_eq!(
+            format!("{}", descriptor),
+            "Std Descriptor\nLeak Valid Flag: true\n"
+        );
     }
 }

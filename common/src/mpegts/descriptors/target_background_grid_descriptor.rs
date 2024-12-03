@@ -1,6 +1,6 @@
+use crate::implement_descriptor;
 use crate::mpegts::descriptors::{DescriptorHeader, ParsableDescriptor};
 use crate::utils::bits::BitReader;
-use serde::{Deserialize, Serialize};
 
 const HORIZONTAL_SIZE_MASK: u8 = 0b1111_1100;
 const VERTICAL_SIZE_UP_MASK: u8 = 0b1100_0000;
@@ -9,43 +9,13 @@ const VERTICAL_SIZE_MIDDLE_2_MASK: u8 = 0b0000_0011;
 const VERTICAL_SIZE_DOWN_MASK: u8 = 0b1111_0000;
 const ASPECT_RATIO_MASK: u8 = 0b0000_1111;
 
-#[derive(Serialize, Deserialize, Debug, Clone, Ord, PartialOrd, Eq)]
-pub struct TargetBackgroundGridDescriptor {
-    pub header: DescriptorHeader,
-    pub horizontal_size: u16,
-    pub vertical_size: u16,
-    pub aspect_ratio_information: u8,
-}
-
-impl std::fmt::Display for TargetBackgroundGridDescriptor {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(
-            f,
-            "Horizontal Size: {}, Vertical Size: {}, Aspect Ratio Information: {}",
-            self.horizontal_size, self.vertical_size, self.aspect_ratio_information
-        )
+implement_descriptor! {
+    pub struct TargetBackgroundGridDescriptor {
+        pub horizontal_size: u16,
+        pub vertical_size: u16,
+        pub aspect_ratio_information: u8
     }
-}
-
-impl PartialEq for TargetBackgroundGridDescriptor {
-    fn eq(&self, other: &Self) -> bool {
-        self.header == other.header
-            && self.horizontal_size == other.horizontal_size
-            && self.vertical_size == other.vertical_size
-            && self.aspect_ratio_information == other.aspect_ratio_information
-    }
-}
-
-impl ParsableDescriptor<TargetBackgroundGridDescriptor> for TargetBackgroundGridDescriptor {
-    fn descriptor_tag(&self) -> u8 {
-        self.header.descriptor_tag.to_u8()
-    }
-
-    fn descriptor_length(&self) -> u8 {
-        self.header.descriptor_length
-    }
-
-    fn unmarshall(header: DescriptorHeader, data: &[u8]) -> Option<TargetBackgroundGridDescriptor> {
+    unmarshall_impl: |header, data| {
         if data.len() != 4 {
             return None;
         }
@@ -119,5 +89,24 @@ mod test {
             aspect_ratio_information: 0x08,
         };
         assert_eq!(descriptor.descriptor_length(), 0x04);
+    }
+
+    #[test]
+    fn test_audio_stream_descriptor_unmarshall() {
+        let header = DescriptorHeader {
+            descriptor_tag: DescriptorTag::TargetBackgroundGridDescriptorTag,
+            descriptor_length: 0x04,
+        };
+        let descriptor = TargetBackgroundGridDescriptor {
+            header: header.clone(),
+            horizontal_size: 0x32F1,
+            vertical_size: 0x33D8,
+            aspect_ratio_information: 0x0D,
+        };
+
+        assert_eq!(
+            format!("{}", descriptor),
+            "Target Background Grid Descriptor\nHorizontal Size: 13041\nVertical Size: 13272\nAspect Ratio Information: 13\n"
+        );
     }
 }

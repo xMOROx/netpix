@@ -1,36 +1,26 @@
+use crate::implement_descriptor;
 use crate::mpegts::descriptors::{DescriptorHeader, ParsableDescriptor};
 use crate::utils::bits::BitReader;
 use serde::{Deserialize, Serialize};
 
 const AVC_COMPATIBLE_FLAGS_MASK: u8 = 0b0000_0011;
 
-#[derive(Serialize, Deserialize, Debug, Clone, Ord, PartialOrd, Eq)]
-pub struct AvcVideoDescriptor {
-    pub header: DescriptorHeader,
-    pub profile_idc: u8,
-    pub constraint_set0_flag: bool,
-    pub constraint_set1_flag: bool,
-    pub constraint_set2_flag: bool,
-    pub constraint_set3_flag: bool,
-    pub constraint_set4_flag: bool,
-    pub constraint_set5_flag: bool,
-    pub avc_compatible_flags: u8,
-    pub level_idc: u8,
-    pub avc_still_present: bool,
-    pub avc_24_hour_picture_flag: bool,
-    pub frame_packing_sei_flag: bool,
-}
-
-impl ParsableDescriptor<AvcVideoDescriptor> for AvcVideoDescriptor {
-    fn descriptor_tag(&self) -> u8 {
-        self.header.descriptor_tag.to_u8()
+implement_descriptor! {
+    pub struct AvcVideoDescriptor {
+        pub profile_idc: u8,
+        pub constraint_set0_flag: bool,
+        pub constraint_set1_flag: bool,
+        pub constraint_set2_flag: bool,
+        pub constraint_set3_flag: bool,
+        pub constraint_set4_flag: bool,
+        pub constraint_set5_flag: bool,
+        pub avc_compatible_flags: u8,
+        pub level_idc: u8,
+        pub avc_still_present: bool,
+        pub avc_24_hour_picture_flag: bool,
+        pub frame_packing_sei_flag: bool,
     }
-
-    fn descriptor_length(&self) -> u8 {
-        self.header.descriptor_length
-    }
-
-    fn unmarshall(header: DescriptorHeader, data: &[u8]) -> Option<AvcVideoDescriptor> {
+    unmarshall_impl: |header, data| {
         if data.len() < 4 {
             return None;
         }
@@ -55,25 +45,37 @@ impl ParsableDescriptor<AvcVideoDescriptor> for AvcVideoDescriptor {
     }
 }
 
-impl std::fmt::Display for AvcVideoDescriptor {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "Profile IDC: {}\nConstraint Set 0 Flag: {}\nConstraint Set 1 Flag: {}\nConstraint Set 2 Flag: {}\nConstraint Set 3 Flag: {}\nConstraint Set 4 Flag: {}\nConstraint Set 5 Flag: {}\nAVC Compatible Flags: {}\nLevel IDC: {}\nAVC Still Present: {}\nAVC 24 Hour Picture Flag: {}\nFrame Packing SEI Flag: {}", self.profile_idc, self.constraint_set0_flag, self.constraint_set1_flag, self.constraint_set2_flag, self.constraint_set3_flag, self.constraint_set4_flag, self.constraint_set5_flag, self.avc_compatible_flags, self.level_idc, self.avc_still_present, self.avc_24_hour_picture_flag, self.frame_packing_sei_flag)
-    }
-}
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::mpegts::descriptors::tags::DescriptorTag;
+    use crate::mpegts::descriptors::DescriptorHeader;
 
-impl PartialEq for AvcVideoDescriptor {
-    fn eq(&self, other: &Self) -> bool {
-        self.header == other.header
-            && self.profile_idc == other.profile_idc
-            && self.constraint_set0_flag == other.constraint_set0_flag
-            && self.constraint_set1_flag == other.constraint_set1_flag
-            && self.constraint_set2_flag == other.constraint_set2_flag
-            && self.constraint_set3_flag == other.constraint_set3_flag
-            && self.constraint_set4_flag == other.constraint_set4_flag
-            && self.constraint_set5_flag == other.constraint_set5_flag
-            && self.avc_compatible_flags == other.avc_compatible_flags
-            && self.level_idc == other.level_idc
-            && self.avc_still_present == other.avc_still_present
-            && self.avc_24_hour_picture_flag == other.avc_24_hour_picture_flag
+    #[test]
+    fn test_should_display_audio_stream_descriptor() {
+        let header = DescriptorHeader {
+            descriptor_tag: DescriptorTag::from(0x03),
+            descriptor_length: 0x01,
+        };
+        let descriptor = AvcVideoDescriptor {
+            header: header.clone(),
+            profile_idc: 0x01,
+            constraint_set0_flag: true,
+            constraint_set1_flag: true,
+            constraint_set2_flag: false,
+            constraint_set3_flag: false,
+            constraint_set4_flag: true,
+            constraint_set5_flag: false,
+            avc_compatible_flags: 0b0000_0010,
+            level_idc: 0x02,
+            avc_still_present: true,
+            avc_24_hour_picture_flag: false,
+            frame_packing_sei_flag: true,
+        };
+
+        assert_eq!(
+            format!("{}", descriptor),
+            "Avc Video Descriptor\nProfile Idc: 1\nConstraint Set0 Flag: true\nConstraint Set1 Flag: true\nConstraint Set2 Flag: false\nConstraint Set3 Flag: false\nConstraint Set4 Flag: true\nConstraint Set5 Flag: false\nAvc Compatible Flags: 2\nLevel Idc: 2\nAvc Still Present: true\nAvc 24 Hour Picture Flag: false\nFrame Packing Sei Flag: true\n"
+        );
     }
 }

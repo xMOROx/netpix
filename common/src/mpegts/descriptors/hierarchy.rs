@@ -1,3 +1,4 @@
+use crate::implement_descriptor;
 use crate::mpegts::descriptors::{DescriptorHeader, ParsableDescriptor};
 use crate::utils::bits::BitReader;
 use serde::{Deserialize, Serialize};
@@ -10,74 +11,19 @@ const HIERARCHY_EMBEDDED_LAYER_INDEX: u8 = 0b0011_1111;
 
 const HIERARCHY_CHANNEL: u8 = 0b0011_1111;
 
-#[derive(Serialize, Deserialize, Debug, Clone, Ord, PartialOrd, Eq)]
-pub struct HierarchyDescriptor {
-    pub header: DescriptorHeader,
-    pub no_view_scalability_flag: bool,
-    pub no_temporal_scalability_flag: bool,
-    pub no_spatial_scalability_flag: bool,
-    pub no_quality_scalability_flag: bool,
-    pub hierarchy_type: HierarchyType,
-    pub hierarchy_layer_index: u8,
-    pub tref_present_flag: bool,
-    pub hierarchy_embedded_layer_index: u8,
-    pub hierarchy_channel: u8,
-}
-
-#[derive(Serialize, Deserialize, Debug, Clone, Ord, PartialOrd, Eq)]
-pub enum HierarchyType {
-    Reserved,
-    SpatialScalability,
-    SNRScalability,
-    TemporalScalability,
-    DataPartitioning,
-    ExtensionBitstream,
-    PrivateStream,
-    MultiViewProfile,
-    CombinedScalabilityOrMvHevcSubpartition,
-    MvcVideoSubBitstreamOrMvcdVideoSubBitstream,
-    AuxiliaryPictureLayer,
-    BaseLayerOrOtherType,
-}
-impl std::fmt::Display for HierarchyDescriptor {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "No View Scalability Flag: {}\nNo Temporal Scalability Flag: {}\nNo Spatial Scalability Flag: {}\nNo Quality Scalability Flag: {}\nHierarchy Type: {}\nHierarchy Layer Index: {}\nTref Present Flag: {}\nHierarchy Embedded Layer Index: {}\nHierarchy Channel: {}", self.no_view_scalability_flag, self.no_temporal_scalability_flag, self.no_spatial_scalability_flag, self.no_quality_scalability_flag, self.hierarchy_type, self.hierarchy_layer_index, self.tref_present_flag, self.hierarchy_embedded_layer_index, self.hierarchy_channel)
+implement_descriptor! {
+    pub struct HierarchyDescriptor {
+        pub no_view_scalability_flag: bool,
+        pub no_temporal_scalability_flag: bool,
+        pub no_spatial_scalability_flag: bool,
+        pub no_quality_scalability_flag: bool,
+        pub hierarchy_type: HierarchyType,
+        pub hierarchy_layer_index: u8,
+        pub tref_present_flag: bool,
+        pub hierarchy_embedded_layer_index: u8,
+        pub hierarchy_channel: u8,
     }
-}
-
-impl std::fmt::Display for HierarchyType {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            HierarchyType::Reserved => write!(f, "Reserved"),
-            HierarchyType::SpatialScalability => write!(f, "Spatial Scalability"),
-            HierarchyType::SNRScalability => write!(f, "SNR Scalability"),
-            HierarchyType::TemporalScalability => write!(f, "Temporal Scalability"),
-            HierarchyType::DataPartitioning => write!(f, "Data Partitioning"),
-            HierarchyType::ExtensionBitstream => write!(f, "Extension Bitstream"),
-            HierarchyType::PrivateStream => write!(f, "Private Stream"),
-            HierarchyType::MultiViewProfile => write!(f, "Multi View Profile"),
-            HierarchyType::CombinedScalabilityOrMvHevcSubpartition => {
-                write!(f, "Combined Scalability or MV HEVC Subpartition")
-            }
-            HierarchyType::MvcVideoSubBitstreamOrMvcdVideoSubBitstream => {
-                write!(f, "MVC Video Sub Bitstream or MVCD Video Sub Bitstream")
-            }
-            HierarchyType::AuxiliaryPictureLayer => write!(f, "Auxiliary Picture Layer"),
-            HierarchyType::BaseLayerOrOtherType => write!(f, "Base Layer or Other Type"),
-        }
-    }
-}
-
-impl ParsableDescriptor<HierarchyDescriptor> for HierarchyDescriptor {
-    fn descriptor_tag(&self) -> u8 {
-        self.header.descriptor_tag.to_u8()
-    }
-
-    fn descriptor_length(&self) -> u8 {
-        self.header.descriptor_length
-    }
-
-    fn unmarshall(header: DescriptorHeader, data: &[u8]) -> Option<HierarchyDescriptor> {
+    unmarshall_impl: |header, data| {
         if data.len() != 4 {
             return None;
         }
@@ -110,18 +56,42 @@ impl ParsableDescriptor<HierarchyDescriptor> for HierarchyDescriptor {
     }
 }
 
-impl PartialEq for HierarchyDescriptor {
-    fn eq(&self, other: &Self) -> bool {
-        self.header == other.header
-            && self.no_view_scalability_flag == other.no_view_scalability_flag
-            && self.no_temporal_scalability_flag == other.no_temporal_scalability_flag
-            && self.no_spatial_scalability_flag == other.no_spatial_scalability_flag
-            && self.no_quality_scalability_flag == other.no_quality_scalability_flag
-            && self.hierarchy_type == other.hierarchy_type
-            && self.hierarchy_layer_index == other.hierarchy_layer_index
-            && self.tref_present_flag == other.tref_present_flag
-            && self.hierarchy_embedded_layer_index == other.hierarchy_embedded_layer_index
-            && self.hierarchy_channel == other.hierarchy_channel
+#[derive(Serialize, Deserialize, Debug, Clone, Ord, PartialOrd, Eq)]
+pub enum HierarchyType {
+    Reserved,
+    SpatialScalability,
+    SNRScalability,
+    TemporalScalability,
+    DataPartitioning,
+    ExtensionBitstream,
+    PrivateStream,
+    MultiViewProfile,
+    CombinedScalabilityOrMvHevcSubpartition,
+    MvcVideoSubBitstreamOrMvcdVideoSubBitstream,
+    AuxiliaryPictureLayer,
+    BaseLayerOrOtherType,
+}
+
+impl std::fmt::Display for HierarchyType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            HierarchyType::Reserved => write!(f, "Reserved"),
+            HierarchyType::SpatialScalability => write!(f, "Spatial Scalability"),
+            HierarchyType::SNRScalability => write!(f, "SNR Scalability"),
+            HierarchyType::TemporalScalability => write!(f, "Temporal Scalability"),
+            HierarchyType::DataPartitioning => write!(f, "Data Partitioning"),
+            HierarchyType::ExtensionBitstream => write!(f, "Extension Bitstream"),
+            HierarchyType::PrivateStream => write!(f, "Private Stream"),
+            HierarchyType::MultiViewProfile => write!(f, "Multi View Profile"),
+            HierarchyType::CombinedScalabilityOrMvHevcSubpartition => {
+                write!(f, "Combined Scalability or MV HEVC Subpartition")
+            }
+            HierarchyType::MvcVideoSubBitstreamOrMvcdVideoSubBitstream => {
+                write!(f, "MVC Video Sub Bitstream or MVCD Video Sub Bitstream")
+            }
+            HierarchyType::AuxiliaryPictureLayer => write!(f, "Auxiliary Picture Layer"),
+            HierarchyType::BaseLayerOrOtherType => write!(f, "Base Layer or Other Type"),
+        }
     }
 }
 
@@ -283,5 +253,30 @@ mod tests {
             HierarchyType::AuxiliaryPictureLayer
         );
         assert_eq!(HierarchyType::from(15), HierarchyType::BaseLayerOrOtherType);
+    }
+
+    #[test]
+    fn test_should_display_audio_stream_descriptor() {
+        let header = DescriptorHeader {
+            descriptor_tag: DescriptorTag::from(0x04),
+            descriptor_length: 0x04,
+        };
+        let descriptor = HierarchyDescriptor {
+            header: header.clone(),
+            no_view_scalability_flag: false,
+            no_temporal_scalability_flag: false,
+            no_spatial_scalability_flag: false,
+            no_quality_scalability_flag: false,
+            hierarchy_type: HierarchyType::Reserved,
+            hierarchy_layer_index: 0,
+            tref_present_flag: false,
+            hierarchy_embedded_layer_index: 0,
+            hierarchy_channel: 0,
+        };
+
+        assert_eq!(
+            descriptor.to_string(),
+            "Hierarchy Descriptor\nNo View Scalability Flag: false\nNo Temporal Scalability Flag: false\nNo Spatial Scalability Flag: false\nNo Quality Scalability Flag: false\nHierarchy Type: Reserved\nHierarchy Layer Index: 0\nTref Present Flag: false\nHierarchy Embedded Layer Index: 0\nHierarchy Channel: 0\n"
+        );
     }
 }

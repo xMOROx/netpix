@@ -1,11 +1,25 @@
+use crate::implement_descriptor;
 use crate::mpegts::descriptors::{DescriptorHeader, ParsableDescriptor};
 use crate::utils::bits::BitReader;
 use serde::{Deserialize, Serialize};
 
-#[derive(Serialize, Deserialize, Debug, Clone, Ord, PartialOrd, Eq)]
-pub struct DataStreamAlignmentDescriptor {
-    pub header: DescriptorHeader,
-    pub alignment_type: AlignmentType,
+implement_descriptor! {
+    pub struct DataStreamAlignmentDescriptor {
+        pub alignment_type: AlignmentType,
+    }
+    unmarshall_impl: |header, data| {
+        if data.len() != 1 {
+            return None;
+        }
+
+        let reader = BitReader::new(data);
+        let alignment_type = AlignmentType::from(reader.get_bits(0, 0xFF, 0)?);
+
+        Some(DataStreamAlignmentDescriptor {
+            header,
+            alignment_type,
+        })
+    }
 }
 
 // TODO: for PES is other table 2.54 when data_alignment_indicator is set
@@ -19,11 +33,6 @@ pub enum AlignmentType {
     Custom(u8),
 }
 
-impl std::fmt::Display for DataStreamAlignmentDescriptor {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "Alignment Type: {}", self.alignment_type)
-    }
-}
 impl std::fmt::Display for AlignmentType {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
@@ -34,12 +43,6 @@ impl std::fmt::Display for AlignmentType {
             AlignmentType::SEQ => write!(f, "SEQ"),
             AlignmentType::Custom(value) => write!(f, "Custom({})", value),
         }
-    }
-}
-
-impl PartialEq for DataStreamAlignmentDescriptor {
-    fn eq(&self, other: &Self) -> bool {
-        self.header == other.header && self.alignment_type == other.alignment_type
     }
 }
 
@@ -67,30 +70,6 @@ impl From<u8> for AlignmentType {
             4 => AlignmentType::SEQ,
             _ => AlignmentType::Custom(value),
         }
-    }
-}
-
-impl ParsableDescriptor<DataStreamAlignmentDescriptor> for DataStreamAlignmentDescriptor {
-    fn descriptor_tag(&self) -> u8 {
-        self.header.descriptor_tag.to_u8()
-    }
-
-    fn descriptor_length(&self) -> u8 {
-        self.header.descriptor_length
-    }
-
-    fn unmarshall(header: DescriptorHeader, data: &[u8]) -> Option<DataStreamAlignmentDescriptor> {
-        if data.len() != 1 {
-            return None;
-        }
-
-        let reader = BitReader::new(data);
-        let alignment_type = AlignmentType::from(reader.get_bits(0, 0xFF, 0)?);
-
-        Some(DataStreamAlignmentDescriptor {
-            header,
-            alignment_type,
-        })
     }
 }
 
@@ -161,5 +140,22 @@ mod tests {
         };
 
         assert_eq!(descriptor1, descriptor2);
+    }
+
+    #[test]
+    fn test_should_display_audio_stream_descriptor() {
+        let header = DescriptorHeader {
+            descriptor_tag: DescriptorTag::from(0x06),
+            descriptor_length: 0x01,
+        };
+        let descriptor = DataStreamAlignmentDescriptor {
+            header,
+            alignment_type: AlignmentType::Slice,
+        };
+
+        assert_eq!(
+            format!("{}", descriptor),
+            "Data Stream Alignment Descriptor\nAlignment Type: Slice\n"
+        );
     }
 }

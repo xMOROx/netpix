@@ -78,3 +78,130 @@ macro_rules! impl_descriptor_unmarshall_match {
         }
     };
 }
+
+#[macro_export]
+macro_rules! implement_descriptor {
+    (
+        $(#[$struct_meta:meta])*
+        $vis:vis struct $name:ident {
+            $(
+                $(#[$field_meta:meta])*
+                $field_vis:vis $field:ident: $type:ty
+            ),* $(,)?
+        }
+        unmarshall_impl: |$header:ident, $data:ident| $unmarshall:block
+        $(,)?
+    ) => {
+        $(#[$struct_meta])*
+        #[derive(serde::Serialize, serde::Deserialize, Debug, Clone, Ord, PartialOrd, Eq)]
+        $vis struct $name {
+            pub header: crate::mpegts::descriptors::DescriptorHeader,
+            $(
+                $(#[$field_meta])*
+                $field_vis $field: $type
+            ),*
+        }
+
+        impl crate::mpegts::descriptors::ParsableDescriptor<$name> for $name {
+            fn descriptor_tag(&self) -> u8 {
+                self.header.descriptor_tag.to_u8()
+            }
+
+            fn descriptor_length(&self) -> u8 {
+                self.header.descriptor_length
+            }
+
+            fn unmarshall($header: crate::mpegts::descriptors::DescriptorHeader, $data: &[u8]) -> Option<$name> {
+                $unmarshall
+            }
+        }
+
+        impl std::fmt::Display for $name {
+            fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+                write!(f, "{}", stringify!($name)
+                    .chars()
+                    .fold(String::new(), |mut acc, c| {
+                        if c.is_uppercase() && !acc.is_empty() {
+                            acc.push(' ');
+                        }
+                        acc.push(c);
+                        acc
+                    }))?;
+                $(
+                    write!(f, "\n{}: {:?}",
+                        stringify!($field)
+                            .replace("_", " ")
+                            .split_whitespace()
+                            .map(|word| {
+                                let mut chars = word.chars();
+                                match chars.next() {
+                                    None => String::new(),
+                                    Some(first) => first.to_uppercase().chain(chars).collect()
+                                }
+                            })
+                            .collect::<Vec<_>>()
+                            .join(" "),
+                        self.$field)?;
+                )*
+                write!(f, "\n")
+            }
+        }
+
+        impl PartialEq for $name {
+            fn eq(&self, other: &Self) -> bool {
+                self.header == other.header
+                $(
+                    && self.$field == other.$field
+                )*
+            }
+        }
+    };
+    (
+        $(#[$struct_meta:meta])*
+        $vis:vis struct $name:ident {
+            $(
+                $(#[$field_meta:meta])*
+                $field_vis:vis $field:ident: $type:ty
+            ),* $(,)?
+        }
+        unmarshall_impl: |$header:ident, $data:ident| $unmarshall:block
+        ;
+        custom_display: $display:item
+        $(,)?
+    ) => {
+        $(#[$struct_meta])*
+        #[derive(serde::Serialize, serde::Deserialize, Debug, Clone, Ord, PartialOrd, Eq)]
+        $vis struct $name {
+            pub header: crate::mpegts::descriptors::DescriptorHeader,
+            $(
+                $(#[$field_meta])*
+                $field_vis $field: $type
+            ),*
+        }
+
+        impl crate::mpegts::descriptors::ParsableDescriptor<$name> for $name {
+            fn descriptor_tag(&self) -> u8 {
+                self.header.descriptor_tag.to_u8()
+            }
+
+            fn descriptor_length(&self) -> u8 {
+                self.header.descriptor_length
+            }
+
+            fn unmarshall($header: crate::mpegts::descriptors::DescriptorHeader, $data: &[u8]) -> Option<$name> {
+                $unmarshall
+            }
+        }
+
+        $display
+
+        impl PartialEq for $name {
+            fn eq(&self, other: &Self) -> bool {
+                self.header == other.header
+                $(
+                    && self.$field == other.$field
+                )*
+            }
+        }
+    };
+}

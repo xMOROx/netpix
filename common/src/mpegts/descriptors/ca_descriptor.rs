@@ -1,27 +1,17 @@
+use crate::implement_descriptor;
 use crate::mpegts::descriptors::{DescriptorHeader, ParsableDescriptor};
 use crate::utils::bits::BitReader;
 use serde::{Deserialize, Serialize};
 
 const CA_PID_MASK: u8 = 0b0001_1111;
 
-#[derive(Serialize, Deserialize, Debug, Clone, Ord, PartialOrd, Eq)]
-pub struct CaDescriptor {
-    pub header: DescriptorHeader,
-    pub ca_system_id: u16,
-    pub ca_pid: u16,
-    pub private_data: Vec<u8>,
-}
-
-impl ParsableDescriptor<CaDescriptor> for CaDescriptor {
-    fn descriptor_tag(&self) -> u8 {
-        self.header.descriptor_tag.to_u8()
+implement_descriptor! {
+    pub struct CaDescriptor {
+        pub ca_system_id: u16,
+        pub ca_pid: u16,
+        pub private_data: Vec<u8>,
     }
-
-    fn descriptor_length(&self) -> u8 {
-        self.header.descriptor_length
-    }
-
-    fn unmarshall(header: DescriptorHeader, data: &[u8]) -> Option<CaDescriptor> {
+    unmarshall_impl: |header, data| {
         if data.len() < 4 {
             return None;
         }
@@ -36,25 +26,6 @@ impl ParsableDescriptor<CaDescriptor> for CaDescriptor {
             ca_pid,
             private_data: reader.remaining_from(4)?,
         })
-    }
-}
-
-impl std::fmt::Display for CaDescriptor {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(
-            f,
-            "CA System ID: {}\nCA PID: {}\nPrivate Data: {:?}",
-            self.ca_system_id, self.ca_pid, self.private_data
-        )
-    }
-}
-
-impl PartialEq for CaDescriptor {
-    fn eq(&self, other: &Self) -> bool {
-        self.header == other.header
-            && self.ca_system_id == other.ca_system_id
-            && self.ca_pid == other.ca_pid
-            && self.private_data == other.private_data
     }
 }
 
@@ -92,5 +63,23 @@ mod test {
             private_data: vec![0x05, 0x06],
         };
         assert_eq!(ca_descriptor, ca_descriptor.clone());
+    }
+
+    #[test]
+    fn test_should_display_audio_stream_descriptor() {
+        let header = DescriptorHeader {
+            descriptor_tag: 0x01.into(),
+            descriptor_length: 0x02,
+        };
+        let ca_descriptor = CaDescriptor {
+            header: header.clone(),
+            ca_system_id: 0x0102,
+            ca_pid: 0x03 << 5 | 0x04,
+            private_data: vec![0x05, 0x06],
+        };
+        assert_eq!(
+            format!("{}", ca_descriptor),
+            "Ca Descriptor\nCa System Id: 258\nCa Pid: 100\nPrivate Data: [5, 6]\n"
+        );
     }
 }

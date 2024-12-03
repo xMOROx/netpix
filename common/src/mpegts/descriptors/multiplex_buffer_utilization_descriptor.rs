@@ -1,32 +1,17 @@
+use crate::implement_descriptor;
 use crate::mpegts::descriptors::{DescriptorHeader, ParsableDescriptor};
 use crate::utils::bits::BitReader;
 use serde::{Deserialize, Serialize};
 
 const LTW_OFFSET_MASK: u8 = 0b0111_1111;
 
-#[derive(Serialize, Deserialize, Debug, Clone, Ord, PartialOrd, Eq)]
-pub struct MultiplexBufferUtilizationDescriptor {
-    pub header: DescriptorHeader,
-    pub bound_valid_flag: bool,
-    pub ltw_offset_lower_bound: Option<u16>,
-    pub ltw_offset_upper_bound: Option<u16>,
-}
-
-impl ParsableDescriptor<MultiplexBufferUtilizationDescriptor>
-    for MultiplexBufferUtilizationDescriptor
-{
-    fn descriptor_tag(&self) -> u8 {
-        self.header.descriptor_tag.to_u8()
+implement_descriptor! {
+    pub struct MultiplexBufferUtilizationDescriptor {
+        pub bound_valid_flag: bool,
+        pub ltw_offset_lower_bound: Option<u16>,
+        pub ltw_offset_upper_bound: Option<u16>
     }
-
-    fn descriptor_length(&self) -> u8 {
-        self.header.descriptor_length
-    }
-
-    fn unmarshall(
-        header: DescriptorHeader,
-        data: &[u8],
-    ) -> Option<MultiplexBufferUtilizationDescriptor> {
+    unmarshall_impl: |header, data| {
         if data.len() != 4 {
             return None;
         }
@@ -53,24 +38,19 @@ impl ParsableDescriptor<MultiplexBufferUtilizationDescriptor>
             ltw_offset_upper_bound,
         })
     }
-}
-
-impl std::fmt::Display for MultiplexBufferUtilizationDescriptor {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(
-            f,
-            "Bound Valid Flag: {}\nLTW Offset Lower Bound: {:?}\nLTW Offset Upper Bound: {:?}",
-            self.bound_valid_flag, self.ltw_offset_lower_bound, self.ltw_offset_upper_bound
-        )
-    }
-}
-
-impl PartialEq for MultiplexBufferUtilizationDescriptor {
-    fn eq(&self, other: &Self) -> bool {
-        self.header == other.header
-            && self.bound_valid_flag == other.bound_valid_flag
-            && self.ltw_offset_lower_bound == other.ltw_offset_lower_bound
-            && self.ltw_offset_upper_bound == other.ltw_offset_upper_bound
+    ;
+    custom_display: impl std::fmt::Display for MultiplexBufferUtilizationDescriptor {
+        fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+            write!(f, "Multiplex Buffer Utilization Descriptor\n")?;
+            write!(f, "Bound Valid Flag: {:?}\n", self.bound_valid_flag)?;
+            if let Some(ltw_offset_lower_bound) = self.ltw_offset_lower_bound {
+                write!(f, "Ltw Offset Lower Bound: {:?}\n", ltw_offset_lower_bound)?;
+            }
+            if let Some(ltw_offset_upper_bound) = self.ltw_offset_upper_bound {
+                write!(f, "Ltw Offset Upper Bound: {:?}\n", ltw_offset_upper_bound)?;
+            }
+            write!(f, "")
+        }
     }
 }
 
@@ -150,5 +130,23 @@ mod tests {
         );
 
         assert_eq!(descriptor, None);
+    }
+
+    #[test]
+    fn test_should_display_audio_stream_descriptor() {
+        let descriptor = MultiplexBufferUtilizationDescriptor {
+            header: DescriptorHeader {
+                descriptor_tag: DescriptorTag::from(0x0c),
+                descriptor_length: 4,
+            },
+            bound_valid_flag: true,
+            ltw_offset_lower_bound: Some(180),
+            ltw_offset_upper_bound: Some(360),
+        };
+
+        assert_eq!(
+            descriptor.to_string(),
+            "Multiplex Buffer Utilization Descriptor\nBound Valid Flag: true\nLtw Offset Lower Bound: 180\nLtw Offset Upper Bound: 360\n"
+        );
     }
 }

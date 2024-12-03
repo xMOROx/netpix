@@ -1,56 +1,23 @@
+use crate::implement_descriptor;
 use crate::mpegts::descriptors::{DescriptorHeader, ParsableDescriptor};
 use crate::utils::bits::BitReader;
-use serde::{Deserialize, Serialize};
 
 const FRAME_RATE_CODE_MASK: u8 = 0b0111_1000;
 const CHROMA_FORMAT_MASK: u8 = 0b1100_0000;
 const MAX_DESCRIPTOR_LENGTH: usize = 3;
 
-#[derive(Serialize, Deserialize, Debug, Clone, Ord, PartialOrd, Eq)]
-pub struct VideoStreamDescriptor {
-    pub header: DescriptorHeader,
-    pub multiple_frame_rate_flag: bool,
-    pub frame_rate_code: u8,
-    pub mpeg_1_only_flag: bool,
-    pub constrained_parameter_flag: bool,
-    pub still_picture_flag: bool,
-    pub profile_and_level_indication: Option<u8>,
-    pub chroma_format: Option<u8>,
-    pub frame_rate_extension_flag: Option<bool>,
-}
-
-impl std::fmt::Display for VideoStreamDescriptor {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let mut profile_and_level_indication = String::from("None");
-        let mut chroma_format = String::from("None");
-        let mut frame_rate_extension_flag = String::from("None");
-
-        if let Some(value) = self.profile_and_level_indication {
-            profile_and_level_indication = value.to_string();
-        }
-
-        if let Some(value) = self.chroma_format {
-            chroma_format = value.to_string();
-        }
-
-        if let Some(value) = self.frame_rate_extension_flag {
-            frame_rate_extension_flag = value.to_string();
-        }
-
-        write!(f, "Multiple Frame Rate Flag: {}\nFrame Rate Code: {}\nMPEG 1 Only Flag: {}\nConstrained Parameter Flag: {}\nStill Picture Flag: {}\nProfile And Level Indication: {}\nChroma Format: {}\nFrame Rate Extension Flag: {}", self.multiple_frame_rate_flag, self.frame_rate_code, self.mpeg_1_only_flag, self.constrained_parameter_flag, self.still_picture_flag, profile_and_level_indication, chroma_format, frame_rate_extension_flag)
+implement_descriptor! {
+    pub struct VideoStreamDescriptor {
+        pub multiple_frame_rate_flag: bool,
+        pub frame_rate_code: u8,
+        pub mpeg_1_only_flag: bool,
+        pub constrained_parameter_flag: bool,
+        pub still_picture_flag: bool,
+        pub profile_and_level_indication: Option<u8>,
+        pub chroma_format: Option<u8>,
+        pub frame_rate_extension_flag: Option<bool>
     }
-}
-
-impl ParsableDescriptor<VideoStreamDescriptor> for VideoStreamDescriptor {
-    fn descriptor_tag(&self) -> u8 {
-        self.header.descriptor_tag.to_u8()
-    }
-
-    fn descriptor_length(&self) -> u8 {
-        self.header.descriptor_length
-    }
-
-    fn unmarshall(header: DescriptorHeader, data: &[u8]) -> Option<VideoStreamDescriptor> {
+    unmarshall_impl: |header, data| {
         let descriptor_length: usize = header.descriptor_length as usize;
         if descriptor_length > MAX_DESCRIPTOR_LENGTH {
             return None;
@@ -90,33 +57,26 @@ impl ParsableDescriptor<VideoStreamDescriptor> for VideoStreamDescriptor {
             })
         }
     }
-}
-
-impl PartialEq for VideoStreamDescriptor {
-    fn eq(&self, other: &Self) -> bool {
-        let header = self.header == other.header;
-        let multiple_frame_rate_flag =
-            self.multiple_frame_rate_flag == other.multiple_frame_rate_flag;
-        let frame_rate_code = self.frame_rate_code == other.frame_rate_code;
-        let mpeg_1_only_flag = self.mpeg_1_only_flag == other.mpeg_1_only_flag;
-        let constrained_parameter_flag =
-            self.constrained_parameter_flag == other.constrained_parameter_flag;
-        let still_picture_flag = self.still_picture_flag == other.still_picture_flag;
-        let profile_and_level_indication =
-            self.profile_and_level_indication == other.profile_and_level_indication;
-        let chroma_format = self.chroma_format == other.chroma_format;
-        let frame_rate_extension_flag =
-            self.frame_rate_extension_flag == other.frame_rate_extension_flag;
-
-        header
-            && multiple_frame_rate_flag
-            && frame_rate_code
-            && mpeg_1_only_flag
-            && constrained_parameter_flag
-            && still_picture_flag
-            && profile_and_level_indication
-            && chroma_format
-            && frame_rate_extension_flag
+    ;
+    custom_display: impl std::fmt::Display for VideoStreamDescriptor {
+        fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+            write!(f, "Video Stream Descriptor\n")?;
+            write!(f, "Multiple Frame Rate Flag: {}\n", self.multiple_frame_rate_flag)?;
+            write!(f, "Frame Rate Code: {}\n", self.frame_rate_code)?;
+            write!(f, "MPEG 1 Only Flag: {}\n", self.mpeg_1_only_flag)?;
+            write!(f, "Constrained Parameter Flag: {}\n", self.constrained_parameter_flag)?;
+            write!(f, "Still Picture Flag: {}\n", self.still_picture_flag)?;
+            if let Some(profile_and_level_indication) = self.profile_and_level_indication {
+                write!(f, "Profile And Level Indication: {}\n", profile_and_level_indication)?;
+            }
+            if let Some(chroma_format) = self.chroma_format {
+                write!(f, "Chroma Format: {}\n", chroma_format)?;
+            }
+            if let Some(frame_rate_extension_flag) = self.frame_rate_extension_flag {
+                write!(f, "Frame Rate Extension Flag: {}\n", frame_rate_extension_flag)?;
+            }
+            write!(f, "")
+        }
     }
 }
 
@@ -194,5 +154,29 @@ mod tests {
         };
 
         assert_eq!(descriptor, descriptor);
+    }
+
+    #[test]
+    fn test_should_display_audio_stream_descriptor() {
+        let header = DescriptorHeader {
+            descriptor_tag: DescriptorTag::from(0x02),
+            descriptor_length: 0x03,
+        };
+        let descriptor = VideoStreamDescriptor {
+            header,
+            multiple_frame_rate_flag: true,
+            frame_rate_code: 0x01,
+            mpeg_1_only_flag: true,
+            constrained_parameter_flag: true,
+            still_picture_flag: true,
+            profile_and_level_indication: Some(0x01),
+            chroma_format: Some(0x01),
+            frame_rate_extension_flag: Some(true),
+        };
+
+        assert_eq!(
+            format!("{}", descriptor),
+            "Video Stream Descriptor\nMultiple Frame Rate Flag: true\nFrame Rate Code: 1\nMPEG 1 Only Flag: true\nConstrained Parameter Flag: true\nStill Picture Flag: true\nProfile And Level Indication: 1\nChroma Format: 1\nFrame Rate Extension Flag: true\n"
+        );
     }
 }

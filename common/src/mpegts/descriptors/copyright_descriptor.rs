@@ -1,24 +1,14 @@
+use crate::implement_descriptor;
 use crate::mpegts::descriptors::{DescriptorHeader, ParsableDescriptor};
 use crate::utils::bits::BitReader;
 use serde::{Deserialize, Serialize};
 
-#[derive(Serialize, Deserialize, Debug, Clone, Ord, PartialOrd, Eq)]
-pub struct CopyrightDescriptor {
-    pub header: DescriptorHeader,
-    pub copyright_identifier: u32,
-    pub additional_copyright_info: Vec<u8>,
-}
-
-impl ParsableDescriptor<CopyrightDescriptor> for CopyrightDescriptor {
-    fn descriptor_tag(&self) -> u8 {
-        self.header.descriptor_tag.to_u8()
+implement_descriptor! {
+    pub struct CopyrightDescriptor {
+        pub copyright_identifier: u32,
+        pub additional_copyright_info: Vec<u8>,
     }
-
-    fn descriptor_length(&self) -> u8 {
-        self.header.descriptor_length
-    }
-
-    fn unmarshall(header: DescriptorHeader, data: &[u8]) -> Option<CopyrightDescriptor> {
+    unmarshall_impl: |header, data| {
         if data.len() < 4 {
             return None;
         }
@@ -31,24 +21,6 @@ impl ParsableDescriptor<CopyrightDescriptor> for CopyrightDescriptor {
             copyright_identifier,
             additional_copyright_info: reader.remaining_from(4)?,
         })
-    }
-}
-
-impl std::fmt::Display for CopyrightDescriptor {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(
-            f,
-            "Copyright Identifier: {}\nAdditional Copyright Info: {:?}",
-            self.copyright_identifier, self.additional_copyright_info
-        )
-    }
-}
-
-impl PartialEq for CopyrightDescriptor {
-    fn eq(&self, other: &Self) -> bool {
-        self.header == other.header
-            && self.copyright_identifier == other.copyright_identifier
-            && self.additional_copyright_info == other.additional_copyright_info
     }
 }
 
@@ -106,5 +78,23 @@ mod tests {
         };
 
         assert_eq!(descriptor1, descriptor2);
+    }
+
+    #[test]
+    fn test_should_display_audio_stream_descriptor() {
+        let header = DescriptorHeader {
+            descriptor_tag: DescriptorTag::from(0x0B),
+            descriptor_length: 6,
+        };
+        let descriptor = CopyrightDescriptor {
+            header: header.clone(),
+            copyright_identifier: u32::from_be_bytes([0x01, 0x02, 0x03, 0x04]),
+            additional_copyright_info: vec![0x05, 0x06],
+        };
+
+        assert_eq!(
+            format!("{}", descriptor),
+            "Copyright Descriptor\nCopyright Identifier: 16909060\nAdditional Copyright Info: [5, 6]\n"
+        );
     }
 }

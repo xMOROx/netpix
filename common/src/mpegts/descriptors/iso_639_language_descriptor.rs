@@ -1,14 +1,11 @@
+use std::fmt;
+
+use crate::implement_descriptor;
 use crate::mpegts::descriptors::{DescriptorHeader, ParsableDescriptor};
 use crate::utils::bits::BitReader;
 use serde::{Deserialize, Serialize};
 
 const SECTION_LENGTH: u8 = 4;
-
-#[derive(Serialize, Deserialize, Debug, Clone, Ord, PartialOrd, Eq)]
-pub struct Iso639LanguageDescriptor {
-    pub header: DescriptorHeader,
-    pub section: Vec<Section>,
-}
 
 #[derive(Serialize, Deserialize, Debug, Clone, Ord, PartialOrd, Eq)]
 pub struct Section {
@@ -26,16 +23,11 @@ pub enum AudioType {
     Reserved,
 }
 
-impl ParsableDescriptor<Iso639LanguageDescriptor> for Iso639LanguageDescriptor {
-    fn descriptor_tag(&self) -> u8 {
-        self.header.descriptor_tag.to_u8()
+implement_descriptor! {
+    pub struct Iso639LanguageDescriptor {
+        pub section: Vec<Section>
     }
-
-    fn descriptor_length(&self) -> u8 {
-        self.header.descriptor_length
-    }
-
-    fn unmarshall(header: DescriptorHeader, data: &[u8]) -> Option<Iso639LanguageDescriptor> {
+    unmarshall_impl: |header, data| {
         if data.len() < 4 {
             return None;
         }
@@ -58,24 +50,11 @@ impl ParsableDescriptor<Iso639LanguageDescriptor> for Iso639LanguageDescriptor {
 
         Some(Iso639LanguageDescriptor { header, section })
     }
-}
-
-impl std::fmt::Display for Iso639LanguageDescriptor {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let mut sections = String::new();
-        for s in &self.section {
-            sections.push_str(&format!(
-                "Language Code: {}\nAudio Type: {:?}\n",
-                s.language_code, s.audio_type
-            ));
+    ;
+    custom_display: impl std::fmt::Display for Iso639LanguageDescriptor {
+        fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+            write!(f, "Iso639 Language Descriptor\n{}", self.section.iter().fold(String::new(), |acc, x| acc + &format!("{}", x)))
         }
-        write!(f, "{}", sections)
-    }
-}
-
-impl PartialEq for Iso639LanguageDescriptor {
-    fn eq(&self, other: &Self) -> bool {
-        self.header == other.header && self.section == other.section
     }
 }
 
@@ -111,6 +90,29 @@ impl From<u8> for AudioType {
             0x3 => AudioType::VisualImpairedCommentary,
             0x04..=0x7F => AudioType::UserPrivate,
             0x80..=0xFF => AudioType::Reserved,
+        }
+    }
+}
+
+impl fmt::Display for Section {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "Language Code: {}, Audio Type: {}\n",
+            self.language_code, self.audio_type
+        )
+    }
+}
+
+impl fmt::Display for AudioType {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            AudioType::Undefined => write!(f, "Undefined"),
+            AudioType::CleanEffects => write!(f, "Clean Effects"),
+            AudioType::HearingImpaired => write!(f, "Hearing Impaired"),
+            AudioType::VisualImpairedCommentary => write!(f, "Visual Impaired Commentary"),
+            AudioType::UserPrivate => write!(f, "User Private"),
+            AudioType::Reserved => write!(f, "Reserved"),
         }
     }
 }
@@ -209,5 +211,31 @@ mod tests {
         };
 
         assert_eq!(descriptor1, descriptor2);
+    }
+
+    #[test]
+    fn test_should_display_audio_stream_descriptor() {
+        let header = DescriptorHeader {
+            descriptor_tag: DescriptorTag::from(0x0A),
+            descriptor_length: 8,
+        };
+        let descriptor = Iso639LanguageDescriptor {
+            header: header.clone(),
+            section: vec![
+                Section {
+                    language_code: "eng".to_string(),
+                    audio_type: AudioType::CleanEffects,
+                },
+                Section {
+                    language_code: "spa".to_string(),
+                    audio_type: AudioType::HearingImpaired,
+                },
+            ],
+        };
+
+        assert_eq!(
+            format!("{}", descriptor),
+            "Iso639 Language Descriptor\nLanguage Code: eng, Audio Type: Clean Effects\nLanguage Code: spa, Audio Type: Hearing Impaired\n"
+        );
     }
 }
