@@ -1,5 +1,6 @@
-use serde::{Deserialize, Serialize};
 use crate::mpegts::descriptors::{DescriptorHeader, ParsableDescriptor};
+use crate::utils::bits::BitReader;
+use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Debug, Clone, Ord, PartialOrd, Eq)]
 pub struct PrivateDataIndicatorDescriptor {
@@ -20,9 +21,13 @@ impl ParsableDescriptor<PrivateDataIndicatorDescriptor> for PrivateDataIndicator
         if data.len() < 4 {
             return None;
         }
+
+        let reader = BitReader::new(data);
+        let private_data_indicator = reader.get_bits_u32(0)?;
+
         Some(PrivateDataIndicatorDescriptor {
-            header: header.clone(),
-            private_data_indicator: u32::from_be_bytes([data[0], data[1], data[2], data[3]]),
+            header,
+            private_data_indicator,
         })
     }
 }
@@ -35,16 +40,15 @@ impl std::fmt::Display for PrivateDataIndicatorDescriptor {
 
 impl PartialEq for PrivateDataIndicatorDescriptor {
     fn eq(&self, other: &Self) -> bool {
-        self.header == other.header &&
-            self.private_data_indicator == other.private_data_indicator
+        self.header == other.header && self.private_data_indicator == other.private_data_indicator
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::mpegts::descriptors::DescriptorHeader;
     use crate::mpegts::descriptors::tags::DescriptorTag;
+    use crate::mpegts::descriptors::DescriptorHeader;
 
     #[test]
     fn test_private_data_indicator_descriptor_unmarshall() {
@@ -58,6 +62,9 @@ mod tests {
             private_data_indicator: u32::from_be_bytes([0x01, 0x02, 0x03, 0x04]),
         };
 
-        assert_eq!(PrivateDataIndicatorDescriptor::unmarshall(header, &data), Some(descriptor));
+        assert_eq!(
+            PrivateDataIndicatorDescriptor::unmarshall(header, &data),
+            Some(descriptor)
+        );
     }
 }

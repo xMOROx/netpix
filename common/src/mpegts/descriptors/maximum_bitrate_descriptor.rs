@@ -1,10 +1,9 @@
-use serde::{Deserialize, Serialize};
 use crate::mpegts::descriptors::{DescriptorHeader, ParsableDescriptor};
-
+use crate::utils::bits::BitReader;
+use serde::{Deserialize, Serialize};
 
 const MAXIMUM_BITRATE: u8 = 0b00111111;
 const BITRATE_PER_SECOND: usize = 50;
-
 
 #[derive(Serialize, Deserialize, Debug, Clone, Ord, PartialOrd, Eq)]
 pub struct MaximumBitrateDescriptor {
@@ -26,7 +25,12 @@ impl ParsableDescriptor<MaximumBitrateDescriptor> for MaximumBitrateDescriptor {
             return None;
         }
 
-        let maximum_bitrate = u32::from(data[0] & MAXIMUM_BITRATE) << 16 | u32::from(data[1]) << 8 | u32::from(data[2]);
+        let reader = BitReader::new(data);
+        let bitrate_high = reader.get_bits(0, MAXIMUM_BITRATE, 0)? as u32;
+        let bitrate_mid = data[1] as u32;
+        let bitrate_low = data[2] as u32;
+
+        let maximum_bitrate = (bitrate_high << 16) | (bitrate_mid << 8) | bitrate_low;
 
         Some(MaximumBitrateDescriptor {
             header,
@@ -37,14 +41,17 @@ impl ParsableDescriptor<MaximumBitrateDescriptor> for MaximumBitrateDescriptor {
 
 impl std::fmt::Display for MaximumBitrateDescriptor {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "Maximum Bitrate: {} kbps", self.maximum_bitrate * BITRATE_PER_SECOND as u32)
+        write!(
+            f,
+            "Maximum Bitrate: {} kbps",
+            self.maximum_bitrate * BITRATE_PER_SECOND as u32
+        )
     }
 }
 
 impl PartialEq for MaximumBitrateDescriptor {
     fn eq(&self, other: &Self) -> bool {
-        self.header == other.header
-            && self.maximum_bitrate == other.maximum_bitrate
+        self.header == other.header && self.maximum_bitrate == other.maximum_bitrate
     }
 }
 

@@ -1,4 +1,5 @@
 use crate::mpegts::descriptors::{DescriptorHeader, ParsableDescriptor};
+use crate::utils::bits::BitReader;
 use serde::{Deserialize, Serialize};
 
 const SECTION_LENGTH: u8 = 4;
@@ -38,12 +39,17 @@ impl ParsableDescriptor<Iso639LanguageDescriptor> for Iso639LanguageDescriptor {
         if data.len() < 4 {
             return None;
         }
+
+        let reader = BitReader::new(data);
         let number_of_sections = data.len() as u8 / SECTION_LENGTH;
         let mut section = Vec::new();
+
         for i in 0..number_of_sections {
             let start = i as usize * SECTION_LENGTH as usize;
-            let language_code = String::from_utf8(data[start..start + 3].to_vec()).unwrap();
+            let lang_bytes = reader.get_bytes(start, 3)?;
+            let language_code = String::from_utf8(lang_bytes).ok()?;
             let audio_type = AudioType::from(data[start + 3]);
+
             section.push(Section {
                 language_code,
                 audio_type,

@@ -1,4 +1,5 @@
 use crate::mpegts::descriptors::{DescriptorHeader, ParsableDescriptor};
+use crate::utils::bits::BitReader;
 use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Debug, Clone, Ord, PartialOrd, Eq)]
@@ -39,8 +40,13 @@ impl ParsableDescriptor<RegistrationDescriptor> for RegistrationDescriptor {
             return None;
         }
 
-        let format_identifier = u32::from_be_bytes([data[0], data[1], data[2], data[3]]);
-        let additional_identification_info = data[4..header.descriptor_length as usize].to_vec();
+        let reader = BitReader::new(data);
+        let format_identifier = reader.get_bits_u32(0)?;
+        let additional_identification_info = if let Some(remaining) = reader.remaining_from(4) {
+            remaining.to_vec()
+        } else {
+            vec![]
+        };
 
         Some(RegistrationDescriptor {
             header,
@@ -57,16 +63,16 @@ mod tests {
 
     #[test]
     fn test_registration_descriptor() {
-        let bytes = vec![0x00, 0x00, 0x00, 0x00, 0x00, 0x00];
+        let bytes = vec![0x45, 0x41, 0x43, 0x33];
         let header = DescriptorHeader {
             descriptor_tag: DescriptorTag::RegistrationDescriptorTag,
-            descriptor_length: 6,
+            descriptor_length: 4,
         };
 
         let descriptor = RegistrationDescriptor {
             header: header.clone(),
-            format_identifier: 0,
-            additional_identification_info: vec![0, 0],
+            format_identifier: 0x45414333,
+            additional_identification_info: vec![],
         };
 
         assert_eq!(

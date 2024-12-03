@@ -1,5 +1,6 @@
-use serde::{Deserialize, Serialize};
 use crate::mpegts::descriptors::{DescriptorHeader, ParsableDescriptor};
+use crate::utils::bits::BitReader;
+use serde::{Deserialize, Serialize};
 
 const LEAK_VALID_FLAG: u8 = 0b0000_0001;
 #[derive(Serialize, Deserialize, Debug, Clone, Ord, PartialOrd, Eq)]
@@ -22,10 +23,12 @@ impl ParsableDescriptor<StdDescriptor> for StdDescriptor {
             return None;
         }
 
+        let reader = BitReader::new(data);
+        let leak_valid_flag = reader.get_bits(0, LEAK_VALID_FLAG, 0)? != 0;
 
         Some(StdDescriptor {
             header,
-            leak_valid_flag: data[0] & LEAK_VALID_FLAG == LEAK_VALID_FLAG,
+            leak_valid_flag,
         })
     }
 }
@@ -38,8 +41,7 @@ impl std::fmt::Display for StdDescriptor {
 
 impl PartialEq for StdDescriptor {
     fn eq(&self, other: &Self) -> bool {
-        self.header == other.header &&
-            self.leak_valid_flag == other.leak_valid_flag
+        self.header == other.header && self.leak_valid_flag == other.leak_valid_flag
     }
 }
 

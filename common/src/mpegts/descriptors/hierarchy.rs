@@ -1,19 +1,10 @@
 use crate::mpegts::descriptors::{DescriptorHeader, ParsableDescriptor};
+use crate::utils::bits::BitReader;
 use serde::{Deserialize, Serialize};
-
-const NO_VIEW_SCALABILITY_FLAG: u8 = 0b1000_0000;
-
-const NO_TEMPORAL_SCALABILITY_FLAG: u8 = 0b0100_0000;
-
-const NO_SPATIAL_SCALABILITY_FLAG: u8 = 0b0010_0000;
-
-const NO_QUALITY_SCALABILITY_FLAG: u8 = 0b0001_0000;
 
 const HIERARCHY_TYPE: u8 = 0b0000_1111;
 
 const HIERARCHY_LAYER_INDEX: u8 = 0b0011_1111;
-
-const TREF_PRESENT_FLAG: u8 = 0b1000_0000;
 
 const HIERARCHY_EMBEDDED_LAYER_INDEX: u8 = 0b0011_1111;
 
@@ -91,15 +82,18 @@ impl ParsableDescriptor<HierarchyDescriptor> for HierarchyDescriptor {
             return None;
         }
 
-        let no_view_scalability_flag = (data[0] & NO_VIEW_SCALABILITY_FLAG) != 0;
-        let no_temporal_scalability_flag = (data[0] & NO_TEMPORAL_SCALABILITY_FLAG) != 0;
-        let no_spatial_scalability_flag = (data[0] & NO_SPATIAL_SCALABILITY_FLAG) != 0;
-        let no_quality_scalability_flag = (data[0] & NO_QUALITY_SCALABILITY_FLAG) != 0;
-        let hierarchy_type = HierarchyType::from(data[1] & HIERARCHY_TYPE);
-        let hierarchy_layer_index = data[2] & HIERARCHY_LAYER_INDEX;
-        let tref_present_flag = (data[3] & TREF_PRESENT_FLAG) != 0;
-        let hierarchy_embedded_layer_index = data[3] & HIERARCHY_EMBEDDED_LAYER_INDEX;
-        let hierarchy_channel = data[3] & HIERARCHY_CHANNEL;
+        let reader = BitReader::new(data);
+
+        let no_view_scalability_flag = reader.get_bit(0, 7)?;
+        let no_temporal_scalability_flag = reader.get_bit(0, 6)?;
+        let no_spatial_scalability_flag = reader.get_bit(0, 5)?;
+        let no_quality_scalability_flag = reader.get_bit(0, 4)?;
+        let hierarchy_type = HierarchyType::from(reader.get_bits(1, HIERARCHY_TYPE, 0)?);
+        let hierarchy_layer_index = reader.get_bits(2, HIERARCHY_LAYER_INDEX, 0)?;
+        let tref_present_flag = reader.get_bit(3, 7)?;
+        let hierarchy_embedded_layer_index =
+            reader.get_bits(3, HIERARCHY_EMBEDDED_LAYER_INDEX, 0)?;
+        let hierarchy_channel = reader.get_bits(3, HIERARCHY_CHANNEL, 0)?;
 
         Some(HierarchyDescriptor {
             header,
