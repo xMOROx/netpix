@@ -95,14 +95,14 @@ macro_rules! implement_descriptor {
         $(#[$struct_meta])*
         #[derive(serde::Serialize, serde::Deserialize, Debug, Clone, Ord, PartialOrd, Eq)]
         $vis struct $name {
-            pub header: crate::mpegts::descriptors::DescriptorHeader,
+            pub header: $crate::mpegts::descriptors::DescriptorHeader,
             $(
                 $(#[$field_meta])*
                 $field_vis $field: $type
             ),*
         }
 
-        impl crate::mpegts::descriptors::ParsableDescriptor<$name> for $name {
+        impl $crate::mpegts::descriptors::ParsableDescriptor<$name> for $name {
             fn descriptor_tag(&self) -> u8 {
                 self.header.descriptor_tag.to_u8()
             }
@@ -111,7 +111,7 @@ macro_rules! implement_descriptor {
                 self.header.descriptor_length
             }
 
-            fn unmarshall($header: crate::mpegts::descriptors::DescriptorHeader, $data: &[u8]) -> Option<$name> {
+            fn unmarshall($header: $crate::mpegts::descriptors::DescriptorHeader, $data: &[u8]) -> Option<$name> {
                 $unmarshall
             }
         }
@@ -172,14 +172,14 @@ macro_rules! implement_descriptor {
         $(#[$struct_meta])*
         #[derive(serde::Serialize, serde::Deserialize, Debug, Clone, Ord, PartialOrd, Eq)]
         $vis struct $name {
-            pub header: crate::mpegts::descriptors::DescriptorHeader,
+            pub header: $crate::mpegts::descriptors::DescriptorHeader,
             $(
                 $(#[$field_meta])*
                 $field_vis $field: $type
             ),*
         }
 
-        impl crate::mpegts::descriptors::ParsableDescriptor<$name> for $name {
+        impl $crate::mpegts::descriptors::ParsableDescriptor<$name> for $name {
             fn descriptor_tag(&self) -> u8 {
                 self.header.descriptor_tag.to_u8()
             }
@@ -188,7 +188,7 @@ macro_rules! implement_descriptor {
                 self.header.descriptor_length
             }
 
-            fn unmarshall($header: crate::mpegts::descriptors::DescriptorHeader, $data: &[u8]) -> Option<$name> {
+            fn unmarshall($header: $crate::mpegts::descriptors::DescriptorHeader, $data: &[u8]) -> Option<$name> {
                 $unmarshall
             }
         }

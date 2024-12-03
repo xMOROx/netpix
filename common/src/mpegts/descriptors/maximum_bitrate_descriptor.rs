@@ -53,7 +53,7 @@ mod tests {
     }
     #[test]
     fn test_maximum_bitrate_descriptor_2() {
-        let data = vec![0x0e, 0x03, 0xc0, 0x00, 0x00];
+        let data = [0x0e, 0x03, 0xc0, 0x00, 0x00];
         let header = DescriptorHeader {
             descriptor_tag: DescriptorTag::MaximumBitrateDescriptorTag,
             descriptor_length: 3,
@@ -64,7 +64,7 @@ mod tests {
     }
     #[test]
     fn test_maximum_bitrate_descriptor_3() {
-        let data = vec![0x0e, 0x03, 0xc0, 0x17, 0x15];
+        let data = [0x0e, 0x03, 0xc0, 0x17, 0x15];
         let header = DescriptorHeader {
             descriptor_tag: DescriptorTag::MaximumBitrateDescriptorTag,
             descriptor_length: 3,

@@ -231,6 +231,6 @@ fn test_pmt_buffer_with_one_fragment() {
         crc_32: 0x3359b688,
     });
 
-    assert_eq!(buffer.is_complete(), true);
+    assert!(buffer.is_complete());
     assert_eq!(buffer.build(), right);
 }

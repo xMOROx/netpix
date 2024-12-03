@@ -37,7 +37,7 @@ mod tests {
             descriptor_length: 1,
         };
         let descriptor = StdDescriptor::unmarshall(header, &data).unwrap();
-        assert_eq!(descriptor.leak_valid_flag, true);
+        assert!(descriptor.leak_valid_flag);
     }
 
     #[test]

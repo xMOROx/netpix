@@ -60,20 +60,20 @@ implement_descriptor! {
     ;
     custom_display: impl std::fmt::Display for VideoStreamDescriptor {
         fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-            write!(f, "Video Stream Descriptor\n")?;
-            write!(f, "Multiple Frame Rate Flag: {}\n", self.multiple_frame_rate_flag)?;
-            write!(f, "Frame Rate Code: {}\n", self.frame_rate_code)?;
-            write!(f, "MPEG 1 Only Flag: {}\n", self.mpeg_1_only_flag)?;
-            write!(f, "Constrained Parameter Flag: {}\n", self.constrained_parameter_flag)?;
-            write!(f, "Still Picture Flag: {}\n", self.still_picture_flag)?;
+            writeln!(f, "Video Stream Descriptor")?;
+            writeln!(f, "Multiple Frame Rate Flag: {}", self.multiple_frame_rate_flag)?;
+            writeln!(f, "Frame Rate Code: {}", self.frame_rate_code)?;
+            writeln!(f, "MPEG 1 Only Flag: {}", self.mpeg_1_only_flag)?;
+            writeln!(f, "Constrained Parameter Flag: {}", self.constrained_parameter_flag)?;
+            writeln!(f, "Still Picture Flag: {}", self.still_picture_flag)?;
             if let Some(profile_and_level_indication) = self.profile_and_level_indication {
-                write!(f, "Profile And Level Indication: {}\n", profile_and_level_indication)?;
+                writeln!(f, "Profile And Level Indication: {}", profile_and_level_indication)?;
             }
             if let Some(chroma_format) = self.chroma_format {
-                write!(f, "Chroma Format: {}\n", chroma_format)?;
+                writeln!(f, "Chroma Format: {}", chroma_format)?;
             }
             if let Some(frame_rate_extension_flag) = self.frame_rate_extension_flag {
-                write!(f, "Frame Rate Extension Flag: {}\n", frame_rate_extension_flag)?;
+                writeln!(f, "Frame Rate Extension Flag: {}", frame_rate_extension_flag)?;
             }
             write!(f, "")
         }
@@ -87,7 +87,7 @@ mod tests {
     use crate::mpegts::descriptors::DescriptorHeader;
     #[test]
     fn test_video_stream_descriptor_unmarshall_with_only_flag_to_false() {
-        let data = vec![0x02, 0x03, 0b1000_1101, 0x03, 0b0111_1111];
+        let data = [0x02, 0x03, 0b1000_1101, 0x03, 0b0111_1111];
         let header = DescriptorHeader {
             descriptor_tag: DescriptorTag::from(0x02),
             descriptor_length: 0x03,
@@ -112,7 +112,7 @@ mod tests {
 
     #[test]
     fn test_video_stream_descriptor_unmarshall_with_only_flag_to_true() {
-        let data = vec![0x02, 0x01, 0b1000_1010];
+        let data = [0x02, 0x01, 0b1000_1010];
         let header = DescriptorHeader {
             descriptor_tag: DescriptorTag::from(0x02),
             descriptor_length: 0x01,

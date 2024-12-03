@@ -246,7 +246,7 @@ mod tests {
         let field = AdaptationField::unmarshall(&buffer).unwrap();
 
         assert!(field.splicing_point_flag);
-        assert_eq!(field.splice_countdown.unwrap(), 0x42 as u8);
+        assert_eq!(field.splice_countdown.unwrap(), 0x42_u8);
     }
 
     #[test]

@@ -41,13 +41,13 @@ implement_descriptor! {
     ;
     custom_display: impl std::fmt::Display for MultiplexBufferUtilizationDescriptor {
         fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-            write!(f, "Multiplex Buffer Utilization Descriptor\n")?;
-            write!(f, "Bound Valid Flag: {:?}\n", self.bound_valid_flag)?;
+            writeln!(f, "Multiplex Buffer Utilization Descriptor")?;
+            writeln!(f, "Bound Valid Flag: {:?}", self.bound_valid_flag)?;
             if let Some(ltw_offset_lower_bound) = self.ltw_offset_lower_bound {
-                write!(f, "Ltw Offset Lower Bound: {:?}\n", ltw_offset_lower_bound)?;
+                writeln!(f, "Ltw Offset Lower Bound: {:?}", ltw_offset_lower_bound)?;
             }
             if let Some(ltw_offset_upper_bound) = self.ltw_offset_upper_bound {
-                write!(f, "Ltw Offset Upper Bound: {:?}\n", ltw_offset_upper_bound)?;
+                writeln!(f, "Ltw Offset Upper Bound: {:?}", ltw_offset_upper_bound)?;
             }
             write!(f, "")
         }
@@ -61,7 +61,7 @@ mod tests {
 
     #[test]
     fn test_unmarshall_maximum_buffer_utilization_descriptor() {
-        let bytes = vec![0x0c, 0x04, 0x80, 0xb4, 0x81, 0x68];
+        let bytes = [0x0c, 0x04, 0x80, 0xb4, 0x81, 0x68];
 
         let descriptor = MultiplexBufferUtilizationDescriptor::unmarshall(
             DescriptorHeader {
@@ -88,7 +88,7 @@ mod tests {
 
     #[test]
     fn test_unmarshall_maximum_buffer_utilization_descriptor_no_bound() {
-        let bytes = vec![0x0c, 0x04, 0x00, 0x00, 0x00, 0x00];
+        let bytes = [0x0c, 0x04, 0x00, 0x00, 0x00, 0x00];
 
         let descriptor = MultiplexBufferUtilizationDescriptor::unmarshall(
             DescriptorHeader {

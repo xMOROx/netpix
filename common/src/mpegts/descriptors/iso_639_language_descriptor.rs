@@ -96,9 +96,9 @@ impl From<u8> for AudioType {
 
 impl fmt::Display for Section {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(
+        writeln!(
             f,
-            "Language Code: {}, Audio Type: {}\n",
+            "Language Code: {}, Audio Type: {}",
             self.language_code, self.audio_type
         )
     }
@@ -155,7 +155,7 @@ mod tests {
 
     #[test]
     fn test_iso_639_language_descriptor_unmarshall_invalid_length() {
-        let data = vec![b'e', b'n', b'g', 0x01]; // Only one section
+        let data = [b'e', b'n', b'g', 0x01]; // Only one section
         let header = DescriptorHeader {
             descriptor_tag: DescriptorTag::from(0x0A),
             descriptor_length: (data.len() - 1) as u8, // Invalid length
