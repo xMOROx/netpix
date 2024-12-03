@@ -1,18 +1,13 @@
-use serde::{Deserialize, Serialize};
 use crate::mpegts::descriptors::{DescriptorHeader, ParsableDescriptor};
+use crate::utils::bits::BitReader;
+use serde::{Deserialize, Serialize};
 
-
-const HORIZONTAL_SIZE: u8 = 0b11111100;
-
-const VERTICAL_SIZE_UP: u8 = 0b11000000;
-
-const VERTICAL_SIZE_MIDDLE_1: u8 = 0b11111100;
-
-const VERTICAL_SIZE_MIDDLE_2: u8 = 0b00000011;
-
-const VERTICAL_SIZE_DOWN: u8 = 0b11110000;
-
-const ASPECT_RATIO_INFORMATION: u8 = 0b00001111;
+const HORIZONTAL_SIZE_MASK: u8 = 0b1111_1100;
+const VERTICAL_SIZE_UP_MASK: u8 = 0b1100_0000;
+const VERTICAL_SIZE_MIDDLE_1_MASK: u8 = 0b1111_1100;
+const VERTICAL_SIZE_MIDDLE_2_MASK: u8 = 0b0000_0011;
+const VERTICAL_SIZE_DOWN_MASK: u8 = 0b1111_0000;
+const ASPECT_RATIO_MASK: u8 = 0b0000_1111;
 
 #[derive(Serialize, Deserialize, Debug, Clone, Ord, PartialOrd, Eq)]
 pub struct TargetBackgroundGridDescriptor {
@@ -24,16 +19,20 @@ pub struct TargetBackgroundGridDescriptor {
 
 impl std::fmt::Display for TargetBackgroundGridDescriptor {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "Horizontal Size: {}, Vertical Size: {}, Aspect Ratio Information: {}", self.horizontal_size, self.vertical_size, self.aspect_ratio_information)
+        write!(
+            f,
+            "Horizontal Size: {}, Vertical Size: {}, Aspect Ratio Information: {}",
+            self.horizontal_size, self.vertical_size, self.aspect_ratio_information
+        )
     }
 }
 
 impl PartialEq for TargetBackgroundGridDescriptor {
     fn eq(&self, other: &Self) -> bool {
-        self.header == other.header &&
-            self.horizontal_size == other.horizontal_size &&
-            self.vertical_size == other.vertical_size &&
-            self.aspect_ratio_information == other.aspect_ratio_information
+        self.header == other.header
+            && self.horizontal_size == other.horizontal_size
+            && self.vertical_size == other.vertical_size
+            && self.aspect_ratio_information == other.aspect_ratio_information
     }
 }
 
@@ -51,11 +50,23 @@ impl ParsableDescriptor<TargetBackgroundGridDescriptor> for TargetBackgroundGrid
             return None;
         }
 
+        let reader = BitReader::new(data);
+
+        let horizontal_size = reader.get_bits_u16(0, 0xFF, HORIZONTAL_SIZE_MASK)? >> 2;
+
+        let vertical_up = ((data[1] & VERTICAL_SIZE_UP_MASK) as u16) << 6;
+        let vertical_middle = ((data[2] & VERTICAL_SIZE_MIDDLE_1_MASK) as u16) << 4;
+        let vertical_middle_2 = ((data[2] & VERTICAL_SIZE_MIDDLE_2_MASK) as u16) << 4;
+        let vertical_down = ((data[3] & VERTICAL_SIZE_DOWN_MASK) as u16) >> 4;
+        let vertical_size = vertical_up | vertical_middle | vertical_middle_2 | vertical_down;
+
+        let aspect_ratio_information = reader.get_bits(3, ASPECT_RATIO_MASK, 0)?;
+
         Some(TargetBackgroundGridDescriptor {
             header,
-            horizontal_size: u16::from_be_bytes([data[0], data[1] & HORIZONTAL_SIZE ]) >> 2,
-            vertical_size: ((data[1] & VERTICAL_SIZE_UP) as u16) << 6 | ((data[2] & VERTICAL_SIZE_MIDDLE_1) as u16) << 4 | ((data[2] & VERTICAL_SIZE_MIDDLE_2) as u16) << 4 | ((data[3] & VERTICAL_SIZE_DOWN) as u16) >> 4,
-            aspect_ratio_information: data[3] & ASPECT_RATIO_INFORMATION,
+            horizontal_size,
+            vertical_size,
+            aspect_ratio_information,
         })
     }
 }
@@ -63,8 +74,8 @@ impl ParsableDescriptor<TargetBackgroundGridDescriptor> for TargetBackgroundGrid
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::mpegts::descriptors::{DescriptorHeader, ParsableDescriptor};
     use crate::mpegts::descriptors::tags::DescriptorTag;
+    use crate::mpegts::descriptors::{DescriptorHeader, ParsableDescriptor};
 
     #[test]
     fn test_unmarshall() {
@@ -84,13 +95,13 @@ mod test {
     fn test_descriptor_tag() {
         let header = DescriptorHeader {
             descriptor_tag: DescriptorTag::TargetBackgroundGridDescriptorTag,
-            descriptor_length: 0x04
+            descriptor_length: 0x04,
         };
         let descriptor = TargetBackgroundGridDescriptor {
             header,
             horizontal_size: 0x1234,
             vertical_size: 0x5678,
-            aspect_ratio_information: 0x08
+            aspect_ratio_information: 0x08,
         };
         assert_eq!(descriptor.descriptor_tag(), 0x07);
     }
@@ -99,13 +110,13 @@ mod test {
     fn test_descriptor_length() {
         let header = DescriptorHeader {
             descriptor_tag: DescriptorTag::TargetBackgroundGridDescriptorTag,
-            descriptor_length: 0x04
+            descriptor_length: 0x04,
         };
         let descriptor = TargetBackgroundGridDescriptor {
             header,
             horizontal_size: 0x1234,
             vertical_size: 0x5678,
-            aspect_ratio_information: 0x08
+            aspect_ratio_information: 0x08,
         };
         assert_eq!(descriptor.descriptor_length(), 0x04);
     }

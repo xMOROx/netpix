@@ -1,14 +1,9 @@
-use serde::{Deserialize, Serialize};
 use crate::mpegts::descriptors::{DescriptorHeader, ParsableDescriptor};
+use crate::utils::bits::BitReader;
+use serde::{Deserialize, Serialize};
 
-
-const EXTERNAL_CLOCK_REFERENCE_INDICATOR: u8 = 0b1000_0000;
-
-
-const CLOCK_ACCURACY_INTEGER: u8 = 0b0011_1111;
-
-const CLOCK_ACCURACY_EXPONENT: u8 = 0b1110_0000;
-
+const CLOCK_ACCURACY_INTEGER_MASK: u8 = 0b0011_1111;
+const CLOCK_ACCURACY_EXPONENT_MASK: u8 = 0b1110_0000;
 
 #[derive(Serialize, Deserialize, Debug, Clone, Ord, PartialOrd, Eq)]
 pub struct SystemClockDescriptor {
@@ -38,21 +33,24 @@ impl ParsableDescriptor<SystemClockDescriptor> for SystemClockDescriptor {
         if data.len() != 2 {
             return None;
         }
+
+        let reader = BitReader::new(data);
+
         Some(SystemClockDescriptor {
             header,
-            external_clock_reference_indicator: data[0] & EXTERNAL_CLOCK_REFERENCE_INDICATOR == EXTERNAL_CLOCK_REFERENCE_INDICATOR,
-            clock_accuracy_integer: data[0] & CLOCK_ACCURACY_INTEGER,
-            clock_accuracy_exponent: data[1] & CLOCK_ACCURACY_EXPONENT >> 5,
+            external_clock_reference_indicator: reader.get_bit(0, 7)?,
+            clock_accuracy_integer: reader.get_bits(0, CLOCK_ACCURACY_INTEGER_MASK, 0)?,
+            clock_accuracy_exponent: reader.get_bits(1, CLOCK_ACCURACY_EXPONENT_MASK, 5)?,
         })
     }
 }
 
 impl PartialEq for SystemClockDescriptor {
     fn eq(&self, other: &Self) -> bool {
-        self.header == other.header &&
-            self.external_clock_reference_indicator == other.external_clock_reference_indicator &&
-            self.clock_accuracy_integer == other.clock_accuracy_integer &&
-            self.clock_accuracy_exponent == other.clock_accuracy_exponent
+        self.header == other.header
+            && self.external_clock_reference_indicator == other.external_clock_reference_indicator
+            && self.clock_accuracy_integer == other.clock_accuracy_integer
+            && self.clock_accuracy_exponent == other.clock_accuracy_exponent
     }
 }
 
@@ -74,6 +72,9 @@ mod test {
             clock_accuracy_integer: 0b1111,
             clock_accuracy_exponent: 0b111,
         };
-        assert_eq!(SystemClockDescriptor::unmarshall(header, &data), Some(system_clock_descriptor));
+        assert_eq!(
+            SystemClockDescriptor::unmarshall(header, &data),
+            Some(system_clock_descriptor)
+        );
     }
 }

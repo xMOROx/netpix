@@ -1,18 +1,13 @@
-use serde::{Deserialize, Serialize};
 use crate::mpegts::descriptors::{DescriptorHeader, ParsableDescriptor};
+use crate::utils::bits::BitReader;
+use serde::{Deserialize, Serialize};
 
-
-const HORIZONTAL_OFFSET: u8 = 0b11111100;
-
-const VERTICAL_OFFSET_UP: u8 = 0b11000000;
-
-const VERTICAL_OFFSET_MIDDLE_1: u8 = 0b11111100;
-
-const VERTICAL_OFFSET_MIDDLE_2: u8 = 0b00000011;
-
-const VERTICAL_OFFSET_DOWN: u8 = 0b11110000;
-
-const WINDOW_PRIORITY: u8 = 0b00001111;
+const HORIZONTAL_OFFSET_MASK: u8 = 0b1111_1100;
+const VERTICAL_OFFSET_UP_MASK: u8 = 0b1100_0000;
+const VERTICAL_OFFSET_MIDDLE_1_MASK: u8 = 0b1111_1100;
+const VERTICAL_OFFSET_MIDDLE_2_MASK: u8 = 0b0000_0011;
+const VERTICAL_OFFSET_DOWN_MASK: u8 = 0b1111_0000;
+const WINDOW_PRIORITY_MASK: u8 = 0b0000_1111;
 
 #[derive(Serialize, Deserialize, Debug, Clone, Ord, PartialOrd, Eq)]
 pub struct VideoWindowDescriptor {
@@ -24,16 +19,20 @@ pub struct VideoWindowDescriptor {
 
 impl std::fmt::Display for VideoWindowDescriptor {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "Horizontal Offset: {}, Vertical Offset: {}, Window Priority: {}", self.horizontal_offset, self.vertical_offset, self.window_priority)
+        write!(
+            f,
+            "Horizontal Offset: {}, Vertical Offset: {}, Window Priority: {}",
+            self.horizontal_offset, self.vertical_offset, self.window_priority
+        )
     }
 }
 
 impl PartialEq for VideoWindowDescriptor {
     fn eq(&self, other: &Self) -> bool {
-        self.header == other.header &&
-            self.horizontal_offset == other.horizontal_offset &&
-            self.vertical_offset == other.vertical_offset &&
-            self.window_priority == other.window_priority
+        self.header == other.header
+            && self.horizontal_offset == other.horizontal_offset
+            && self.vertical_offset == other.vertical_offset
+            && self.window_priority == other.window_priority
     }
 }
 
@@ -51,11 +50,23 @@ impl ParsableDescriptor<VideoWindowDescriptor> for VideoWindowDescriptor {
             return None;
         }
 
+        let reader = BitReader::new(data);
+
+        let horizontal_offset = reader.get_bits_u16(0, 0xFF, HORIZONTAL_OFFSET_MASK)? >> 2;
+
+        let vertical_up = ((data[1] & VERTICAL_OFFSET_UP_MASK) as u16) << 6;
+        let vertical_middle = ((data[2] & VERTICAL_OFFSET_MIDDLE_1_MASK) as u16) << 4;
+        let vertical_middle_2 = ((data[2] & VERTICAL_OFFSET_MIDDLE_2_MASK) as u16) << 4;
+        let vertical_down = ((data[3] & VERTICAL_OFFSET_DOWN_MASK) as u16) >> 4;
+        let vertical_offset = vertical_up | vertical_middle | vertical_middle_2 | vertical_down;
+
+        let window_priority = reader.get_bits(3, WINDOW_PRIORITY_MASK, 0)?;
+
         Some(VideoWindowDescriptor {
             header,
-            horizontal_offset: u16::from_be_bytes([data[0], data[1] & HORIZONTAL_OFFSET ]) >> 2,
-            vertical_offset: ((data[1] & VERTICAL_OFFSET_UP) as u16) << 6 | ((data[2] & VERTICAL_OFFSET_MIDDLE_1) as u16) << 4 | ((data[2] & VERTICAL_OFFSET_MIDDLE_2) as u16) << 4 | ((data[3] & VERTICAL_OFFSET_DOWN) as u16) >> 4,
-            window_priority: data[3] & WINDOW_PRIORITY,
+            horizontal_offset,
+            vertical_offset,
+            window_priority,
         })
     }
 }
@@ -63,8 +74,8 @@ impl ParsableDescriptor<VideoWindowDescriptor> for VideoWindowDescriptor {
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::mpegts::descriptors::{DescriptorHeader, ParsableDescriptor};
     use crate::mpegts::descriptors::tags::DescriptorTag;
+    use crate::mpegts::descriptors::{DescriptorHeader, ParsableDescriptor};
 
     #[test]
     fn test_video_window_descriptor() {
