@@ -17,7 +17,7 @@ pub enum RtpSection {
 pub enum MpegTsSection {
     MpegTsPackets,
     MpegTsStreams,
-    MpegTsInformations,
+    MpegTsInformation,
     MpegTsPlot,
 }
 
@@ -31,7 +31,7 @@ impl Tab {
             Self::RtpSection(RtpSection::RtpPlot),
             Self::MpegTsSection(MpegTsSection::MpegTsPackets),
             Self::MpegTsSection(MpegTsSection::MpegTsStreams),
-            Self::MpegTsSection(MpegTsSection::MpegTsInformations),
+            Self::MpegTsSection(MpegTsSection::MpegTsInformation),
             Self::MpegTsSection(MpegTsSection::MpegTsPlot),
         ]
     }
@@ -56,7 +56,7 @@ impl fmt::Display for Tab {
             Self::MpegTsSection(section) => match section {
                 MpegTsSection::MpegTsPackets => "📺 MPEG-TS Packets",
                 MpegTsSection::MpegTsStreams => "🎥 MPEG-TS Streams",
-                MpegTsSection::MpegTsInformations => "ℹ️ MPEG-TS Info",
+                MpegTsSection::MpegTsInformation => "ℹ️ MPEG-TS Info",
                 MpegTsSection::MpegTsPlot => "📊 MPEG-TS Plot",
             },
         };

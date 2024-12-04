@@ -46,12 +46,12 @@ struct StreamText {
 enum SettingsXAxis {
     RtpTimestamp,
     RawTimestamp,
-    SequenceNumer,
+    SequenceNumber,
 }
 
 impl SettingsXAxis {
     fn all() -> Vec<Self> {
-        vec![RtpTimestamp, RawTimestamp, SequenceNumer]
+        vec![RtpTimestamp, RawTimestamp, SequenceNumber]
     }
 }
 
@@ -60,7 +60,7 @@ impl Display for SettingsXAxis {
         let name = match self {
             RtpTimestamp => "RTP timestamp",
             RawTimestamp => "Seconds from start",
-            SequenceNumer => "Sequence number",
+            SequenceNumber => "Sequence number",
         };
 
         write!(f, "{}", name)
@@ -179,7 +179,7 @@ impl RtpStreamsPlot {
         let (x_min_text, x_max_text) = match self.x_axis {
             RtpTimestamp => ("First RTP timestamp", "Length"),
             RawTimestamp => ("First second", "Length"),
-            SequenceNumer => ("First sequence number", "Length"),
+            SequenceNumber => ("First sequence number", "Length"),
         };
 
         let max = (self.slider_max as f64 * 1.13) as i64;
@@ -276,7 +276,7 @@ impl RtpStreamsPlot {
     }
 
     fn draw_points(&mut self, plot_ui: &mut PlotUi) {
-        let mut heighest_y = 0.0;
+        let mut highest_y = 0.0;
         for point_data in &self.points_data {
             let PointData {
                 x,
@@ -288,8 +288,8 @@ impl RtpStreamsPlot {
                 is_rtcp,
                 marker_shape,
             } = point_data;
-            if *y_top > heighest_y {
-                heighest_y = *y_top;
+            if *y_top > highest_y {
+                highest_y = *y_top;
             }
 
             let point = Points::new([*x, *y_top])
@@ -337,7 +337,7 @@ impl RtpStreamsPlot {
                 [(self.slider_start as f64) - 0.05, -0.5],
                 [
                     (self.slider_start + self.slider_length) as f64,
-                    heighest_y * 1.55,
+                    highest_y * 1.55,
                 ],
             ));
             self.set_plot_bounds = false
@@ -374,7 +374,7 @@ impl RtpStreamsPlot {
                     RawTimestamp => {
                         rtp_packet.time.as_secs_f64() - first_packet.timestamp.as_secs_f64()
                     }
-                    SequenceNumer => {
+                    SequenceNumber => {
                         rtp_packet.packet.sequence_number as f64
                             - first_rtp_packet.sequence_number as f64
                     }
@@ -411,7 +411,7 @@ impl RtpStreamsPlot {
                 let this_stream_y_baseline = match self.x_axis {
                     RtpTimestamp => previous_stream_max_y + biggest_margin,
                     RawTimestamp => previous_stream_max_y + 20.0,
-                    SequenceNumer => previous_stream_max_y + 20.0,
+                    SequenceNumber => previous_stream_max_y + 20.0,
                 };
                 self.stream_texts.push(StreamText {
                     x: 0.0,
@@ -614,7 +614,7 @@ fn build_stream_points(
                             *slider_max = x;
                         }
                     }
-                    SequenceNumer => {}
+                    SequenceNumber => {}
                 }
             }
         }
@@ -729,7 +729,7 @@ fn get_x_and_y(
             this_stream_y_baseline,
             this_stream_y_baseline + height,
         ),
-        SequenceNumer => (
+        SequenceNumber => (
             (rtp.packet.sequence_number - first_rtp_packet.sequence_number) as f64,
             this_stream_y_baseline,
             this_stream_y_baseline + height,
@@ -793,7 +793,7 @@ fn build_on_hover_text(
     let str = match settings_x_axis {
         RtpTimestamp => format!("x = {} [RTP timestamp]\n", x),
         RawTimestamp => format!("x = {:.5} [s]\n", x),
-        SequenceNumer => format!("x = {} [Sequence number]\n", x),
+        SequenceNumber => format!("x = {} [Sequence number]\n", x),
     };
     on_hover.push_str(&str);
     on_hover

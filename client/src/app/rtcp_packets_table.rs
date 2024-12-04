@@ -121,7 +121,7 @@ fn get_row_height(packet: &RtcpPacket) -> f32 {
                 .iter()
                 .map(|chunk| chunk.items.len() + 1)
                 .max()
-                // AFAIR, 0 chunk SDES packet is possible, although useless
+                // AFFAIR, 0 chunk SDES packet is possible, although useless
                 .unwrap_or(1) as f32
         }
         RtcpPacket::ReceiverReport(rr) => match rr.reports.len() {

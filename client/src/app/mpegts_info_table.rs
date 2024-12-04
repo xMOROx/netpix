@@ -5,13 +5,13 @@ use egui_extras::{Column, TableBody, TableBuilder};
 use ewebsock::WsSender;
 use netpix_common::MpegtsStreamKey;
 
-pub struct MpegTsInformationsTable {
+pub struct MpegTsInformationTable {
     streams: RefStreams,
     ws_sender: WsSender,
     streams_visibility: HashMap<MpegtsStreamKey, bool>,
 }
 
-impl MpegTsInformationsTable {
+impl MpegTsInformationTable {
     pub fn new(streams: RefStreams, ws_sender: WsSender) -> Self {
         Self {
             streams,
