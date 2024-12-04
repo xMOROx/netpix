@@ -8,7 +8,7 @@ pub struct List {}
 impl List {
     pub async fn run(self) {
         Device::list()
-            .expect("Error occured while listing devices")
+            .expect("Error occurred while listing devices")
             .iter()
             .filter(|device| {
                 (device.flags.if_flags.contains(IfFlags::UP) && !device.addresses.is_empty())

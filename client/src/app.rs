@@ -11,7 +11,7 @@ use rtcp_packets_table::RtcpPacketsTable;
 use rtp_packets_table::RtpPacketsTable;
 use rtp_streams_table::RtpStreamsTable;
 
-use mpegts_info_table::MpegTsInformationsTable;
+use mpegts_info_table::MpegTsInformationTable;
 use mpegts_packets_table::MpegTsPacketsTable;
 use mpegts_stream_plot::MpegTsStreamPlot;
 use mpegts_streams_table::MpegTsStreamsTable;
@@ -58,7 +58,7 @@ pub struct App {
 
     mpegts_packets_table: MpegTsPacketsTable,
     mpegts_streams_table: MpegTsStreamsTable,
-    mpegts_info_table: MpegTsInformationsTable,
+    mpegts_info_table: MpegTsInformationTable,
     mpegts_plot: MpegTsStreamPlot,
 }
 
@@ -83,7 +83,7 @@ impl eframe::App for App {
             Tab::MpegTsSection(section) => match section {
                 MpegTsSection::MpegTsPackets => self.mpegts_packets_table.ui(ctx),
                 MpegTsSection::MpegTsStreams => self.mpegts_streams_table.ui(ctx),
-                MpegTsSection::MpegTsInformations => self.mpegts_info_table.ui(ctx),
+                MpegTsSection::MpegTsInformation => self.mpegts_info_table.ui(ctx),
                 MpegTsSection::MpegTsPlot => self.mpegts_plot.ui(ctx),
             },
         };
@@ -110,7 +110,7 @@ impl App {
 
         let mpegts_packets_table = MpegTsPacketsTable::new(streams.clone());
         let mpegts_streams_table = MpegTsStreamsTable::new(streams.clone());
-        let mpegts_info_table = MpegTsInformationsTable::new(streams.clone(), ws_sender.clone());
+        let mpegts_info_table = MpegTsInformationTable::new(streams.clone(), ws_sender.clone());
         let mpegts_plot = MpegTsStreamPlot::new(streams.clone());
 
         let (tab, selected_source) = get_initial_state(cc);
@@ -206,7 +206,7 @@ impl App {
             Tab::MpegTsSection(section) => match section {
                 MpegTsSection::MpegTsPackets => "📺 MPEG-TS Packets",
                 MpegTsSection::MpegTsStreams => "🎥 MPEG-TS Streams",
-                MpegTsSection::MpegTsInformations => "ℹ️ MPEG-TS Info",
+                MpegTsSection::MpegTsInformation => "ℹ️ MPEG-TS Info",
                 MpegTsSection::MpegTsPlot => "📊 MPEG-TS Plot",
             },
         };

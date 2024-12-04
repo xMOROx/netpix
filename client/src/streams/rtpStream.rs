@@ -172,7 +172,7 @@ impl RtpStream {
                     // revisit_packets = true;
                 }
                 // self.ntp_rtp = Some((sr.ntp_time, sr.rtp_time));
-                // TODO: use the estiamted clock rate to set ntp time in rtp_info
+                // TODO: use the estimated clock rate to set ntp time in rtp_info
                 // TODO: sometimes ntp timestamps are bs
             }
             _ => {}
