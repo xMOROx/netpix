@@ -73,7 +73,7 @@ impl PsiBuffer<ProgramAssociationTable, FragmentaryProgramAssociationTable> for 
         }
 
         self.pat_fragments.first().and_then(|first| {
-            ProgramAssociationTable::build(first.transport_stream_id, &self.accumulate_payload())
+            ProgramAssociationTable::build(first.transport_stream_id, &self.accumulate_payload(), self.pat_fragments.len())
         })
     }
 

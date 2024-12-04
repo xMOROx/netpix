@@ -24,7 +24,6 @@ struct MpegTsInfoRow {
     time: Duration,
     info: MpegTsInfo,
     duplicates: usize,
-    counter: usize,
 }
 
 #[derive(Hash, Eq, PartialEq, Ord)]
@@ -120,7 +119,7 @@ impl MpegTsInformationTable {
     fn build_table_body(&mut self, body: TableBody) {
         let streams = &self.streams.borrow();
         let mut mpegts_rows: BTreeMap<RowKey, MpegTsInfoRow> = BTreeMap::default();
-        streams.mpeg_ts_streams.iter().for_each(|(key, stream)| {
+        streams.mpeg_ts_streams.iter().for_each(|(_key, stream)| {
             let aggregator = &stream.aggregator;
             stream.stream_info.packets.iter().for_each(|packet| {
                 packet.content.fragments.iter().for_each(|fragment| {
@@ -139,7 +138,6 @@ impl MpegTsInformationTable {
                                     MpegTsInfoRow {
                                         info,
                                         duplicates: 0,
-                                        counter: aggregator.pat_buffer.get_fragments().len(),
                                         source_addr: packet.packet_association_table.source_addr,
                                         destination_addr: packet.packet_association_table.destination_addr,
                                         time: packet.time,
@@ -163,7 +161,6 @@ impl MpegTsInformationTable {
                                     MpegTsInfoRow {
                                         info,
                                         duplicates: 0,
-                                        counter: aggregator.pmt_buffers.get(&pid).unwrap().get_fragments().len(),
                                         source_addr: packet.packet_association_table.source_addr,
                                         destination_addr: packet.packet_association_table.destination_addr,
                                         time: packet.time,
@@ -196,7 +193,11 @@ impl MpegTsInformationTable {
                 ui.label(&mpegts_row.duplicates.to_string());
             });
             row.col(|ui| {
-                ui.label(&mpegts_row.counter.to_string());
+                if let Some(pat) = &mpegts_info.pat {
+                    ui.label(pat.fragment_count.to_string());
+                } else if let Some(pmt) = &mpegts_info.pmt {
+                    ui.label(pmt.fragment_count.to_string());
+                }
             });
             row.col(|ui| {
                 if let Some(pat) = &mpegts_info.pat {
