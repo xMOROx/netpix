@@ -13,14 +13,14 @@ include = ["/src/", "/dist/"]
 
 [dependencies]
 netpix_common = { path = "./common", version = "0.2" }
-log = "0.4"
-pretty_env_logger = "0.4"
-tokio = { version = "1", features = [ "full" ] }
+log = "0.4.22"
+pretty_env_logger = "0.5"
+tokio = { version = "1", features = ["full"] }
 tokio-stream = "0.1"
 warp = "0.3"
 futures-util = "0.3"
-pcap = { version = "1.0.0", features = ["capture-stream"]}
-etherparse = "0.13.0"
+pcap = { version = "2.2.0", features = ["capture-stream"] }
+etherparse = "0.16.0"
 clap = { version = "4", features = ["derive"] }
 rust-embed = "8.0.0"
 mime_guess = "2.0.4"

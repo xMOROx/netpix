@@ -1,5 +1,10 @@
 #![allow(dead_code)]
 #![allow(unused_imports)]
+
+use eframe::wasm_bindgen::JsCast;
+use eframe::web_sys;
+use egui::TextBuffer;
+
 #[cfg(target_arch = "wasm32")]
 mod app;
 mod streams;
@@ -15,14 +20,41 @@ fn main() {
     let web_options = eframe::WebOptions::default();
 
     wasm_bindgen_futures::spawn_local(async {
-        eframe::WebRunner::new()
+        let document = web_sys::window()
+            .expect("No window")
+            .document()
+            .expect("No document");
+
+        let canvas = document
+            .get_element_by_id(CANVAS_ID)
+            .expect(format!("Failed to find {}", CANVAS_ID).as_str())
+            .dyn_into::<web_sys::HtmlCanvasElement>()
+            .expect(format!("{} , was not a HtmlCanvasElement", CANVAS_ID).as_str());
+        canvas.set_height(document.body().unwrap().client_height() as u32);
+        canvas.set_width(document.body().unwrap().client_width() as u32);
+
+        let start_result = eframe::WebRunner::new()
             .start(
-                CANVAS_ID,
+                canvas,
                 web_options,
-                Box::new(|cc| Box::new(app::App::new(cc))),
+                Box::new(|cc| Ok(Box::new(app::App::new(cc)))),
             )
-            .await
-            .expect("Error: failed to start eframe");
+            .await;
+
+        // Remove the loading text and spinner:
+        if let Some(loading_text) = document.get_element_by_id("loading_text") {
+            match start_result {
+                Ok(_) => {
+                    loading_text.remove();
+                }
+                Err(e) => {
+                    loading_text.set_inner_html(
+                        "<p> The app has crashed. See the developer console for details. </p>",
+                    );
+                    panic!("Failed to start eframe: {e:?}");
+                }
+            }
+        }
     });
 }
 

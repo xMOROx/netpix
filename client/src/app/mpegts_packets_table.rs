@@ -262,7 +262,8 @@ impl MpegTsPacketsTable {
         body.rows(
             self.config.row_height,
             filtered_packets.len(),
-            |row_ix, mut row| {
+            |mut row| {
+                let row_ix = row.index();
                 let info = &filtered_packets[row_ix];
 
                 row.col(|ui| {

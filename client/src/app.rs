@@ -1,15 +1,14 @@
-use std::collections::HashMap;
-
 use eframe::egui;
-use egui::{ComboBox, Ui};
+use egui::{ComboBox, TextWrapMode, Ui};
 use ewebsock::{WsEvent, WsMessage, WsReceiver, WsSender};
 use log::{error, warn};
 use netpix_common::{MpegtsStreamKey, Request, Response, RtpStreamKey, Source};
-
 use packets_table::PacketsTable;
 use rtcp_packets_table::RtcpPacketsTable;
 use rtp_packets_table::RtpPacketsTable;
 use rtp_streams_table::RtpStreamsTable;
+use std::collections::HashMap;
+use std::sync::Arc;
 
 use mpegts_info_table::MpegTsInformationsTable;
 use mpegts_packets_table::MpegTsPacketsTable;
@@ -189,7 +188,7 @@ impl App {
                 ui.with_layout(egui::Layout::bottom_up(egui::Align::Center), |ui| {
                     ui.add_space(8.0);
 
-                    egui::widgets::global_dark_light_mode_switch(ui);
+                    egui::widgets::global_theme_preference_switch(ui);
                 });
             });
     }
@@ -215,9 +214,9 @@ impl App {
             egui::menu::bar(ui, |ui| {
                 self.build_dropdown_source(ui, frame);
                 ui.separator();
-                ComboBox::from_id_source("tab_picker")
+                ComboBox::from_id_salt("tab_picker")
                     .width(300.0)
-                    .wrap(false)
+                    .wrap_mode(TextWrapMode::Extend)
                     .selected_text(selected)
                     .show_ui(ui, |ui| {
                         let mut was_changed = false;
@@ -244,9 +243,9 @@ impl App {
             None => "Select packets source...".to_string(),
         };
 
-        ComboBox::from_id_source("source_picker")
+        ComboBox::from_id_salt("source_picker")
             .width(300.0)
-            .wrap(false)
+            .wrap_mode(TextWrapMode::Extend)
             .selected_text(selected)
             .show_ui(ui, |ui| {
                 let mut was_changed = false;
