@@ -130,7 +130,7 @@ fn test_get_header() {
     ));
     assert_eq!(header.continuity_counter, 0);
 }
-
+#[allow(clippy::needless_range_loop)]
 #[test]
 fn test_get_payload() {
     let mut buffer = vec![0; FRAGMENT_SIZE];
