@@ -2,8 +2,7 @@ name: Clippy Check
 
 on:
   pull_request:
-    branches:
-      - '**'
+    types: [ opened, synchronize ]
 
 permissions: write-all
 
