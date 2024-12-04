@@ -4,7 +4,7 @@ use eframe::egui;
 use egui::{ComboBox, Ui};
 use ewebsock::{WsEvent, WsMessage, WsReceiver, WsSender};
 use log::{error, warn};
-use netpix_common::{Request, Response, Source, RtpStreamKey, MpegtsStreamKey};
+use netpix_common::{MpegtsStreamKey, Request, Response, RtpStreamKey, Source};
 
 use packets_table::PacketsTable;
 use rtcp_packets_table::RtcpPacketsTable;
@@ -83,7 +83,7 @@ impl eframe::App for App {
             Tab::MpegTsSection(section) => match section {
                 MpegTsSection::MpegTsPackets => self.mpegts_packets_table.ui(ctx),
                 MpegTsSection::MpegTsStreams => self.mpegts_streams_table.ui(ctx),
-                MpegTsSection::MpegTsInformations => self.mpegts_info_table.ui(ctx),
+                MpegTsSection::MpegTsInformation => self.mpegts_info_table.ui(ctx),
                 MpegTsSection::MpegTsPlot => self.mpegts_plot.ui(ctx),
             },
         };
@@ -206,7 +206,7 @@ impl App {
             Tab::MpegTsSection(section) => match section {
                 MpegTsSection::MpegTsPackets => "📺 MPEG-TS Packets",
                 MpegTsSection::MpegTsStreams => "🎥 MPEG-TS Streams",
-                MpegTsSection::MpegTsInformations => "ℹ️ MPEG-TS Info",
+                MpegTsSection::MpegTsInformation => "ℹ️ MPEG-TS Info",
                 MpegTsSection::MpegTsPlot => "📊 MPEG-TS Plot",
             },
         };

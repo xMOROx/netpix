@@ -29,15 +29,6 @@ struct RowKey {
     alias: String,
 }
 
-// impl Ord for RowKey {
-//     fn cmp(&self, other: &Self) -> Ordering {
-//         if !self.alias.eq(&other.alias) {
-//             return self.alias.cmp(&other.alias);
-//         }
-//         self.pid.cmp(&other.pid)
-//     }
-// }
-
 impl PartialOrd for RowKey {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
         if !self.alias.eq(&other.alias) {
