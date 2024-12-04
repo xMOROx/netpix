@@ -138,7 +138,7 @@ impl MpegTsStreamPlot {
 
 fn get_highest_y(
     _streams: &Ref<Streams>,
-    _points_x_and_y_top: &mut Vec<(f64, f64)>,
+    _points_x_and_y_top: &mut [(f64, f64)],
     _settings_x_axis: SettingsXAxis,
     _this_stream_y_baseline: f64,
 ) -> f64 {

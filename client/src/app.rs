@@ -75,16 +75,16 @@ impl eframe::App for App {
         match self.tab {
             Tab::Packets => self.packets_table.ui(ctx),
             Tab::RtpSection(section) => match section {
-                RtpSection::RtpPackets => self.rtp_packets_table.ui(ctx),
+                RtpSection::Packets => self.rtp_packets_table.ui(ctx),
                 RtpSection::RtcpPackets => self.rtcp_packets_table.ui(ctx),
-                RtpSection::RtpStreams => self.rtp_streams_table.ui(ctx),
-                RtpSection::RtpPlot => self.rtp_streams_plot.ui(ctx),
+                RtpSection::Streams => self.rtp_streams_table.ui(ctx),
+                RtpSection::Plot => self.rtp_streams_plot.ui(ctx),
             },
             Tab::MpegTsSection(section) => match section {
-                MpegTsSection::MpegTsPackets => self.mpegts_packets_table.ui(ctx),
-                MpegTsSection::MpegTsStreams => self.mpegts_streams_table.ui(ctx),
-                MpegTsSection::MpegTsInformation => self.mpegts_info_table.ui(ctx),
-                MpegTsSection::MpegTsPlot => self.mpegts_plot.ui(ctx),
+                MpegTsSection::Packets => self.mpegts_packets_table.ui(ctx),
+                MpegTsSection::Streams => self.mpegts_streams_table.ui(ctx),
+                MpegTsSection::Information => self.mpegts_info_table.ui(ctx),
+                MpegTsSection::Plot => self.mpegts_plot.ui(ctx),
             },
         };
     }
@@ -198,16 +198,16 @@ impl App {
         let selected = match self.tab {
             Tab::Packets => "📦 All Packets",
             Tab::RtpSection(section) => match section {
-                RtpSection::RtpPackets => "🔈RTP Packets",
+                RtpSection::Packets => "🔈RTP Packets",
                 RtpSection::RtcpPackets => "📃 RTCP Packets",
-                RtpSection::RtpStreams => "🔴 RTP Streams",
-                RtpSection::RtpPlot => "📈 RTP Plot",
+                RtpSection::Streams => "🔴 RTP Streams",
+                RtpSection::Plot => "📈 RTP Plot",
             },
             Tab::MpegTsSection(section) => match section {
-                MpegTsSection::MpegTsPackets => "📺 MPEG-TS Packets",
-                MpegTsSection::MpegTsStreams => "🎥 MPEG-TS Streams",
-                MpegTsSection::MpegTsInformation => "ℹ️ MPEG-TS Info",
-                MpegTsSection::MpegTsPlot => "📊 MPEG-TS Plot",
+                MpegTsSection::Packets => "📺 MPEG-TS Packets",
+                MpegTsSection::Streams => "🎥 MPEG-TS Streams",
+                MpegTsSection::Information => "ℹ️ MPEG-TS Info",
+                MpegTsSection::Plot => "📊 MPEG-TS Plot",
             },
         };
 

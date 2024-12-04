@@ -52,10 +52,10 @@
 //! - `pid:256 AND (type:ES OR type:PCR+ES)` - ES or PCR+ES packets with PID 256
 //! - `alias:A AND payload:>=188` - Packets from stream aliased as "A" with full payloads
 
+use crate::streams::mpegts_stream::packet_info::MpegTsPacketInfo;
 use netpix_common::mpegts::header::{AdaptationFieldControl, PIDTable};
 use std::collections::VecDeque;
 use std::str::FromStr;
-use crate::streams::mpegts_stream::packet_info::MpegTsPacketInfo;
 
 pub trait PacketFilter {
     fn matches(&self, info: &FilterContext) -> bool;
@@ -75,8 +75,8 @@ pub enum FilterType {
     Destination(String),
     Alias(String),
     Payload(PayloadFilter),
-    PacketPID(usize, String),
-    PID(u16),
+    PacketPid(usize, String),
+    Pid(u16),
     Type(PacketType),
     And(Box<FilterType>, Box<FilterType>),
     Or(Box<FilterType>, Box<FilterType>),
@@ -84,11 +84,11 @@ pub enum FilterType {
 }
 
 pub enum PacketType {
-    PAT,
-    PMT,
-    PCRES,
-    ES,
-    PCR,
+    Pat,
+    Pmt,
+    PcrEs,
+    Es,
+    Pcr,
 }
 
 pub enum PayloadFilter {
@@ -104,11 +104,11 @@ impl FromStr for PacketType {
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s.to_uppercase().as_str() {
-            "PAT" => Ok(PacketType::PAT),
-            "PMT" => Ok(PacketType::PMT),
-            "PCR+ES" => Ok(PacketType::PCRES),
-            "ES" => Ok(PacketType::ES),
-            "PCR" => Ok(PacketType::PCR),
+            "PAT" => Ok(PacketType::Pat),
+            "PMT" => Ok(PacketType::Pmt),
+            "PCR+ES" => Ok(PacketType::PcrEs),
+            "ES" => Ok(PacketType::Es),
+            "PCR" => Ok(PacketType::Pcr),
             _ => Err(()),
         }
     }
@@ -144,10 +144,10 @@ impl PacketFilter for FilterType {
                     PayloadFilter::GreaterOrEqualThan(size) => payload_size >= *size,
                     PayloadFilter::LessThan(size) => payload_size < *size,
                     PayloadFilter::LessOrEqualThan(size) => payload_size <= *size,
-                    PayloadFilter::Equals(value) => payload_size.to_string().contains(value),
+                    PayloadFilter::Equals(value) => payload_size.to_string() == *value,
                 }
             }
-            FilterType::PacketPID(index, value) => ctx
+            FilterType::PacketPid(index, value) => ctx
                 .packet
                 .content
                 .fragments
@@ -162,7 +162,7 @@ impl PacketFilter for FilterType {
                         .contains(value),
                 })
                 .unwrap_or(false),
-            FilterType::PID(pid_value) => ctx.packet.content.fragments.iter().any(
+            FilterType::Pid(pid_value) => ctx.packet.content.fragments.iter().any(
                 |fragment| matches!(fragment.header.pid, PIDTable::PID(pid) if pid == *pid_value),
             ),
             FilterType::Type(packet_type) => match_packet_type(ctx, packet_type),
@@ -191,10 +191,10 @@ struct Lexer {
 impl Lexer {
     fn new(input: &str) -> Self {
         let mut tokens = VecDeque::new();
-        let mut chars = input.chars().peekable();
+        let chars = input.chars().peekable();
         let mut current = String::new();
 
-        while let Some(c) = chars.next() {
+        for c in chars {
             match c {
                 '(' => {
                     Self::push_if_not_empty(&mut tokens, &mut current);
@@ -318,35 +318,31 @@ fn parse_filter_with_value(prefix: &str, value: &str) -> Option<FilterType> {
         "payload" => parse_payload_filter(value),
         p if p.starts_with('p') && p.len() == 2 => {
             let packet_index = p[1..].parse::<usize>().ok()?.saturating_sub(1);
-            Some(FilterType::PacketPID(packet_index, value.to_string()))
+            Some(FilterType::PacketPid(packet_index, value.to_string()))
         }
-        "pid" => value.parse().ok().map(FilterType::PID),
+        "pid" => value.parse().ok().map(FilterType::Pid),
         "type" => PacketType::from_str(value).ok().map(FilterType::Type),
         _ => None,
     }
 }
 
 fn parse_payload_filter(value: &str) -> Option<FilterType> {
-    if value.starts_with('>') {
-        value[1..]
-            .trim()
-            .parse()
-            .ok()
-            .map(PayloadFilter::GreaterThan)
-    } else if value.starts_with(">=") {
-        value[2..]
+    if let Some(stripped) = value.strip_prefix('>') {
+        stripped.trim().parse().ok().map(PayloadFilter::GreaterThan)
+    } else if let Some(stripped) = value.strip_prefix(">=") {
+        stripped
             .trim()
             .parse()
             .ok()
             .map(PayloadFilter::GreaterOrEqualThan)
-    } else if value.starts_with("<=") {
-        value[2..]
+    } else if let Some(stripped) = value.strip_prefix("<=") {
+        stripped
             .trim()
             .parse()
             .ok()
             .map(PayloadFilter::LessOrEqualThan)
-    } else if value.starts_with('<') {
-        value[1..].trim().parse().ok().map(PayloadFilter::LessThan)
+    } else if let Some(stripped) = value.strip_prefix('<') {
+        stripped.trim().parse().ok().map(PayloadFilter::LessThan)
     } else {
         Some(PayloadFilter::Equals(value.to_string()))
     }
@@ -372,19 +368,19 @@ fn match_packet_type(ctx: &FilterContext, packet_type: &PacketType) -> bool {
         .fragments
         .iter()
         .any(|fragment| match (packet_type, &fragment.header.pid) {
-            (PacketType::PAT, PIDTable::ProgramAssociation) => true,
+            (PacketType::Pat, PIDTable::ProgramAssociation) => true,
             (_, PIDTable::PID(pid)) => {
                 let is_pmt = ctx.pmt_pids.contains(&PIDTable::PID(*pid));
                 let is_es = ctx.es_pids.contains(&PIDTable::PID(*pid));
                 let is_pcr = ctx.pcr_pids.contains(&PIDTable::PID(*pid));
 
-                match (packet_type, is_pmt, is_es, is_pcr) {
-                    (PacketType::PMT, true, _, _) => true,
-                    (PacketType::PCRES, _, true, true) => true,
-                    (PacketType::ES, _, true, false) => true,
-                    (PacketType::PCR, _, false, true) => true,
-                    _ => false,
-                }
+                matches!(
+                    (packet_type, is_pmt, is_es, is_pcr),
+                    (PacketType::Pmt, true, _, _)
+                        | (PacketType::PcrEs, _, true, true)
+                        | (PacketType::Es, _, true, false)
+                        | (PacketType::Pcr, _, false, true)
+                )
             }
             _ => false,
         })

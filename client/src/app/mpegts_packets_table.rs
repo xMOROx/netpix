@@ -317,8 +317,7 @@ impl MpegTsPacketsTable {
                             }
                         }
                         PIDTable::IPMPControlInformation => String::from("IPMPControlInformation"),
-                    })
-                    .into_iter();
+                    });
 
                 let fragments: Vec<_> = info.packet.content.fragments.iter().collect();
 

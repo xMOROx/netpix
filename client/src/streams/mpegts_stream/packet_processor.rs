@@ -1,5 +1,7 @@
 use crate::streams::mpegts_stream::packet_info::{MpegTsPacketInfo, MpegTsStreamInfo};
-use crate::streams::mpegts_stream::substream::{MpegtsSubStream, MpegtsSubStreams, SubStreamParameters, SubstreamMpegTsPacketInfo};
+use crate::streams::mpegts_stream::substream::{
+    MpegtsSubStream, MpegtsSubStreams, SubStreamParameters, SubstreamMpegTsPacketInfo,
+};
 use netpix_common::mpegts::aggregator::MpegtsAggregator;
 use netpix_common::mpegts::header::PIDTable;
 use netpix_common::mpegts::psi::pat::fragmentary_pat::FragmentaryProgramAssociationTable;
@@ -37,7 +39,7 @@ impl MpegtsPacketProcessor {
 
     pub fn determine_type(&mut self, packet: &Packet, stream_info: &mut MpegTsStreamInfo) {
         if let SessionPacket::Mpegts(mpegts) = &packet.contents {
-            if let Some(pat) = self.process_pat(&mpegts) {
+            if let Some(pat) = self.process_pat(mpegts) {
                 stream_info.pat = Some(pat.clone());
                 self.process_pmt(mpegts, &pat, stream_info);
             }
@@ -114,7 +116,7 @@ impl MpegtsPacketProcessor {
     fn process_pmt_fragment(&mut self, fragment: &MpegtsFragment, pat: &ProgramAssociationTable) {
         for program in &pat.programs {
             if let Some(program_map_pid) = program.program_map_pid {
-                if program_map_pid == fragment.header.pid.into() {
+                if Into::<u16>::into(fragment.header.pid) == program_map_pid {
                     if let Some(payload) = &fragment.payload {
                         if let Some(pmt_fragment) = FragmentaryProgramMapTable::unmarshall(
                             &payload.data,
@@ -204,7 +206,7 @@ impl MpegtsPacketProcessor {
                 es_info.stream_type,
             );
 
-            let substream = substreams.entry(key.clone()).or_insert_with(|| {
+            let substream = substreams.entry(key).or_insert_with(|| {
                 MpegtsSubStream::new(SubStreamParameters {
                     alias: context.alias.to_string(),
                     key,

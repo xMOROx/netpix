@@ -8,31 +8,31 @@ pub enum Tab {
 }
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum RtpSection {
-    RtpPackets,
+    Packets,
     RtcpPackets,
-    RtpStreams,
-    RtpPlot,
+    Streams,
+    Plot,
 }
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum MpegTsSection {
-    MpegTsPackets,
-    MpegTsStreams,
-    MpegTsInformation,
-    MpegTsPlot,
+    Packets,
+    Streams,
+    Information,
+    Plot,
 }
 
 impl Tab {
     pub fn all() -> Vec<Self> {
         vec![
             Self::Packets,
-            Self::RtpSection(RtpSection::RtpPackets),
+            Self::RtpSection(RtpSection::Packets),
             Self::RtpSection(RtpSection::RtcpPackets),
-            Self::RtpSection(RtpSection::RtpStreams),
-            Self::RtpSection(RtpSection::RtpPlot),
-            Self::MpegTsSection(MpegTsSection::MpegTsPackets),
-            Self::MpegTsSection(MpegTsSection::MpegTsStreams),
-            Self::MpegTsSection(MpegTsSection::MpegTsInformation),
-            Self::MpegTsSection(MpegTsSection::MpegTsPlot),
+            Self::RtpSection(RtpSection::Streams),
+            Self::RtpSection(RtpSection::Plot),
+            Self::MpegTsSection(MpegTsSection::Packets),
+            Self::MpegTsSection(MpegTsSection::Streams),
+            Self::MpegTsSection(MpegTsSection::Information),
+            Self::MpegTsSection(MpegTsSection::Plot),
         ]
     }
 
@@ -48,16 +48,16 @@ impl fmt::Display for Tab {
         let ret = match self {
             Self::Packets => "📦 All Packets",
             Self::RtpSection(section) => match section {
-                RtpSection::RtpPackets => "🔈RTP Packets",
+                RtpSection::Packets => "🔈RTP Packets",
                 RtpSection::RtcpPackets => "📃 RTCP Packets",
-                RtpSection::RtpStreams => "🔴 RTP Streams",
-                RtpSection::RtpPlot => "📈 RTP Plot",
+                RtpSection::Streams => "🔴 RTP Streams",
+                RtpSection::Plot => "📈 RTP Plot",
             },
             Self::MpegTsSection(section) => match section {
-                MpegTsSection::MpegTsPackets => "📺 MPEG-TS Packets",
-                MpegTsSection::MpegTsStreams => "🎥 MPEG-TS Streams",
-                MpegTsSection::MpegTsInformation => "ℹ️ MPEG-TS Info",
-                MpegTsSection::MpegTsPlot => "📊 MPEG-TS Plot",
+                MpegTsSection::Packets => "📺 MPEG-TS Packets",
+                MpegTsSection::Streams => "🎥 MPEG-TS Streams",
+                MpegTsSection::Information => "ℹ️ MPEG-TS Info",
+                MpegTsSection::Plot => "📊 MPEG-TS Plot",
             },
         };
 

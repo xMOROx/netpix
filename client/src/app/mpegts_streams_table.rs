@@ -2,8 +2,8 @@ use crate::streams::mpegts_stream::substream::MpegtsSubStream;
 use crate::streams::stream_statistics::StreamStatistics;
 use crate::streams::RefStreams;
 use eframe::emath::Vec2;
-use egui_plot::{Line, Plot, PlotPoints};
 use egui_extras::{Column, TableBody, TableBuilder};
+use egui_plot::{Line, Plot, PlotPoints};
 use std::collections::HashMap;
 
 pub struct MpegTsStreamsTable {
@@ -153,7 +153,7 @@ fn build_bitrate_plot(ui: &mut egui::Ui, stream: &MpegtsSubStream) {
             .packets
             .iter()
             .enumerate()
-            .filter_map(|(ix, mpegts)| Some([ix as f64, (mpegts.bitrate as f64 / 1000.0)]))
+            .map(|(ix, mpegts)| [ix as f64, mpegts.bitrate as f64 / 1000.0])
             .collect();
 
         let line = Line::new(points).name("Bitrate");

@@ -27,9 +27,9 @@ fn main() {
 
         let canvas = document
             .get_element_by_id(CANVAS_ID)
-            .expect(format!("Failed to find {}", CANVAS_ID).as_str())
+            .unwrap_or_else(|| panic!("Failed to find {}", CANVAS_ID))
             .dyn_into::<web_sys::HtmlCanvasElement>()
-            .expect(format!("{} , was not a HtmlCanvasElement", CANVAS_ID).as_str());
+            .unwrap_or_else(|_| panic!("{} , was not a HtmlCanvasElement", CANVAS_ID));
         canvas.set_height(document.body().unwrap().client_height() as u32);
         canvas.set_width(document.body().unwrap().client_width() as u32);
 
