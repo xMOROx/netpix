@@ -11,7 +11,6 @@ use types::{PacketInfo, TableConfig};
 
 use crate::app::is_mpegts_stream_visible;
 use crate::app::mpegts_packets_table::filters::{parse_filter, FilterContext, PacketFilter};
-use crate::streams::mpegts_stream::MpegTsPacketInfo;
 use egui::{Color32, RichText, TextEdit};
 use netpix_common::mpegts::header::{AdaptationFieldControl, PIDTable};
 use netpix_common::mpegts::MpegtsFragment;
@@ -263,7 +262,8 @@ impl MpegTsPacketsTable {
         body.rows(
             self.config.row_height,
             filtered_packets.len(),
-            |row_ix, mut row| {
+            |mut row| {
+                let row_ix = row.index();
                 let info = &filtered_packets[row_ix];
 
                 row.col(|ui| {
@@ -317,8 +317,7 @@ impl MpegTsPacketsTable {
                             }
                         }
                         PIDTable::IPMPControlInformation => String::from("IPMPControlInformation"),
-                    })
-                    .into_iter();
+                    });
 
                 let fragments: Vec<_> = info.packet.content.fragments.iter().collect();
 

@@ -87,7 +87,8 @@ impl PacketsTable {
         let first_timestamp = packets.first().unwrap().timestamp;
         let keys: Vec<_> = packets.keys().collect();
 
-        body.rows(25.0, packets.len(), |id, mut row| {
+        body.rows(25.0, packets.len(), |mut row| {
+            let id = row.index();
             let key = **keys.get(id).unwrap();
             let packet = packets.get(key).unwrap();
             row.col(|ui| {

@@ -78,7 +78,8 @@ impl RtcpPacketsTable {
         let mut next_ix = 1;
 
         let first_ts = streams.packets.first().unwrap().timestamp;
-        body.heterogeneous_rows(heights, |ix, mut row| {
+        body.heterogeneous_rows(heights, |mut row| {
+            let ix = row.index();
             let (id, rtcp) = rtcp_packets.get(ix).unwrap();
             let packet = streams.packets.get(*id).unwrap();
 

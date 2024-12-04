@@ -1,5 +1,6 @@
 #![allow(dead_code)]
 use std::time::Duration;
+use std::convert::AsRef;
 
 pub trait StreamStatistics {
     fn get_duration(&self) -> Duration;
@@ -35,6 +36,12 @@ pub struct Bytes {
 pub struct PacketsTime {
     first_time: Duration,
     last_time: Duration,
+}
+
+impl AsRef<Statistics> for Statistics {
+    fn as_ref(&self) -> &Statistics {
+        self
+    }
 }
 
 impl Statistics {
@@ -114,6 +121,12 @@ impl Statistics {
         self.bytes.clear();
     }
 }
+
+impl AsRef<Bitrate> for Bitrate {
+    fn as_ref(&self) -> &Bitrate {
+        self
+    }
+}
 impl Bitrate {
     pub fn builder() -> BitrateBuilder {
         BitrateBuilder::new()
@@ -140,6 +153,13 @@ impl Bitrate {
         self.protocol_bitrate = 0.0;
     }
 }
+
+impl AsRef<Bytes> for Bytes {
+    fn as_ref(&self) -> &Bytes {
+        self
+    }
+}
+
 impl Bytes {
     pub fn builder() -> BytesBuilder {
         BytesBuilder::new()
@@ -164,6 +184,12 @@ impl Bytes {
     pub fn clear(&mut self) {
         self.frame_bytes = 0.0;
         self.protocol_bytes = 0.0;
+    }
+}
+
+impl AsRef<PacketsTime> for PacketsTime {
+    fn as_ref(&self) -> &PacketsTime {
+        self
     }
 }
 impl PacketsTime {
