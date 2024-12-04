@@ -1,8 +1,10 @@
+use crate::utils::bits::BitReader;
 use serde::{Deserialize, Serialize};
 
 const STUFFING_BYTE: u8 = 0xFF;
+const LTW_OFFSET_MASK: u8 = 0x7F;
 
-#[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq)]
+#[derive(Default, Serialize, Deserialize, Debug, Clone, Eq, PartialEq)]
 pub struct AdaptationField {
     pub adaptation_field_length: u8,
     pub discontinuity_indicator: bool,
@@ -24,7 +26,7 @@ pub struct AdaptationField {
     pub number_of_stuffing_bytes: Option<u8>,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq)]
+#[derive(Default, Serialize, Deserialize, Debug, Clone, Eq, PartialEq)]
 pub struct AdaptationFieldExtension {
     pub adaptation_field_extension_length: u8,
     pub ltw_flag: bool,
@@ -40,108 +42,129 @@ pub struct AdaptationFieldExtension {
     pub reserved: Option<u8>,
 }
 
+#[derive(Default, Clone, Copy)]
+struct ControlFlags {
+    pub discontinuity_indicator: bool,
+    pub random_access_indicator: bool,
+    pub elementary_stream_priority_indicator: bool,
+    pub pcr_flag: bool,
+    pub opcr_flag: bool,
+    pub splicing_point_flag: bool,
+    pub transport_private_data_flag: bool,
+    pub adaptation_field_extension_flag: bool,
+}
+
 impl AdaptationField {
     pub fn unmarshall(buffer: &[u8]) -> Option<Self> {
-        if buffer[0] == 0 || buffer[0] > buffer.len() as u8 {
+        if buffer[0] == 0 || buffer[0] as usize > buffer.len() {
             return None;
         }
 
+        let reader = BitReader::new(buffer);
         let adaptation_field_length = buffer[0];
 
-        let mut index = 1;
+        let flags = Self::read_control_flags(&reader)?;
 
-        // Basic flags from control byte
-        let discontinuity_indicator = (buffer[index] & 0x80) == 0x80;
-        let random_access_indicator = (buffer[index] & 0x40) == 0x40;
-        let elementary_stream_priority_indicator = (buffer[index] & 0x20) == 0x20;
-        let pcr_flag = (buffer[index] & 0x10) == 0x10;
-        let opcr_flag = (buffer[index] & 0x08) == 0x08;
-        let splicing_point_flag = (buffer[index] & 0x04) == 0x04;
-        let transport_private_data_flag = (buffer[index] & 0x02) == 0x02;
-        let adaptation_field_extension_flag = (buffer[index] & 0x01) == 0x01;
-
-        index += 1;
+        let mut index = 2;
 
         let mut field = AdaptationField {
             adaptation_field_length,
-            discontinuity_indicator,
-            random_access_indicator,
-            elementary_stream_priority_indicator,
-            pcr_flag,
-            opcr_flag,
-            splicing_point_flag,
-            transport_private_data_flag,
-            adaptation_field_extension_flag,
-            program_clock_reference_base: None,
-            program_clock_reference_extension: None,
-            original_program_clock_reference_base: None,
-            original_program_clock_reference_extension: None,
-            splice_countdown: None,
-            transport_private_data_length: None,
-            transport_private_data: None,
-            adaptation_field_extension: None,
-            number_of_stuffing_bytes: None,
+            ..Default::default()
         };
 
-        if pcr_flag && index + 6 <= buffer.len() {
-            field.program_clock_reference_base = Some(
-                ((buffer[index] as u64) << 25)
-                    | ((buffer[index + 1] as u64) << 17)
-                    | ((buffer[index + 2] as u64) << 9)
-                    | ((buffer[index + 3] as u64) << 1)
-                    | ((buffer[index + 4] & 0x80) as u64 >> 7),
-            );
-            field.program_clock_reference_extension =
-                Some(((buffer[index + 4] & 0x01) as u16) << 8 | buffer[index + 5] as u16);
-            index += 6;
-        }
+        field.merge_control_flags(flags);
 
-        if opcr_flag && index + 6 <= buffer.len() {
-            field.original_program_clock_reference_base = Some(
-                ((buffer[index] as u64) << 25)
-                    | ((buffer[index + 1] as u64) << 17)
-                    | ((buffer[index + 2] as u64) << 9)
-                    | ((buffer[index + 3] as u64) << 1)
-                    | ((buffer[index + 4] & 0x80) as u64 >> 7),
-            );
-            field.original_program_clock_reference_extension =
-                Some(((buffer[index + 4] & 0x01) as u16) << 8 | buffer[index + 5] as u16);
-            index += 6;
-        }
-
-        if splicing_point_flag && index < buffer.len() {
-            field.splice_countdown = Some(buffer[index]);
-            index += 1;
-        }
-
-        if transport_private_data_flag && index < buffer.len() {
-            let length = buffer[index] as usize;
-            index += 1;
-            if index + length <= buffer.len() {
-                field.transport_private_data_length = Some(length as u8);
-                field.transport_private_data = Some(buffer[index..index + length].to_vec());
-                index += length;
+        if flags.pcr_flag {
+            if let Some((base, ext)) = Self::read_pcr(&reader, index) {
+                field.program_clock_reference_base = Some(base);
+                field.program_clock_reference_extension = Some(ext);
+                index += 6;
             }
         }
 
-        if adaptation_field_extension_flag && index < buffer.len() {
-            field.adaptation_field_extension =
-                AdaptationFieldExtension::unmarshall(&buffer[index..]);
-        }
-
-        let mut stuffing_count = 0;
-
-        while index <= adaptation_field_length as usize && index < buffer.len() {
-            if buffer[index] == STUFFING_BYTE {
-                stuffing_count += 1;
-                index += 1;
-            } else {
-                break;
+        if flags.opcr_flag {
+            if let Some((base, ext)) = Self::read_pcr(&reader, index) {
+                field.original_program_clock_reference_base = Some(base);
+                field.original_program_clock_reference_extension = Some(ext);
+                index += 6;
             }
         }
+        index = Self::parse_optional_fields(&reader, index, &mut field)?;
 
+        let stuffing_count =
+            Self::count_stuffing_bytes(&buffer[index..], adaptation_field_length as usize);
         field.number_of_stuffing_bytes = Some(stuffing_count);
+
         Some(field)
+    }
+
+    fn read_control_flags(reader: &BitReader) -> Option<ControlFlags> {
+        Some(ControlFlags {
+            discontinuity_indicator: reader.get_bit(1, 7)?,
+            random_access_indicator: reader.get_bit(1, 6)?,
+            elementary_stream_priority_indicator: reader.get_bit(1, 5)?,
+            pcr_flag: reader.get_bit(1, 4)?,
+            opcr_flag: reader.get_bit(1, 3)?,
+            splicing_point_flag: reader.get_bit(1, 2)?,
+            transport_private_data_flag: reader.get_bit(1, 1)?,
+            adaptation_field_extension_flag: reader.get_bit(1, 0)?,
+        })
+    }
+
+    fn read_pcr(reader: &BitReader, offset: usize) -> Option<(u64, u16)> {
+        let base = ((reader.get_bits(offset, 0xFF, 0)? as u64) << 25)
+            | ((reader.get_bits(offset + 1, 0xFF, 0)? as u64) << 17)
+            | ((reader.get_bits(offset + 2, 0xFF, 0)? as u64) << 9)
+            | ((reader.get_bits(offset + 3, 0xFF, 0)? as u64) << 1)
+            | (reader.get_bits(offset + 4, 0x80, 7)? as u64);
+
+        let ext = reader.get_bits_u16_with_shift(offset + 4, 0x01, 0xFF, 8)?;
+
+        Some((base, ext))
+    }
+
+    fn parse_optional_fields(
+        reader: &BitReader,
+        mut index: usize,
+        field: &mut AdaptationField,
+    ) -> Option<usize> {
+        if field.splicing_point_flag {
+            field.splice_countdown = reader.get_bits(index, 0xFF, 0);
+            index += 1;
+        }
+
+        if field.transport_private_data_flag {
+            let length = reader.get_bits(index, 0xFF, 0)? as usize;
+            index += 1;
+            field.transport_private_data_length = Some(length as u8);
+            field.transport_private_data = reader.get_bytes(index, length);
+            index += length;
+        }
+
+        if field.adaptation_field_extension_flag {
+            field.adaptation_field_extension =
+                AdaptationFieldExtension::unmarshall(&reader.remaining_from(index)?);
+        }
+
+        Some(index)
+    }
+
+    fn count_stuffing_bytes(data: &[u8], max_length: usize) -> u8 {
+        data.iter()
+            .take(max_length)
+            .take_while(|&&byte| byte == STUFFING_BYTE)
+            .count() as u8
+    }
+
+    fn merge_control_flags(&mut self, flags: ControlFlags) {
+        self.discontinuity_indicator = flags.discontinuity_indicator;
+        self.random_access_indicator = flags.random_access_indicator;
+        self.elementary_stream_priority_indicator = flags.elementary_stream_priority_indicator;
+        self.pcr_flag = flags.pcr_flag;
+        self.opcr_flag = flags.opcr_flag;
+        self.splicing_point_flag = flags.splicing_point_flag;
+        self.transport_private_data_flag = flags.transport_private_data_flag;
+        self.adaptation_field_extension_flag = flags.adaptation_field_extension_flag;
     }
 }
 
@@ -151,62 +174,70 @@ impl AdaptationFieldExtension {
             return None;
         }
 
+        let reader = BitReader::new(buffer);
         let adaptation_field_extension_length = buffer[0];
-        let mut index = 1;
 
-        let ltw_flag = (buffer[index] & 0x80) == 0x80;
-        let piecewise_rate_flag = (buffer[index] & 0x40) == 0x40;
-        let seamless_splice_flag = (buffer[index] & 0x20) == 0x20;
-        let af_descriptor_not_present_float = (buffer[index] & 0x10) == 0x10;
-        index += 1;
+        let extension = Self::read_extension_flags(&reader)?;
+        let mut index = 2;
 
-        let mut extension = AdaptationFieldExtension {
+        let mut result = Self {
             adaptation_field_extension_length,
-            ltw_flag,
-            piecewise_rate_flag,
-            seamless_splice_flag,
-            af_descriptor_not_present_float,
-            ltw_valid_flag: None,
-            ltw_offset: None,
-            piecewise_rate: None,
-            splice_type: None,
-            dts_next_access_unit: None,
-            reserved: None,
+            ..extension
         };
 
-        if ltw_flag && index + 2 <= buffer.len() {
-            extension.ltw_valid_flag = Some((buffer[index] & 0x80) == 0x80);
-            extension.ltw_offset =
-                Some(((buffer[index] & 0x7F) as u16) << 8 | buffer[index + 1] as u16);
-            index += 2;
+        if extension.ltw_flag {
+            if let Some((valid, offset)) = Self::read_ltw(&reader, index) {
+                result.ltw_valid_flag = Some(valid);
+                result.ltw_offset = Some(offset);
+                index += 2;
+            }
         }
 
-        if piecewise_rate_flag && index + 3 <= buffer.len() {
-            extension.piecewise_rate = Some(
-                ((buffer[index] as u32) << 16)
-                    | ((buffer[index + 1] as u32) << 8)
-                    | buffer[index + 2] as u32,
-            );
+        if extension.piecewise_rate_flag {
+            result.piecewise_rate = reader.get_bits_u24(index);
             index += 3;
         }
 
-        if seamless_splice_flag && index + 5 <= buffer.len() {
-            extension.splice_type = Some(buffer[index] >> 4);
-            extension.dts_next_access_unit = Some(
-                ((buffer[index] as u32 & 0x0E) << 30)
-                    | ((buffer[index + 1] as u32) << 22)
-                    | ((buffer[index + 2] as u32) << 14)
-                    | ((buffer[index + 3] as u32 & 0xFE) << 7)
-                    | (buffer[index + 4] as u32 >> 1),
-            );
-            index += 5;
+        if extension.seamless_splice_flag {
+            if let Some((splice_type, dts)) = Self::read_splice_info(&reader, index) {
+                result.splice_type = Some(splice_type);
+                result.dts_next_access_unit = Some(dts);
+                index += 5;
+            }
         }
 
-        if af_descriptor_not_present_float && index < buffer.len() {
-            extension.reserved = Some(buffer[index]);
+        if extension.af_descriptor_not_present_float {
+            result.reserved = reader.get_bits(index, 0xFF, 0);
         }
 
-        Some(extension)
+        Some(result)
+    }
+
+    fn read_extension_flags(reader: &BitReader) -> Option<Self> {
+        Some(Self {
+            ltw_flag: reader.get_bit(1, 7)?,
+            piecewise_rate_flag: reader.get_bit(1, 6)?,
+            seamless_splice_flag: reader.get_bit(1, 5)?,
+            af_descriptor_not_present_float: reader.get_bit(1, 4)?,
+            ..Default::default()
+        })
+    }
+
+    fn read_ltw(reader: &BitReader, offset: usize) -> Option<(bool, u16)> {
+        let valid = reader.get_bit(offset, 7)?;
+        let offset = reader.get_bits_u16_with_shift(offset, LTW_OFFSET_MASK, 0xFF, 8)?;
+        Some((valid, offset))
+    }
+
+    fn read_splice_info(reader: &BitReader, offset: usize) -> Option<(u8, u32)> {
+        let splice_type = reader.get_bits(offset, 0xF0, 4)?;
+        let dts = ((reader.get_bits(offset, 0x0E, 1)? as u32) << 30)
+            | (reader.get_bits(offset + 1, 0xFF, 0)? as u32) << 22
+            | (reader.get_bits(offset + 2, 0xFF, 0)? as u32) << 14
+            | (reader.get_bits(offset + 3, 0xFE, 1)? as u32) << 7
+            | (reader.get_bits(offset + 4, 0xFE, 1)? as u32);
+
+        Some((splice_type, dts))
     }
 }
 
@@ -270,7 +301,36 @@ mod tests {
 
     #[test]
     fn test_all_control_flags() {
-        let buffer = vec![1, 0xFF]; // All flags set
+        let mut buffer = vec![0x01, 0xFF]; // Start with length and flags
+
+        // Add optional fields based on flags
+        buffer.push(0xF7); // PCR base
+        buffer.push(0x77);
+        buffer.push(0x77);
+        buffer.push(0x77);
+        buffer.push(0x7F);
+        buffer.push(0x7E); // PCR extension
+
+        buffer.push(0xF7); // OPCR base
+        buffer.push(0x77);
+        buffer.push(0x77);
+        buffer.push(0x77);
+        buffer.push(0x7F);
+        buffer.push(0x7E); // OPCR extension
+
+        buffer.push(0x25); // Splice countdown
+
+        buffer.push(0x02); // Transport private data length
+        buffer.push(0xAA); // Transport private data
+        buffer.push(0xBB);
+
+        // Fill rest with stuffing bytes
+        let rest = 255 - buffer.len();
+        while buffer.len() < 255 {
+            buffer.push(STUFFING_BYTE);
+        }
+
+        buffer[0] = (buffer.len() - 1) as u8; // Update length field
         let field = AdaptationField::unmarshall(&buffer).unwrap();
 
         assert!(field.discontinuity_indicator);
@@ -281,6 +341,23 @@ mod tests {
         assert!(field.splicing_point_flag);
         assert!(field.transport_private_data_flag);
         assert!(field.adaptation_field_extension_flag);
+        assert_eq!(field.program_clock_reference_base.unwrap(), 0x1_EEEE_EEEE);
+        assert_eq!(field.program_clock_reference_extension.unwrap(), 0x17E);
+        assert_eq!(
+            field.original_program_clock_reference_base.unwrap(),
+            0x1_EEEE_EEEE
+        );
+        assert_eq!(
+            field.original_program_clock_reference_extension.unwrap(),
+            0x17E
+        );
+        assert_eq!(field.splice_countdown.unwrap(), 0x25);
+        assert_eq!(field.transport_private_data_length.unwrap(), 2);
+        assert_eq!(
+            field.transport_private_data.as_ref().unwrap(),
+            &vec![0xAA, 0xBB]
+        );
+        assert_eq!(field.number_of_stuffing_bytes.unwrap(), rest as u8);
     }
 
     #[test]
