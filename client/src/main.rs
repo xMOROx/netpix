@@ -1,8 +1,11 @@
 #![allow(dead_code)]
 #![allow(unused_imports)]
 
+#[cfg(target_arch = "wasm32")]
 use eframe::wasm_bindgen::JsCast;
+#[cfg(target_arch = "wasm32")]
 use eframe::web_sys;
+#[cfg(target_arch = "wasm32")]
 use egui::TextBuffer;
 
 #[cfg(target_arch = "wasm32")]
