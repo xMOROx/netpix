@@ -202,7 +202,7 @@ async fn send_all_packets(
     }
 
     info!(
-        "Sucesfully send already captured packets, client_id: {}",
+        "Successfully send already captured packets, client_id: {}",
         client_id
     );
 }

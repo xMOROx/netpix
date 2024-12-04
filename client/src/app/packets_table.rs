@@ -36,7 +36,7 @@ impl PacketsTable {
             .hint_text("Apply a filter ...");
 
         ui.horizontal(|ui| {
-            // TODO: implement the actuall filtering
+            // TODO: implement the actual filtering
             ui.button("↻").on_hover_text("Reset the filter");
             ui.button("⏵").on_hover_text("Apply the filter");
             ui.add(text_edit);
