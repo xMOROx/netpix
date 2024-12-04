@@ -8,18 +8,22 @@ use std::net::SocketAddr;
 use std::time::Duration;
 use netpix_common::mpegts::header::PIDTable;
 use netpix_common::mpegts::psi::pat::pat_buffer::PatBuffer;
+use netpix_common::mpegts::psi::pat::ProgramAssociationTable;
 use netpix_common::mpegts::psi::pmt::pmt_buffer::PmtBuffer;
+use netpix_common::mpegts::psi::pmt::ProgramMapTable;
+use netpix_common::mpegts::psi::psi_buffer::PsiBuffer;
 use netpix_common::MpegtsStreamKey;
 
-enum MpegTsInfo {
-    PatBuffer(* const PatBuffer),
-    PmtBuffer(* const PmtBuffer),
+struct MpegTsInfo {
+    pat: Option<ProgramAssociationTable>,
+    pmt: Option<ProgramMapTable>,
 }
 struct MpegTsInfoRow {
     source_addr: SocketAddr,
     destination_addr: SocketAddr,
     time: Duration,
     info: MpegTsInfo,
+    duplicates: usize,
     counter: usize,
 }
 
@@ -115,53 +119,54 @@ impl MpegTsInformationTable {
 
     fn build_table_body(&mut self, body: TableBody) {
         let streams = &self.streams.borrow();
-
         let mut mpegts_rows: BTreeMap<RowKey, MpegTsInfoRow> = BTreeMap::default();
         streams.mpeg_ts_streams.iter().for_each(|(key, stream)| {
             let aggregator = &stream.aggregator;
             stream.stream_info.packets.iter().for_each(|packet| {
                 packet.content.fragments.iter().for_each(|fragment| {
                     let header = &fragment.header;
-                    // TODO: handle multiple streams
                     if let PIDTable::ProgramAssociation = header.pid {
                         if aggregator.is_pat_complete() {
-                            let info = MpegTsInfo::PatBuffer(&aggregator.pat_buffer);
-                            let key = RowKey {pid: header.pid, alias: stream.alias.clone()};
+                            let info = MpegTsInfo { pat: Some(stream.clone().stream_info.pat.unwrap()), pmt: None };
+                            let key = RowKey { pid: header.pid, alias: stream.alias.clone() };
                             if mpegts_rows.contains_key(&key) {
                                 let val = mpegts_rows.get_mut(&key).unwrap();
-                                val.counter += 1;
+                                val.duplicates += 1;
                                 val.time = packet.time;
                             } else {
                                 mpegts_rows.insert(
                                     key,
                                     MpegTsInfoRow {
                                         info,
-                                        counter: 0,
+                                        duplicates: 0,
+                                        counter: aggregator.pat_buffer.get_fragments().len(),
                                         source_addr: packet.packet_association_table.source_addr,
                                         destination_addr: packet.packet_association_table.destination_addr,
-                                        time: packet.time
+                                        time: packet.time,
                                     });
                             }
                         }
                     } else if let PIDTable::PID(pid) = header.pid {
                         if aggregator.is_pmt_complete(pid) {
-                            let info = MpegTsInfo::PmtBuffer(
-                                aggregator.pmt_buffers.get(&pid).unwrap()
-                            );
-                            let key = RowKey {pid: header.pid, alias: stream.alias.clone()};
+                            let info = MpegTsInfo {
+                                pat: None,
+                                pmt: Some(stream.stream_info.pmt.get(&header.pid).unwrap().clone()),
+                            };
+                            let key = RowKey { pid: header.pid, alias: stream.alias.clone() };
                             if mpegts_rows.contains_key(&key) {
                                 let val = mpegts_rows.get_mut(&key).unwrap();
-                                val.counter += 1;
+                                val.duplicates += 1;
                                 val.time = packet.time;
                             } else {
                                 mpegts_rows.insert(
                                     key,
                                     MpegTsInfoRow {
                                         info,
-                                        counter: 0,
+                                        duplicates: 0,
+                                        counter: aggregator.pmt_buffers.get(&pid).unwrap().get_fragments().len(),
                                         source_addr: packet.packet_association_table.source_addr,
                                         destination_addr: packet.packet_association_table.destination_addr,
-                                        time: packet.time
+                                        time: packet.time,
                                     });
                             }
                         }
@@ -179,10 +184,6 @@ impl MpegTsInformationTable {
                 ui.label(&key.alias);
             });
             row.col(|ui| {
-                let timestamp = mpegts_row.time;
-                ui.label(format!("{:.4}", timestamp.as_secs_f64()));
-            });
-            row.col(|ui| {
                 ui.label(mpegts_row.source_addr.to_string());
             });
             row.col(|ui| {
@@ -192,13 +193,26 @@ impl MpegTsInformationTable {
                 ui.label(key.pid.to_string());
             });
             row.col(|ui| {
+                ui.label(&mpegts_row.duplicates.to_string());
+            });
+            row.col(|ui| {
                 ui.label(&mpegts_row.counter.to_string());
             });
             row.col(|ui| {
-                ui.label("Placeholder");
-            });
-            row.col(|ui| {
-                ui.label("Lorem ipsum dolor sit amet");
+                if let Some(pat) = &mpegts_info.pat {
+                    let mut programs = String::new();
+                    pat.programs.iter().for_each(|program| {
+                        programs += format!("Program number: {} ", program.program_number).as_str();
+                        if let Some(network_pid) = program.network_pid {
+                            programs += format!("Network PID: {}\n", network_pid).as_str();
+                        } else if let Some(program_map_pid) = program.program_map_pid {
+                            programs += format!("Program map PID: {}\n", program_map_pid).as_str();
+                        }
+                    });
+                    ui.label(programs);
+                } else if let Some(pmt) = &mpegts_info.pmt {
+
+                }
             });
         })
     }
