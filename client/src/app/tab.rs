@@ -35,6 +35,30 @@ impl Tab {
             Self::MpegTsSection(MpegTsSection::Plot),
         ]
     }
+    
+    pub fn general_sections() -> Vec<Self> {
+        vec![
+            Self::Packets,
+        ]
+    }
+
+    pub fn rtp_sections() -> Vec<Self> {
+        vec![
+            Self::RtpSection(RtpSection::Packets),
+            Self::RtpSection(RtpSection::RtcpPackets),
+            Self::RtpSection(RtpSection::Streams),
+            Self::RtpSection(RtpSection::Plot),
+        ]
+    }
+
+    pub fn mpeg_ts_sections() -> Vec<Self> {
+        vec![
+            Self::MpegTsSection(MpegTsSection::Packets),
+            Self::MpegTsSection(MpegTsSection::Streams),
+            Self::MpegTsSection(MpegTsSection::Information),
+            Self::MpegTsSection(MpegTsSection::Plot),
+        ]
+    }
 
     pub fn from_string(tab_str: String) -> Option<Self> {
         Tab::all()
