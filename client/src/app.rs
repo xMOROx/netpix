@@ -195,37 +195,34 @@ impl App {
     }
 
     fn build_top_bar(&mut self, ctx: &egui::Context, frame: &mut eframe::Frame) {
-        let selected = match self.tab {
-            Tab::Packets => "📦 All Packets",
-            Tab::RtpSection(section) => match section {
-                RtpSection::Packets => "🔈RTP Packets",
-                RtpSection::RtcpPackets => "📃 RTCP Packets",
-                RtpSection::Streams => "🔴 RTP Streams",
-                RtpSection::Plot => "📈 RTP Plot",
-            },
-            Tab::MpegTsSection(section) => match section {
-                MpegTsSection::Packets => "📺 MPEG-TS Packets",
-                MpegTsSection::Streams => "🎥 MPEG-TS Streams",
-                MpegTsSection::Information => "ℹ️ MPEG-TS Info",
-                MpegTsSection::Plot => "📊 MPEG-TS Plot",
-            },
-        };
+        let selected = self.tab.display_name();
 
         egui::TopBottomPanel::top("top_panel").show(ctx, |ui| {
             egui::menu::bar(ui, |ui| {
                 self.build_dropdown_source(ui, frame);
                 ui.separator();
-                ui.menu_button("Open tabs", |ui| {
+                ui.menu_button("📑 Open tabs", |ui| {
                     ui.heading("Tabs");
-                    Tab::all().iter().for_each(|tab| {
-                        let resp = ui.selectable_value(&mut self.tab, *tab, tab.to_string());
-                        if resp.clicked() {
-                            if let Some(storage) = frame.storage_mut() {
-                                storage.set_string(TAB_KEY, self.tab.to_string());
+
+                    let menu_sections = [
+                        ("📋 General", Tab::general_sections()),
+                        ("📡 RTP", Tab::rtp_sections()),
+                        ("📺 MPEG-TS", Tab::mpeg_ts_sections()),
+                    ];
+
+                    for (label, sections) in menu_sections {
+                        ui.menu_button(label, |ui| {
+                            for tab in sections {
+                                let resp =
+                                    ui.selectable_value(&mut self.tab, tab, tab.display_name());
+                                if resp.clicked() {
+                                    if let Some(storage) = frame.storage_mut() {
+                                        storage.set_string(TAB_KEY, tab.to_string());
+                                    }
+                                }
                             }
-                            ui.close_menu();
-                        }
-                    });
+                        });
+                    }
                 });
                 Label::new(selected).ui(ui);
             });

@@ -6,6 +6,13 @@ pub enum Tab {
     RtpSection(RtpSection),
     MpegTsSection(MpegTsSection),
 }
+
+impl Tab {
+    pub fn display_name(&self) -> String {
+        self.to_string()
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum RtpSection {
     Packets,
@@ -35,11 +42,9 @@ impl Tab {
             Self::MpegTsSection(MpegTsSection::Plot),
         ]
     }
-    
+
     pub fn general_sections() -> Vec<Self> {
-        vec![
-            Self::Packets,
-        ]
+        vec![Self::Packets]
     }
 
     pub fn rtp_sections() -> Vec<Self> {
@@ -69,20 +74,34 @@ impl Tab {
 
 impl fmt::Display for Tab {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Packets => write!(f, "📦 All Packets"),
+            Self::RtpSection(section) => section.fmt(f),
+            Self::MpegTsSection(section) => section.fmt(f),
+        }
+    }
+}
+
+impl fmt::Display for RtpSection {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let ret = match self {
-            Self::Packets => "📦 All Packets",
-            Self::RtpSection(section) => match section {
-                RtpSection::Packets => "🔈RTP Packets",
-                RtpSection::RtcpPackets => "📃 RTCP Packets",
-                RtpSection::Streams => "🔴 RTP Streams",
-                RtpSection::Plot => "📈 RTP Plot",
-            },
-            Self::MpegTsSection(section) => match section {
-                MpegTsSection::Packets => "📺 MPEG-TS Packets",
-                MpegTsSection::Streams => "🎥 MPEG-TS Streams",
-                MpegTsSection::Information => "ℹ️ MPEG-TS Info",
-                MpegTsSection::Plot => "📊 MPEG-TS Plot",
-            },
+            Self::Packets => "🔈RTP Packets",
+            Self::RtcpPackets => "📃 RTCP Packets",
+            Self::Streams => "🔴 RTP Streams",
+            Self::Plot => "📈 RTP Plot",
+        };
+
+        write!(f, "{}", ret)
+    }
+}
+
+impl fmt::Display for MpegTsSection {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let ret = match self {
+            Self::Packets => "📺 MPEG-TS Packets",
+            Self::Streams => "🎥 MPEG-TS Streams",
+            Self::Information => "ℹ️ MPEG-TS Info",
+            Self::Plot => "📊 MPEG-TS Plot",
         };
 
         write!(f, "{}", ret)
