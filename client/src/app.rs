@@ -204,11 +204,7 @@ impl App {
                 ui.menu_button("📑 Open tabs", |ui| {
                     ui.heading("Tabs");
 
-                    let menu_sections = [
-                        ("📋 General", Tab::general_sections()),
-                        ("📡 RTP", Tab::rtp_sections()),
-                        ("📺 MPEG-TS", Tab::mpeg_ts_sections()),
-                    ];
+                    let menu_sections = Tab::sections();
 
                     for (label, sections) in menu_sections {
                         ui.menu_button(label, |ui| {
@@ -351,7 +347,7 @@ impl App {
 fn get_initial_state(cc: &eframe::CreationContext<'_>) -> (Tab, Option<Source>) {
     if let Some(storage) = cc.storage {
         let tab = match storage.get_string(TAB_KEY) {
-            Some(tab_str) => Tab::from_string(tab_str).unwrap(),
+            Some(tab_str) => Tab::from_string(tab_str).unwrap_or(Tab::Packets),
             _ => Tab::Packets,
         };
 
