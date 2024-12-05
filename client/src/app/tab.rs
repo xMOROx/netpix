@@ -75,7 +75,7 @@ impl Tab {
 impl fmt::Display for Tab {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Self::Packets => write!(f, "📦 All Packets"),
+            Self::Packets => write!(f, "📦 Packets"),
             Self::RtpSection(section) => section.fmt(f),
             Self::MpegTsSection(section) => section.fmt(f),
         }
