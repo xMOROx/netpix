@@ -121,8 +121,8 @@ fn test_pmt_buffer_with_one_fragment() {
                         avc_compatible_flags: 0,
                         level_idc: 40,
                         avc_still_present: false,
-                        avc_24_hour_picture_flag: true,
-                        frame_packing_sei_flag: false,
+                        avc_24_hour_picture_flag: false,
+                        frame_packing_sei_flag: true,
                     }),
                 ],
             },
@@ -232,6 +232,6 @@ fn test_pmt_buffer_with_one_fragment() {
         fragment_count: 1,
     });
 
-    assert_eq!(buffer.is_complete(), true);
+    assert!(buffer.is_complete());
     assert_eq!(buffer.build(), right);
 }

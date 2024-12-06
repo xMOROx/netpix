@@ -1,7 +1,5 @@
-use std::collections::HashMap;
-
 use eframe::egui;
-use egui::{ComboBox, Ui};
+use egui::{ComboBox, Label, TextWrapMode, Ui, Widget};
 use ewebsock::{WsEvent, WsMessage, WsReceiver, WsSender};
 use log::{error, warn};
 use netpix_common::{MpegtsStreamKey, Request, Response, RtpStreamKey, Source};
@@ -10,6 +8,8 @@ use packets_table::PacketsTable;
 use rtcp_packets_table::RtcpPacketsTable;
 use rtp_packets_table::RtpPacketsTable;
 use rtp_streams_table::RtpStreamsTable;
+use std::collections::HashMap;
+use std::sync::Arc;
 
 use mpegts_info_table::MpegTsInformationTable;
 use mpegts_packets_table::MpegTsPacketsTable;
@@ -75,16 +75,16 @@ impl eframe::App for App {
         match self.tab {
             Tab::Packets => self.packets_table.ui(ctx),
             Tab::RtpSection(section) => match section {
-                RtpSection::RtpPackets => self.rtp_packets_table.ui(ctx),
+                RtpSection::Packets => self.rtp_packets_table.ui(ctx),
                 RtpSection::RtcpPackets => self.rtcp_packets_table.ui(ctx),
-                RtpSection::RtpStreams => self.rtp_streams_table.ui(ctx),
-                RtpSection::RtpPlot => self.rtp_streams_plot.ui(ctx),
+                RtpSection::Streams => self.rtp_streams_table.ui(ctx),
+                RtpSection::Plot => self.rtp_streams_plot.ui(ctx),
             },
             Tab::MpegTsSection(section) => match section {
-                MpegTsSection::MpegTsPackets => self.mpegts_packets_table.ui(ctx),
-                MpegTsSection::MpegTsStreams => self.mpegts_streams_table.ui(ctx),
-                MpegTsSection::MpegTsInformation => self.mpegts_info_table.ui(ctx),
-                MpegTsSection::MpegTsPlot => self.mpegts_plot.ui(ctx),
+                MpegTsSection::Packets => self.mpegts_packets_table.ui(ctx),
+                MpegTsSection::Streams => self.mpegts_streams_table.ui(ctx),
+                MpegTsSection::Information => self.mpegts_info_table.ui(ctx),
+                MpegTsSection::Plot => self.mpegts_plot.ui(ctx),
             },
         };
     }
@@ -189,51 +189,38 @@ impl App {
                 ui.with_layout(egui::Layout::bottom_up(egui::Align::Center), |ui| {
                     ui.add_space(8.0);
 
-                    egui::widgets::global_dark_light_mode_switch(ui);
+                    egui::widgets::global_theme_preference_switch(ui);
                 });
             });
     }
 
     fn build_top_bar(&mut self, ctx: &egui::Context, frame: &mut eframe::Frame) {
-        let selected = match self.tab {
-            Tab::Packets => "📦 All Packets",
-            Tab::RtpSection(section) => match section {
-                RtpSection::RtpPackets => "🔈RTP Packets",
-                RtpSection::RtcpPackets => "📃 RTCP Packets",
-                RtpSection::RtpStreams => "🔴 RTP Streams",
-                RtpSection::RtpPlot => "📈 RTP Plot",
-            },
-            Tab::MpegTsSection(section) => match section {
-                MpegTsSection::MpegTsPackets => "📺 MPEG-TS Packets",
-                MpegTsSection::MpegTsStreams => "🎥 MPEG-TS Streams",
-                MpegTsSection::MpegTsInformation => "ℹ️ MPEG-TS Info",
-                MpegTsSection::MpegTsPlot => "📊 MPEG-TS Plot",
-            },
-        };
+        let selected = self.tab.display_name();
 
         egui::TopBottomPanel::top("top_panel").show(ctx, |ui| {
             egui::menu::bar(ui, |ui| {
                 self.build_dropdown_source(ui, frame);
                 ui.separator();
-                ComboBox::from_id_source("tab_picker")
-                    .width(300.0)
-                    .wrap(false)
-                    .selected_text(selected)
-                    .show_ui(ui, |ui| {
-                        let mut was_changed = false;
-                        Tab::all().iter().for_each(|tab| {
-                            let resp = ui.selectable_value(&mut self.tab, *tab, tab.to_string());
-                            if resp.clicked() {
-                                was_changed = true;
+                ui.menu_button("📑 Open tabs", |ui| {
+                    ui.heading("Tabs");
+
+                    let menu_sections = Tab::sections();
+
+                    for (label, sections) in menu_sections {
+                        ui.menu_button(label, |ui| {
+                            for tab in sections {
+                                let resp =
+                                    ui.selectable_value(&mut self.tab, tab, tab.display_name());
+                                if resp.clicked() {
+                                    if let Some(storage) = frame.storage_mut() {
+                                        storage.set_string(TAB_KEY, tab.to_string());
+                                    }
+                                }
                             }
                         });
-
-                        if was_changed {
-                            if let Some(storage) = frame.storage_mut() {
-                                storage.set_string(TAB_KEY, self.tab.to_string());
-                            }
-                        }
-                    });
+                    }
+                });
+                Label::new(selected).ui(ui);
             });
         });
     }
@@ -244,9 +231,9 @@ impl App {
             None => "Select packets source...".to_string(),
         };
 
-        ComboBox::from_id_source("source_picker")
+        ComboBox::from_id_salt("source_picker")
             .width(300.0)
-            .wrap(false)
+            .wrap_mode(TextWrapMode::Extend)
             .selected_text(selected)
             .show_ui(ui, |ui| {
                 let mut was_changed = false;
@@ -360,7 +347,7 @@ impl App {
 fn get_initial_state(cc: &eframe::CreationContext<'_>) -> (Tab, Option<Source>) {
     if let Some(storage) = cc.storage {
         let tab = match storage.get_string(TAB_KEY) {
-            Some(tab_str) => Tab::from_string(tab_str).unwrap(),
+            Some(tab_str) => Tab::from_string(tab_str).unwrap_or(Tab::Packets),
             _ => Tab::Packets,
         };
 

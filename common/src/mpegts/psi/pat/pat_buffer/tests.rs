@@ -25,7 +25,7 @@ fn test_pat_buffer_with_one_fragment() {
 
     buffer.add_fragment(fragment);
 
-    assert_eq!(buffer.is_complete(), true);
+    assert!(buffer.is_complete());
     assert_eq!(
         buffer.build(),
         Some(ProgramAssociationTable {
@@ -100,7 +100,7 @@ fn test_pat_buffer_with_two_fragments() {
         });
     }
 
-    assert_eq!(buffer.is_complete(), true);
+    assert!(buffer.is_complete());
     assert_eq!(buffer.last_section_number, 1);
     assert_eq!(pat.transport_stream_id, 4757);
     assert_eq!(frag1.header.section_length, 196);

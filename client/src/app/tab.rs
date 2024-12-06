@@ -1,66 +1,121 @@
 use std::fmt;
 
+pub trait Section: Sized + Copy {
+    fn iter() -> impl Iterator<Item = Self>;
+    fn display_name(&self) -> String;
+}
+
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum Tab {
     Packets,
     RtpSection(RtpSection),
     MpegTsSection(MpegTsSection),
 }
+
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum RtpSection {
-    RtpPackets,
+    Packets,
     RtcpPackets,
-    RtpStreams,
-    RtpPlot,
+    Streams,
+    Plot,
 }
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum MpegTsSection {
-    MpegTsPackets,
-    MpegTsStreams,
-    MpegTsInformation,
-    MpegTsPlot,
+    Packets,
+    Streams,
+    Information,
+    Plot,
 }
 
 impl Tab {
     pub fn all() -> Vec<Self> {
+        let mut tabs = vec![Self::Packets];
+        tabs.extend(RtpSection::iter().map(Self::RtpSection));
+        tabs.extend(MpegTsSection::iter().map(Self::MpegTsSection));
+        tabs
+    }
+
+    pub fn sections() -> Vec<(String, Vec<Self>)> {
         vec![
-            Self::Packets,
-            Self::RtpSection(RtpSection::RtpPackets),
-            Self::RtpSection(RtpSection::RtcpPackets),
-            Self::RtpSection(RtpSection::RtpStreams),
-            Self::RtpSection(RtpSection::RtpPlot),
-            Self::MpegTsSection(MpegTsSection::MpegTsPackets),
-            Self::MpegTsSection(MpegTsSection::MpegTsStreams),
-            Self::MpegTsSection(MpegTsSection::MpegTsInformation),
-            Self::MpegTsSection(MpegTsSection::MpegTsPlot),
+            ("📋 General".to_string(), vec![Self::Packets]),
+            (
+                "🔈 RTP".to_string(),
+                RtpSection::iter().map(Self::RtpSection).collect(),
+            ),
+            (
+                "📺 MPEG-TS".to_string(),
+                MpegTsSection::iter().map(Self::MpegTsSection).collect(),
+            ),
         ]
     }
 
     pub fn from_string(tab_str: String) -> Option<Self> {
-        Tab::all()
+        Self::all()
             .into_iter()
-            .find(|tab| tab_str == tab.to_string())
+            .find(|tab| tab_str == tab.display_name())
+    }
+
+    pub fn display_name(&self) -> String {
+        match self {
+            Self::Packets => "📦 Packets".to_string(),
+            Self::RtpSection(section) => section.display_name(),
+            Self::MpegTsSection(section) => section.display_name(),
+        }
     }
 }
 
 impl fmt::Display for Tab {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Packets => write!(f, "📦 Packets"),
+            Self::RtpSection(section) => section.fmt(f),
+            Self::MpegTsSection(section) => section.fmt(f),
+        }
+    }
+}
+
+impl fmt::Display for RtpSection {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let ret = match self {
-            Self::Packets => "📦 All Packets",
-            Self::RtpSection(section) => match section {
-                RtpSection::RtpPackets => "🔈RTP Packets",
-                RtpSection::RtcpPackets => "📃 RTCP Packets",
-                RtpSection::RtpStreams => "🔴 RTP Streams",
-                RtpSection::RtpPlot => "📈 RTP Plot",
-            },
-            Self::MpegTsSection(section) => match section {
-                MpegTsSection::MpegTsPackets => "📺 MPEG-TS Packets",
-                MpegTsSection::MpegTsStreams => "🎥 MPEG-TS Streams",
-                MpegTsSection::MpegTsInformation => "ℹ️ MPEG-TS Info",
-                MpegTsSection::MpegTsPlot => "📊 MPEG-TS Plot",
-            },
+            Self::Packets => "🔈RTP Packets",
+            Self::RtcpPackets => "📃 RTCP Packets",
+            Self::Streams => "🔴 RTP Streams",
+            Self::Plot => "📈 RTP Plot",
         };
 
         write!(f, "{}", ret)
+    }
+}
+
+impl fmt::Display for MpegTsSection {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let ret = match self {
+            Self::Packets => "📺 MPEG-TS Packets",
+            Self::Streams => "🎥 MPEG-TS Streams",
+            Self::Information => "ℹ️ MPEG-TS Info",
+            Self::Plot => "📊 MPEG-TS Plot",
+        };
+
+        write!(f, "{}", ret)
+    }
+}
+
+impl Section for RtpSection {
+    fn iter() -> impl Iterator<Item = Self> {
+        [Self::Packets, Self::RtcpPackets, Self::Streams, Self::Plot].into_iter()
+    }
+
+    fn display_name(&self) -> String {
+        self.to_string()
+    }
+}
+
+impl Section for MpegTsSection {
+    fn iter() -> impl Iterator<Item = Self> {
+        [Self::Packets, Self::Streams, Self::Information, Self::Plot].into_iter()
+    }
+
+    fn display_name(&self) -> String {
+        self.to_string()
     }
 }

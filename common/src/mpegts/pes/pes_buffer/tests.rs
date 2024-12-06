@@ -76,8 +76,10 @@ fn test_pes_buffer_add_fragment_without_payload() {
 #[test]
 fn test_pes_buffer_add_fragment_with_start() {
     let mut buffer = PesBuffer::new();
-    let mut header = Header::default();
-    header.payload_unit_start_indicator = true;
+    let header = Header {
+        payload_unit_start_indicator: true,
+        ..Default::default()
+    };
 
     // Create minimal valid PES packet header
     let pes_data = vec![
@@ -100,8 +102,10 @@ fn test_pes_buffer_add_fragment_with_start() {
 fn test_pes_buffer_add_fragment_continuation() {
     let mut buffer = PesBuffer::new();
 
-    let mut header = Header::default();
-    header.payload_unit_start_indicator = true;
+    let header = Header {
+        payload_unit_start_indicator: true,
+        ..Default::default()
+    };
     let pes_data = vec![0x00, 0x00, 0x01, 0xE0, 0x00, 0x08, 0x80, 0x00, 0x00, 1, 2];
 
     let fragment = MpegtsFragment {
@@ -132,8 +136,10 @@ fn test_pes_buffer_complete_packet() {
     let mut buffer = PesBuffer::new();
 
     // Add start fragment
-    let mut header = Header::default();
-    header.payload_unit_start_indicator = true;
+    let header = Header {
+        payload_unit_start_indicator: true,
+        ..Default::default()
+    };
     let pes_data = vec![0x00, 0x00, 0x01, 0xE0, 0x00, 0x09, 0x80, 0x00, 0x00, 1, 2];
 
     let fragment = MpegtsFragment {

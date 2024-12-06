@@ -1,50 +1,37 @@
-use serde::{Deserialize, Serialize};
+use crate::implement_descriptor;
 use crate::mpegts::descriptors::{DescriptorHeader, ParsableDescriptor};
-
+use crate::utils::bits::BitReader;
+use serde::{Deserialize, Serialize};
 
 const MAXIMUM_BITRATE: u8 = 0b00111111;
-const BITRATE_PER_SECOND: usize = 50;
+const BITRATE_PER_SECOND: u32 = 50;
 
-
-#[derive(Serialize, Deserialize, Debug, Clone, Ord, PartialOrd, Eq)]
-pub struct MaximumBitrateDescriptor {
-    pub header: DescriptorHeader,
-    pub maximum_bitrate: u32,
-}
-
-impl ParsableDescriptor<MaximumBitrateDescriptor> for MaximumBitrateDescriptor {
-    fn descriptor_tag(&self) -> u8 {
-        self.header.descriptor_tag.to_u8()
+implement_descriptor! {
+    pub struct MaximumBitrateDescriptor {
+        pub maximum_bitrate: u32
     }
-
-    fn descriptor_length(&self) -> u8 {
-        self.header.descriptor_length
-    }
-
-    fn unmarshall(header: DescriptorHeader, data: &[u8]) -> Option<MaximumBitrateDescriptor> {
+    unmarshall_impl: |header, data| {
         if data.len() != 3 {
             return None;
         }
 
-        let maximum_bitrate = u32::from(data[0] & MAXIMUM_BITRATE) << 16 | u32::from(data[1]) << 8 | u32::from(data[2]);
+        let reader = BitReader::new(data);
+        let bitrate_high = reader.get_bits(0, MAXIMUM_BITRATE, 0)? as u32;
+        let bitrate_mid = data[1] as u32;
+        let bitrate_low = data[2] as u32;
+
+        let maximum_bitrate = (bitrate_high << 16) | (bitrate_mid << 8) | bitrate_low;
 
         Some(MaximumBitrateDescriptor {
             header,
             maximum_bitrate,
         })
     }
-}
-
-impl std::fmt::Display for MaximumBitrateDescriptor {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "Maximum Bitrate: {} kbps", self.maximum_bitrate * BITRATE_PER_SECOND as u32)
-    }
-}
-
-impl PartialEq for MaximumBitrateDescriptor {
-    fn eq(&self, other: &Self) -> bool {
-        self.header == other.header
-            && self.maximum_bitrate == other.maximum_bitrate
+    ;
+    custom_display: impl std::fmt::Display for MaximumBitrateDescriptor {
+        fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+            write!(f, "Maximum bitrate: {} kbps", self.maximum_bitrate * BITRATE_PER_SECOND)
+        }
     }
 }
 
@@ -66,7 +53,7 @@ mod tests {
     }
     #[test]
     fn test_maximum_bitrate_descriptor_2() {
-        let data = vec![0x0e, 0x03, 0xc0, 0x00, 0x00];
+        let data = [0x0e, 0x03, 0xc0, 0x00, 0x00];
         let header = DescriptorHeader {
             descriptor_tag: DescriptorTag::MaximumBitrateDescriptorTag,
             descriptor_length: 3,
@@ -77,7 +64,7 @@ mod tests {
     }
     #[test]
     fn test_maximum_bitrate_descriptor_3() {
-        let data = vec![0x0e, 0x03, 0xc0, 0x17, 0x15];
+        let data = [0x0e, 0x03, 0xc0, 0x17, 0x15];
         let header = DescriptorHeader {
             descriptor_tag: DescriptorTag::MaximumBitrateDescriptorTag,
             descriptor_length: 3,
@@ -85,5 +72,19 @@ mod tests {
 
         let descriptor = MaximumBitrateDescriptor::unmarshall(header, &data[2..]).unwrap();
         assert_eq!(descriptor.maximum_bitrate, 5909);
+    }
+
+    #[test]
+    fn test_should_display_maximum_bitrate_descriptor() {
+        let header = DescriptorHeader {
+            descriptor_tag: DescriptorTag::MaximumBitrateDescriptorTag,
+            descriptor_length: 3,
+        };
+        let descriptor = MaximumBitrateDescriptor {
+            header,
+            maximum_bitrate: 0b00111111_11111111_11111111,
+        };
+
+        assert_eq!(format!("{}", descriptor), "Maximum bitrate: 209715150 kbps");
     }
 }

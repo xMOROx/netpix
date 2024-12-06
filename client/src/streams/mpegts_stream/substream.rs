@@ -1,5 +1,5 @@
 #![allow(dead_code)]
-use crate::streams::{int_to_letter, stream_statistics::*};
+use crate::streams::stream_statistics::*;
 use netpix_common::{
     mpegts::{
         header::PIDTable,
@@ -39,17 +39,9 @@ pub struct Aliases {
 }
 
 impl Aliases {
-    fn new(
-        transport_stream_id: TransportStreamId,
-        program_number: ProgramNumber,
-        stream_type: &StreamType,
-    ) -> Self {
+    fn new(alias: &str, program_number: ProgramNumber, stream_type: &StreamType) -> Self {
         Self {
-            stream_alias: format!(
-                "{}-{}",
-                int_to_letter(transport_stream_id as usize),
-                stream_type_into_unique_letter(stream_type)
-            ),
+            stream_alias: format!("{}-{}", alias, stream_type_into_unique_letter(stream_type)),
             program_alias: program_number.to_string(),
         }
     }
@@ -98,18 +90,30 @@ pub struct MpegtsSubStream {
     processed_packet_ids: FxHashSet<PacketId>,
 }
 
+pub struct SubStreamParameters {
+    pub alias: String,
+    pub key: SubStreamKey,
+    pub pat: ProgramAssociationTable,
+}
+
+pub struct PacketUpdateContext {
+    pub mpegts_info: SubstreamMpegTsPacketInfo,
+    pub time: Duration,
+}
+
+
 impl MpegtsSubStream {
-    pub fn new(key: &SubStreamKey, pat: ProgramAssociationTable) -> Self {
+    pub fn new(params: SubStreamParameters) -> Self {
         Self {
             pmt: FxHashMap::default(),
-            packet_association_table: key.0,
+            packet_association_table: params.key.0,
             statistics: Statistics::default(),
             packets: Vec::new(),
-            transport_stream_id: key.1,
-            program_number: key.2,
-            stream_type: key.3,
-            pat,
-            aliases: Aliases::new(key.1, key.2, &key.3),
+            transport_stream_id: params.key.1,
+            program_number: params.key.2,
+            stream_type: params.key.3,
+            pat: params.pat,
+            aliases: Aliases::new(&params.alias, params.key.2, &params.key.3),
             processed_packet_ids: FxHashSet::default(),
         }
     }
@@ -123,7 +127,10 @@ impl MpegtsSubStream {
     }
 
     pub fn add_mpegts_fragment(&mut self, packet: SubstreamMpegTsPacketInfo) {
-        self.update_mpegts_parameters(packet);
+        self.update_mpegts_parameters(PacketUpdateContext {
+            mpegts_info: packet.clone(),
+            time: packet.time,
+        });
     }
 
     pub fn add_pmt(&mut self, pid: PIDTable, pmt: ProgramMapTable) {
@@ -148,11 +155,13 @@ impl MpegtsSubStream {
             .map_while(move |pack| (pack.time > cutoff).then_some(pack.bytes))
     }
 
-    fn update_mpegts_parameters(&mut self, mut mpegts_info: SubstreamMpegTsPacketInfo) {
-        self.update_packet_times(&mpegts_info);
-        self.update_rates(&mut mpegts_info);
-        self.update_statistics(&mpegts_info);
-        self.packets.push(mpegts_info);
+    fn update_mpegts_parameters(&mut self, mut context: PacketUpdateContext) {
+        self.update_packet_times(&context.mpegts_info);
+        self.update_rates(&mut context.mpegts_info);
+        self.update_statistics(
+            context.mpegts_info.clone(),
+        );
+        self.packets.push(context.mpegts_info);
     }
 
     fn update_packet_times(&mut self, mpegts_info: &SubstreamMpegTsPacketInfo) {
@@ -176,19 +185,19 @@ impl MpegtsSubStream {
         self.statistics.set_packets_time(new_time);
     }
 
-    fn update_statistics(&mut self, mpegts_info: &SubstreamMpegTsPacketInfo) {
-        let mpegts_bytes = mpegts_info.content.size;
+    fn update_statistics(&mut self, packet_info: SubstreamMpegTsPacketInfo) {
+        let mpegts_bytes = packet_info.content.size;
 
         self.statistics.add_bytes(
             Bytes::builder()
-                .frame_bytes(mpegts_info.bytes as f64)
+                .frame_bytes(packet_info.bytes as f64)
                 .protocol_bytes(mpegts_bytes as f64)
                 .build(),
         );
 
         self.statistics.add_bitrate(
             Bitrate::builder()
-                .frame_bitrate((mpegts_info.bytes * 8) as f64)
+                .frame_bitrate((packet_info.bytes * 8) as f64)
                 .protocol_bitrate((mpegts_bytes * 8) as f64)
                 .build(),
         );

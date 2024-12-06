@@ -5,7 +5,7 @@ use crate::streams::{RefStreams, Streams};
 use eframe::egui;
 use eframe::egui::TextBuffer;
 use eframe::epaint::Color32;
-use egui::plot::{
+use egui_plot::{
     Line, LineStyle, MarkerShape, Plot, PlotBounds, PlotPoint, PlotPoints, PlotUi, Points, Text,
 };
 use egui::Ui;
@@ -203,7 +203,7 @@ impl RtpStreamsPlot {
             let keys: Vec<_> = streams.keys().collect();
 
             keys.iter().for_each(|&key| {
-                let alias = streams.get(&key).unwrap().alias.to_string();
+                let alias = streams.get(key).unwrap().alias.to_string();
                 aliases.push((*key, alias));
             });
             aliases.sort_by(|(_, a), (_, b)| a.cmp(b));

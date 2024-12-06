@@ -17,11 +17,11 @@ fn test_unmarshall_with_pointer_field() {
 
     let unmarshalled = FragmentaryProgramAssociationTable::unmarshall(&data, true).unwrap();
     assert_eq!(unmarshalled.header.table_id, 0);
-    assert_eq!(unmarshalled.header.section_syntax_indicator, true);
+    assert!(unmarshalled.header.section_syntax_indicator);
     assert_eq!(unmarshalled.header.section_length, 49);
-    assert_eq!(unmarshalled.header.current_next_indicator, true);
+    assert!(unmarshalled.header.current_next_indicator);
     assert_eq!(unmarshalled.transport_stream_id, 20);
-    assert_eq!(unmarshalled.is_stuffed, true);
+    assert!(unmarshalled.is_stuffed);
     assert_eq!(unmarshalled.payload.len(), 44);
 }
 
@@ -43,11 +43,11 @@ fn test_unmarshall_without_pointer_field() {
     // Vector to collect the payloads from each fragment
     let unmarshalled = FragmentaryProgramAssociationTable::unmarshall(&data, false).unwrap();
     assert_eq!(unmarshalled.header.table_id, 0);
-    assert_eq!(unmarshalled.header.section_syntax_indicator, true);
+    assert!(unmarshalled.header.section_syntax_indicator);
     assert_eq!(unmarshalled.header.section_length, 49);
-    assert_eq!(unmarshalled.header.current_next_indicator, true);
+    assert!(unmarshalled.header.current_next_indicator);
     assert_eq!(unmarshalled.transport_stream_id, 20);
-    assert_eq!(unmarshalled.is_stuffed, true);
+    assert!(unmarshalled.is_stuffed);
     assert_eq!(unmarshalled.payload.len(), 44);
 }
 
@@ -71,14 +71,14 @@ fn test_fragmentary_pat() {
 
     let unmarshalled = FragmentaryProgramAssociationTable::unmarshall(&data, true).unwrap();
     assert_eq!(unmarshalled.header.table_id, 0);
-    assert_eq!(unmarshalled.header.section_syntax_indicator, true);
+    assert!(unmarshalled.header.section_syntax_indicator);
     assert_eq!(unmarshalled.header.section_length, 13);
-    assert_eq!(unmarshalled.header.current_next_indicator, true);
+    assert!(unmarshalled.header.current_next_indicator);
     assert_eq!(unmarshalled.header.section_number, 0);
     assert_eq!(unmarshalled.header.version_number, 0x0f);
     assert_eq!(unmarshalled.header.last_section_number, 0x0);
     assert_eq!(unmarshalled.transport_stream_id, 3);
-    assert_eq!(unmarshalled.is_stuffed, true);
+    assert!(unmarshalled.is_stuffed);
     assert_eq!(unmarshalled.payload.len(), 8);
 }
 

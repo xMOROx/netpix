@@ -8,8 +8,9 @@ use std::time::Duration;
 
 #[cfg(not(target_arch = "wasm32"))]
 use etherparse::{
-    IpHeader::{self, Version4, Version6},
-    Ipv4Header, Ipv6Header, PacketHeaders, TcpHeader,
+    EtherPayloadSlice, IpPayloadSlice, Ipv4Header, Ipv6Header,
+    NetHeaders::{self, Ipv4, Ipv6},
+    PacketHeaders, PayloadSlice, TcpHeader,
     TransportHeader::{self, Tcp, Udp},
     UdpHeader,
 };
@@ -86,7 +87,7 @@ impl Packet {
             return None;
         };
         let PacketHeaders {
-            ip: Some(ip),
+            net: Some(ip),
             transport: Some(transport),
             ..
         } = packet
@@ -97,8 +98,16 @@ impl Packet {
         let transport_protocol = get_transport_protocol(&transport)?;
         let (source_addr, destination_addr) = convert_addr(&ip, &transport)?;
         let duration = get_duration(raw_packet);
+        let payload = match packet.payload {
+            PayloadSlice::Ether(EtherPayloadSlice { payload, .. })
+            | PayloadSlice::Ip(IpPayloadSlice { payload, .. })
+            | PayloadSlice::Udp(payload)
+            | PayloadSlice::Tcp(payload)
+            | PayloadSlice::Icmpv4(payload)
+            | PayloadSlice::Icmpv6(payload) => payload.to_vec(),
+        };
         Some(Self {
-            payload: Some(packet.payload.to_vec()),
+            payload: Some(payload),
             id,
             // length of packet (excluding Ethernet header)
             length: raw_packet.header.len - 14,
@@ -235,7 +244,7 @@ fn get_duration(raw_packet: &pcap::Packet) -> Duration {
 
 #[cfg(not(target_arch = "wasm32"))]
 fn convert_addr(
-    ip_header: &IpHeader,
+    ip_header: &NetHeaders,
     transport: &TransportHeader,
 ) -> Option<(SocketAddr, SocketAddr)> {
     use std::net::{
@@ -258,7 +267,7 @@ fn convert_addr(
     };
 
     let (source_ip_addr, dest_ip_addr) = match *ip_header {
-        Version4(
+        Ipv4(
             Ipv4Header {
                 source: [s0, s1, s2, s3],
                 destination: [d0, d1, d2, d3],
@@ -270,7 +279,7 @@ fn convert_addr(
             let destination = V4(Ipv4Addr::new(d0, d1, d2, d3));
             (source, destination)
         }
-        Version6(
+        Ipv6(
             Ipv6Header {
                 source,
                 destination,
