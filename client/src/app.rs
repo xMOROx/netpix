@@ -1,5 +1,5 @@
 use eframe::egui;
-use egui::{ComboBox, TextWrapMode, Ui};
+use egui::{ComboBox, Label, TextWrapMode, Ui, Widget};
 use ewebsock::{WsEvent, WsMessage, WsReceiver, WsSender};
 use log::{error, warn};
 use netpix_common::{MpegtsStreamKey, Request, Response, RtpStreamKey, Source};
@@ -195,45 +195,32 @@ impl App {
     }
 
     fn build_top_bar(&mut self, ctx: &egui::Context, frame: &mut eframe::Frame) {
-        let selected = match self.tab {
-            Tab::Packets => "📦 All Packets",
-            Tab::RtpSection(section) => match section {
-                RtpSection::Packets => "🔈RTP Packets",
-                RtpSection::RtcpPackets => "📃 RTCP Packets",
-                RtpSection::Streams => "🔴 RTP Streams",
-                RtpSection::Plot => "📈 RTP Plot",
-            },
-            Tab::MpegTsSection(section) => match section {
-                MpegTsSection::Packets => "📺 MPEG-TS Packets",
-                MpegTsSection::Streams => "🎥 MPEG-TS Streams",
-                MpegTsSection::Information => "ℹ️ MPEG-TS Info",
-                MpegTsSection::Plot => "📊 MPEG-TS Plot",
-            },
-        };
+        let selected = self.tab.display_name();
 
         egui::TopBottomPanel::top("top_panel").show(ctx, |ui| {
             egui::menu::bar(ui, |ui| {
                 self.build_dropdown_source(ui, frame);
                 ui.separator();
-                ComboBox::from_id_salt("tab_picker")
-                    .width(300.0)
-                    .wrap_mode(TextWrapMode::Extend)
-                    .selected_text(selected)
-                    .show_ui(ui, |ui| {
-                        let mut was_changed = false;
-                        Tab::all().iter().for_each(|tab| {
-                            let resp = ui.selectable_value(&mut self.tab, *tab, tab.to_string());
-                            if resp.clicked() {
-                                was_changed = true;
+                ui.menu_button("📑 Open tabs", |ui| {
+                    ui.heading("Tabs");
+
+                    let menu_sections = Tab::sections();
+
+                    for (label, sections) in menu_sections {
+                        ui.menu_button(label, |ui| {
+                            for tab in sections {
+                                let resp =
+                                    ui.selectable_value(&mut self.tab, tab, tab.display_name());
+                                if resp.clicked() {
+                                    if let Some(storage) = frame.storage_mut() {
+                                        storage.set_string(TAB_KEY, tab.to_string());
+                                    }
+                                }
                             }
                         });
-
-                        if was_changed {
-                            if let Some(storage) = frame.storage_mut() {
-                                storage.set_string(TAB_KEY, self.tab.to_string());
-                            }
-                        }
-                    });
+                    }
+                });
+                Label::new(selected).ui(ui);
             });
         });
     }
@@ -360,7 +347,7 @@ impl App {
 fn get_initial_state(cc: &eframe::CreationContext<'_>) -> (Tab, Option<Source>) {
     if let Some(storage) = cc.storage {
         let tab = match storage.get_string(TAB_KEY) {
-            Some(tab_str) => Tab::from_string(tab_str).unwrap(),
+            Some(tab_str) => Tab::from_string(tab_str).unwrap_or(Tab::Packets),
             _ => Tab::Packets,
         };
 
