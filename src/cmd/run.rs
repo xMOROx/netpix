@@ -5,6 +5,7 @@ use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 
 const DEFAULT_PORT: u16 = 3550;
 const DEFAULT_IP: IpAddr = IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1));
+const DEFAULT_PROMISC: bool = false;
 
 #[derive(Debug, clap::Args)]
 pub struct Run {
@@ -21,16 +22,26 @@ pub struct Run {
     #[arg(short, long, default_value_t = DEFAULT_IP)]
     address: IpAddr,
     /// Port used by the application
-    #[arg(short, long, default_value_t = DEFAULT_PORT)]
+    #[arg(short = 'p', long, default_value_t = DEFAULT_PORT)]
     port: u16,
+    /// Enable promiscuous mode
+    #[arg(short = 'P', long, default_value_t = DEFAULT_PROMISC)]
+    promisc: bool,
 }
 
 impl Run {
     pub async fn run(self) {
+        if self.interfaces.is_empty() && !self.files.is_empty() && self.promisc {
+            println!("Error: promiscuous mode cannot be used with file captures only");
+            return;
+        }
+
         let live_filter = self.create_capture_filter();
 
-        let mut file_sniffers = get_sniffers(self.files, Sniffer::from_file);
-        let mut interface_sniffers = get_sniffers(self.interfaces, Sniffer::from_device);
+        let mut file_sniffers = get_sniffers(self.files, |f| Sniffer::from_file(f));
+        let mut interface_sniffers = get_sniffers(self.interfaces, |dev| {
+            Sniffer::from_device(dev, self.promisc)
+        });
 
         let file_res = apply_filters(&mut file_sniffers, &self.capture);
         let interface_res = apply_filters(&mut interface_sniffers, &live_filter);
