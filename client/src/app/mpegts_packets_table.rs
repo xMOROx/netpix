@@ -11,7 +11,7 @@ use types::{PacketInfo, TableConfig};
 
 use crate::app::is_mpegts_stream_visible;
 use crate::app::mpegts_packets_table::filters::{parse_filter, FilterContext, PacketFilter};
-use crate::filter_system::FilterExpression;
+use crate::filter_system::{validate_filter_syntax, FilterExpression, ParseError};
 use egui::{Color32, RichText, TextEdit};
 use netpix_common::mpegts::header::{AdaptationFieldControl, PIDTable};
 use netpix_common::mpegts::MpegtsFragment;
@@ -24,6 +24,7 @@ pub struct MpegTsPacketsTable {
     streams: RefStreams,
     filter_buffer: String,
     config: TableConfig,
+    filter_error: Option<ParseError>,
 }
 
 impl MpegTsPacketsTable {
@@ -32,6 +33,7 @@ impl MpegTsPacketsTable {
             streams,
             filter_buffer: String::new(),
             config: TableConfig::default(),
+            filter_error: None,
         }
     }
 
@@ -43,6 +45,17 @@ impl MpegTsPacketsTable {
             self.options_ui(ui);
             self.build_table(ui);
         });
+
+        if let Some(error) = &self.filter_error {
+            let modal = egui::Window::new("Filter Error")
+                .anchor(egui::Align2::RIGHT_BOTTOM, egui::vec2(-5.0, -30.0))
+                .collapsible(true)
+                .resizable(false);
+
+            modal.show(ctx, |ui| {
+                ui.colored_label(Color32::RED, format!("{}",error ));
+            });
+        }
     }
 
     fn build_filter(&mut self, ui: &mut egui::Ui) {
@@ -58,6 +71,25 @@ impl MpegTsPacketsTable {
         });
     }
 
+    fn check_filter(&mut self) -> bool {
+        if self.filter_buffer.is_empty() {
+            self.filter_error = None;
+            return true;
+        }
+
+        let filter = self.filter_buffer.trim().to_lowercase();
+        match parse_filter(&filter) {
+            Ok(_) => {
+                self.filter_error = None;
+                true
+            }
+            Err(err) => {
+                self.filter_error = Some(err);
+                false
+            }
+        }
+    }
+
     fn packet_matches_filter(
         &self,
         info: &PacketInfo,
@@ -70,7 +102,6 @@ impl MpegTsPacketsTable {
         }
 
         let filter = self.filter_buffer.trim().to_lowercase();
-
         let streams = self.streams.borrow();
         let stream_alias = streams
             .mpeg_ts_streams
@@ -87,7 +118,7 @@ impl MpegTsPacketsTable {
 
         parse_filter(&filter)
             .map(|filter_type| filter_type.matches(&ctx))
-            .unwrap_or(true) // If parsing fails, show all packets
+            .unwrap_or(true) // Show all packets if filter parsing fails
     }
 
     fn options_ui(&mut self, ui: &mut egui::Ui) {
@@ -173,6 +204,8 @@ impl MpegTsPacketsTable {
     }
 
     fn build_table_body(&mut self, body: TableBody) {
+        let filter_valid = self.check_filter();
+
         let streams = &self.streams.borrow();
 
         let mut alias_to_display: HashMap<MpegtsStreamKey, String> = HashMap::default();
@@ -255,7 +288,9 @@ impl MpegTsPacketsTable {
 
         let filtered_packets: Vec<_> = packets_with_info
             .into_iter()
-            .filter(|info| self.packet_matches_filter(info, &pmt_pids, &es_pids, &pcr_pids))
+            .filter(|info| {
+                filter_valid && self.packet_matches_filter(info, &pmt_pids, &es_pids, &pcr_pids)
+            })
             .collect();
 
         body.rows(self.config.row_height, filtered_packets.len(), |mut row| {

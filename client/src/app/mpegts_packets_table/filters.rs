@@ -52,7 +52,10 @@
 //! - `pid:256 AND (type:ES OR type:PCR+ES)` - ES or PCR+ES packets with PID 256
 //! - `alias:A AND payload:>=188` - Packets from stream aliased as "A" with full payloads
 
-use crate::filter_system::{parse_expression, validate_filter_syntax, FilterCombinator, FilterExpression, Lexer, ParseError, ParseResult, Token};
+use crate::filter_system::{
+    parse_expression, validate_filter_syntax, FilterCombinator, FilterExpression, Lexer,
+    ParseError, ParseResult, Token,
+};
 use crate::streams::mpegts_stream::packet_info::MpegTsPacketInfo;
 use netpix_common::mpegts::header::{AdaptationFieldControl, PIDTable};
 use std::collections::VecDeque;
@@ -186,20 +189,11 @@ impl<'a> FilterCombinator<'a> for FilterType {
     }
 }
 
-pub fn parse_filter(filter: &str) -> Option<FilterType> {
-    if let Err(_) = validate_filter_syntax(filter) {
-        return None;
-    }
+pub fn parse_filter(filter: &str) -> Result<FilterType, ParseError> {
+    validate_filter_syntax(filter)?;
 
     let mut lexer = Lexer::new(filter);
-    match parse_expression(&mut lexer, 0, parse_primary) {
-        Ok(filter_type) => {
-            Some(filter_type)
-        }
-        Err(_) => {
-            None
-        }
-    }
+    parse_expression(&mut lexer, 0, parse_primary).map_err(|e| e.into())
 }
 
 fn parse_primary(lexer: &mut Lexer) -> ParseResult<FilterType> {
@@ -212,9 +206,7 @@ fn parse_primary(lexer: &mut Lexer) -> ParseResult<FilterType> {
             let expr = parse_expression(lexer, 0, parse_primary)?;
             match lexer.next_token() {
                 Some(Token::CloseParen) => Ok(expr),
-                Some(_other) => {
-                    Err(ParseError::UnmatchedParenthesis)
-                }
+                Some(_other) => Err(ParseError::UnmatchedParenthesis),
                 None => Err(ParseError::UnmatchedParenthesis),
             }
         }
@@ -224,20 +216,18 @@ fn parse_primary(lexer: &mut Lexer) -> ParseResult<FilterType> {
         }
         Token::Filter(prefix) => {
             if lexer.next_token() != Some(Token::Colon) {
-                return Err(ParseError::InvalidSyntax(
-                    "Missing colon after prefix".into(),
-                ));
+                return Err(ParseError::InvalidSyntax(format!(
+                    "Missing colon after '{}' filter",
+                    prefix
+                )));
             }
 
             match lexer.next_token() {
-                Some(Token::Filter(value)) => {
-                    parse_filter_with_value(&prefix, &value).ok_or_else(|| {
-                        ParseError::InvalidToken(format!("Invalid filter: {}:{}", prefix, value))
-                    })
-                }
-                _ => Err(ParseError::InvalidSyntax(
-                    "Missing value after colon".into(),
-                )),
+                Some(Token::Filter(value)) => parse_filter_with_value(&prefix, &value),
+                _ => Err(ParseError::InvalidSyntax(format!(
+                    "Missing value after '{}':",
+                    prefix
+                ))),
             }
         }
         other => Err(ParseError::InvalidToken(format!(
@@ -247,25 +237,45 @@ fn parse_primary(lexer: &mut Lexer) -> ParseResult<FilterType> {
     }
 }
 
-fn parse_filter_with_value(prefix: &str, value: &str) -> Option<FilterType> {
+fn parse_filter_with_value(prefix: &str, value: &str) -> Result<FilterType, ParseError> {
     match prefix.trim() {
-        "desc" => Some(FilterType::Description(value.to_string())),
-        "source" => Some(FilterType::Source(value.to_lowercase())),
-        "dest" => Some(FilterType::Destination(value.to_lowercase())),
-        "alias" => Some(FilterType::Alias(value.to_lowercase())),
-        "payload" => parse_payload_filter(value),
+        "desc" => Ok(FilterType::Description(value.to_string())),
+        "source" => Ok(FilterType::Source(value.to_lowercase())),
+        "dest" => Ok(FilterType::Destination(value.to_lowercase())),
+        "alias" => Ok(FilterType::Alias(value.to_lowercase())),
+        "payload" => parse_payload_filter(value).ok_or_else(|| {
+            ParseError::InvalidSyntax(format!(
+                "Invalid payload filter format. Expected number or comparison (e.g. >100, <=188), got '{}'",
+                value
+            ))
+        }),
         p if p.starts_with('p') && p.len() == 2 => {
-            let packet_index = p[1..].parse::<usize>().ok()?.saturating_sub(1);
-            Some(FilterType::PacketPid(packet_index, value.to_string()))
+            let packet_index = p[1..]
+                .parse::<usize>()
+                .map_err(|_| ParseError::InvalidSyntax(format!("Invalid PID position: {}", p)))?
+                .saturating_sub(1);
+            Ok(FilterType::PacketPid(packet_index, value.to_string()))
         }
-        "pid" => value.parse().ok().map(FilterType::Pid),
-        "type" => PacketType::from_str(value).ok().map(FilterType::Type),
-        _ => None,
+        "pid" => value.parse::<u16>().map(FilterType::Pid).map_err(|_| {
+            ParseError::InvalidSyntax(format!("Invalid PID number: {}", value))
+        }),
+        "type" => PacketType::from_str(value)
+            .map(FilterType::Type)
+            .map_err(|_| {
+                ParseError::InvalidSyntax(format!(
+                    "Invalid packet type. Expected one of: PAT, PMT, PCR+ES, ES, PCR. Got: {}",
+                    value
+                ))
+            }),
+        _ => Err(ParseError::InvalidSyntax(format!(
+            "Unknown filter type: {}",
+            prefix
+        ))),
     }
 }
 
 fn parse_payload_filter(value: &str) -> Option<FilterType> {
-    if let Some(stripped) = value.strip_prefix('>') {
+    let result = if let Some(stripped) = value.strip_prefix('>') {
         stripped.trim().parse().ok().map(PayloadFilter::GreaterThan)
     } else if let Some(stripped) = value.strip_prefix(">=") {
         stripped
@@ -282,9 +292,13 @@ fn parse_payload_filter(value: &str) -> Option<FilterType> {
     } else if let Some(stripped) = value.strip_prefix('<') {
         stripped.trim().parse().ok().map(PayloadFilter::LessThan)
     } else {
-        Some(PayloadFilter::Equals(value.to_string()))
-    }
-    .map(FilterType::Payload)
+        match value.parse::<usize>() {
+            Ok(_) => Some(PayloadFilter::Equals(value.to_string())),
+            Err(_) => None,
+        }
+    };
+
+    result.map(FilterType::Payload)
 }
 
 fn calculate_payload_size(packet: &MpegTsPacketInfo) -> usize {
