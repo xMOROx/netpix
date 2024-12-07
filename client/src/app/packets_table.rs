@@ -1,46 +1,84 @@
+mod filters;
+
+use crate::app::utils::{FilterHelpContent, FilterInput};
+use crate::filter_system::{validate_filter_syntax, FilterExpression, ParseError};
 use crate::streams::RefStreams;
+use eframe::epaint::Color32;
 use egui::widgets::TextEdit;
 use egui_extras::{Column, TableBody, TableBuilder};
 use ewebsock::{WsMessage, WsSender};
+use filters::{parse_filter, FilterContext};
 use netpix_common::packet::{Packet, SessionProtocol};
 use netpix_common::Request;
 
 pub struct PacketsTable {
     streams: RefStreams,
     ws_sender: WsSender,
-    filter_buffer: String,
+    filter_input: FilterInput,
 }
 
 impl PacketsTable {
     pub fn new(streams: RefStreams, ws_sender: WsSender) -> Self {
+        let help = FilterHelpContent::builder("Network Packet Filters")
+            .filter("source:<ip>", "Filter by source IP address")
+            .filter("dest:<ip>", "Filter by destination IP address")
+            .filter(
+                "proto:<protocol> or protocol:<protocol>",
+                "Filter by protocol (TCP, UDP, RTP, RTCP, MPEG-TS)",
+            )
+            .filter(
+                "type:<protocol>",
+                "Filter by protocol type (RTP, RTCP, MPEG-TS)",
+            )
+            .filter(
+                "length:<op><size>",
+                "Filter by packet size (operators: <, <=, >, >=)",
+            )
+            .example("source:192.168 AND proto:udp")
+            .example("length:>100 AND type:rtp")
+            .example("NOT dest:10.0.0.1")
+            .example("(proto:tcp AND length:>500) OR source:192.168")
+            .build();
+
         Self {
             streams,
             ws_sender,
-            filter_buffer: String::new(),
+            filter_input: FilterInput::new(help),
         }
     }
 
     pub fn ui(&mut self, ctx: &egui::Context) {
-        egui::TopBottomPanel::top("filter_bar").show(ctx, |ui| {
-            self.build_filter(ui);
-        });
+        if self.filter_input.show(ctx) {
+            self.check_filter();
+        }
+
         egui::CentralPanel::default().show(ctx, |ui| {
             self.build_table(ui);
         });
     }
 
-    fn build_filter(&mut self, ui: &mut egui::Ui) {
-        let text_edit = TextEdit::singleline(&mut self.filter_buffer)
-            .font(egui::style::TextStyle::Monospace)
-            .desired_width(f32::INFINITY)
-            .hint_text("Apply a filter ...");
+    fn check_filter(&mut self) {
+        let filter = self.filter_input.get_filter();
+        if filter.is_empty() {
+            self.filter_input.set_error(None);
+            return;
+        }
 
-        ui.horizontal(|ui| {
-            // TODO: implement the actual filtering
-            ui.button("↻").on_hover_text("Reset the filter");
-            ui.button("⏵").on_hover_text("Apply the filter");
-            ui.add(text_edit);
-        });
+        let result = parse_filter(&filter.to_lowercase());
+        self.filter_input.set_error(result.err());
+    }
+
+    fn packet_matches_filter(&self, packet: &Packet) -> bool {
+        if self.filter_input.get_filter().is_empty() {
+            return true;
+        }
+
+        let filter = self.filter_input.get_filter().trim();
+        let ctx = FilterContext { packet };
+
+        parse_filter(filter)
+            .map(|filter_type| filter_type.matches(&ctx))
+            .unwrap_or(true) // Show all packets if filter parsing fails
     }
 
     fn build_table(&mut self, ui: &mut egui::Ui) {
@@ -76,6 +114,7 @@ impl PacketsTable {
     }
 
     fn build_table_body(&mut self, body: TableBody) {
+        let filter_valid = self.filter_input.get_error().is_none();
         let mut requests = Vec::new();
         let streams = self.streams.borrow();
         let packets = &streams.packets;
@@ -84,17 +123,23 @@ impl PacketsTable {
             return;
         }
 
-        let first_timestamp = packets.first().unwrap().timestamp;
-        let keys: Vec<_> = packets.keys().collect();
+        let mut all_packets: Vec<_> = packets.values().collect();
+        all_packets.sort_by_key(|p| p.timestamp);
 
-        body.rows(25.0, packets.len(), |mut row| {
-            let id = row.index();
-            let key = **keys.get(id).unwrap();
-            let packet = packets.get(key).unwrap();
+        let first_timestamp = all_packets[0].timestamp;
+
+        let filtered_packets: Vec<_> = all_packets
+            .iter()
+            .filter(|packet| filter_valid && self.packet_matches_filter(packet))
+            .collect();
+
+        body.rows(25.0, filtered_packets.len(), |mut row| {
+            let packet = filtered_packets[row.index()];
+            let timestamp = packet.timestamp - first_timestamp;
+
             row.col(|ui| {
                 ui.label(packet.id.to_string());
             });
-            let timestamp = packet.timestamp - first_timestamp;
             row.col(|ui| {
                 ui.label(timestamp.as_secs_f64().to_string());
             });
@@ -121,9 +166,7 @@ impl PacketsTable {
             });
         });
 
-        // cannot take mutable reference to self
-        // unless `packets` is dropped, hence the `request` vector
-        std::mem::drop(streams);
+        drop(streams);
         requests
             .iter()
             .for_each(|req| self.send_parse_request(req.clone()));

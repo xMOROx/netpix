@@ -2,6 +2,7 @@ mod display;
 mod filters;
 mod types;
 
+use crate::app::utils::{FilterHelpContent, FilterInput};
 use crate::streams::RefStreams;
 use display::{
     format_packet_text, ES_FORMAT, PAT_FORMAT, PCR_ES_FORMAT, PCR_FORMAT, PID_FORMAT, PMT_FORMAT,
@@ -10,7 +11,8 @@ use egui_extras::{Column, TableBody, TableBuilder};
 use types::{PacketInfo, TableConfig};
 
 use crate::app::is_mpegts_stream_visible;
-use crate::app::mpegts_packets_table::filters::{parse_filter, FilterContext, PacketFilter};
+use crate::app::mpegts_packets_table::filters::{parse_filter, FilterContext};
+use crate::filter_system::{validate_filter_syntax, FilterExpression, ParseError};
 use egui::{Color32, RichText, TextEdit};
 use netpix_common::mpegts::header::{AdaptationFieldControl, PIDTable};
 use netpix_common::mpegts::MpegtsFragment;
@@ -21,40 +23,58 @@ use web_time::Duration;
 #[derive(Clone)]
 pub struct MpegTsPacketsTable {
     streams: RefStreams,
-    filter_buffer: String,
+    filter_input: FilterInput,
     config: TableConfig,
 }
 
 impl MpegTsPacketsTable {
     pub fn new(streams: RefStreams) -> Self {
+        let help = FilterHelpContent::builder("MPEG-TS Packet Filters")
+            .filter("source:<ip>", "Filter by source IP address")
+            .filter("dest:<ip>", "Filter by destination IP address")
+            .filter("alias:<stream_alias>", "Filter by stream alias")
+            .filter("pid:<number>", "Filter by PID value")
+            .filter(
+                "type:<value>",
+                "Filter by packet type (PAT, PMT, ES, PCR, PCR+ES)",
+            )
+            .filter(
+                "payload:<op><size>",
+                "Filter by payload size (operators: <, <=, >, >=)",
+            )
+            .example("type:PAT AND payload:>1000")
+            .example("source:192.168 OR dest:10.0")
+            .example("alias:A AND type:PCR")
+            .example("(type:PMT AND payload:>500) OR pid:256")
+            .build();
+
         Self {
             streams,
-            filter_buffer: String::new(),
+            filter_input: FilterInput::new(help),
             config: TableConfig::default(),
         }
     }
 
     pub fn ui(&mut self, ctx: &egui::Context) {
-        egui::TopBottomPanel::top("filter_bar").show(ctx, |ui| {
-            self.build_filter(ui);
-        });
+        if self.filter_input.show(ctx) {
+            self.check_filter();
+        }
+
         egui::CentralPanel::default().show(ctx, |ui| {
             self.options_ui(ui);
             self.build_table(ui);
         });
     }
 
-    fn build_filter(&mut self, ui: &mut egui::Ui) {
-        let text_edit = TextEdit::singleline(&mut self.filter_buffer)
-            .font(egui::style::TextStyle::Monospace)
-            .desired_width(f32::INFINITY)
-            .hint_text(
-                "Examples: ALIAS:A, DESC:123 AND TYPE:PAT, SOURCE:192.168 OR DEST:10.0, NOT PID:4096, (TYPE:PMT AND PAYLOAD:>1000)",
-            );
+    fn check_filter(&mut self) {
+        let filter = self.filter_input.get_filter();
+        if filter.is_empty() {
+            self.filter_input.set_error(None);
+            return;
+        }
 
-        ui.horizontal(|ui| {
-            ui.add(text_edit);
-        });
+        let result = parse_filter(&filter.to_lowercase());
+        self.filter_input.set_error(result.err());
     }
 
     fn packet_matches_filter(
@@ -64,12 +84,11 @@ impl MpegTsPacketsTable {
         es_pids: &[PIDTable],
         pcr_pids: &[PIDTable],
     ) -> bool {
-        if self.filter_buffer.is_empty() {
+        if self.filter_input.get_filter().is_empty() {
             return true;
         }
 
-        let filter = self.filter_buffer.trim().to_lowercase();
-
+        let filter = self.filter_input.get_filter().trim().to_lowercase();
         let streams = self.streams.borrow();
         let stream_alias = streams
             .mpeg_ts_streams
@@ -84,11 +103,9 @@ impl MpegTsPacketsTable {
             stream_alias,
         };
 
-        if let Some(filter_type) = parse_filter(&filter) {
-            filter_type.matches(&ctx)
-        } else {
-            true
-        }
+        parse_filter(&filter)
+            .map(|filter_type| filter_type.matches(&ctx))
+            .unwrap_or(true) // Show all packets if filter parsing fails
     }
 
     fn options_ui(&mut self, ui: &mut egui::Ui) {
@@ -174,6 +191,9 @@ impl MpegTsPacketsTable {
     }
 
     fn build_table_body(&mut self, body: TableBody) {
+        let filter_valid =
+            self.filter_input.get_filter().is_empty() || self.filter_input.get_error().is_none();
+
         let streams = &self.streams.borrow();
 
         let mut alias_to_display: HashMap<MpegtsStreamKey, String> = HashMap::default();
@@ -256,44 +276,43 @@ impl MpegTsPacketsTable {
 
         let filtered_packets: Vec<_> = packets_with_info
             .into_iter()
-            .filter(|info| self.packet_matches_filter(info, &pmt_pids, &es_pids, &pcr_pids))
+            .filter(|info| {
+                filter_valid && self.packet_matches_filter(info, &pmt_pids, &es_pids, &pcr_pids)
+            })
             .collect();
 
-        body.rows(
-            self.config.row_height,
-            filtered_packets.len(),
-            |mut row| {
-                let row_ix = row.index();
-                let info = &filtered_packets[row_ix];
+        body.rows(self.config.row_height, filtered_packets.len(), |mut row| {
+            let row_ix = row.index();
+            let info = &filtered_packets[row_ix];
 
-                row.col(|ui| {
-                    ui.label(info.packet.id.to_string());
-                });
+            row.col(|ui| {
+                ui.label(info.packet.id.to_string());
+            });
 
-                row.col(|ui| {
-                    let binding = String::new();
-                    let alias = alias_to_display.get(&info.key).unwrap_or(&binding);
-                    ui.label(alias);
-                });
+            row.col(|ui| {
+                let binding = String::new();
+                let alias = alias_to_display.get(&info.key).unwrap_or(&binding);
+                ui.label(alias);
+            });
 
-                row.col(|ui| {
-                    let timestamp = info.packet.time.saturating_sub(first_ts);
-                    ui.label(format!("{:.4}", timestamp.as_secs_f64()));
-                });
-                row.col(|ui| {
-                    ui.label(info.packet.packet_association_table.source_addr.to_string());
-                });
-                row.col(|ui| {
-                    ui.label(
-                        info.packet
-                            .packet_association_table
-                            .destination_addr
-                            .to_string(),
-                    );
-                });
+            row.col(|ui| {
+                let timestamp = info.packet.time.saturating_sub(first_ts);
+                ui.label(format!("{:.4}", timestamp.as_secs_f64()));
+            });
+            row.col(|ui| {
+                ui.label(info.packet.packet_association_table.source_addr.to_string());
+            });
+            row.col(|ui| {
+                ui.label(
+                    info.packet
+                        .packet_association_table
+                        .destination_addr
+                        .to_string(),
+                );
+            });
 
-                let mut labels = info
-                    .packet
+            let mut labels =
+                info.packet
                     .content
                     .fragments
                     .iter()
@@ -319,77 +338,76 @@ impl MpegTsPacketsTable {
                         PIDTable::IPMPControlInformation => String::from("IPMPControlInformation"),
                     });
 
-                let fragments: Vec<_> = info.packet.content.fragments.iter().collect();
+            let fragments: Vec<_> = info.packet.content.fragments.iter().collect();
 
-                let payload_size: usize = fragments
-                    .iter()
-                    .map(|fragment| {
-                        if fragment.header.adaptation_field_control
-                            == AdaptationFieldControl::AdaptationFieldOnly
-                        {
-                            return 0;
-                        }
-                        fragment
-                            .payload
-                            .as_ref()
-                            .map_or_else(|| 0, |payload| payload.data.len())
-                    })
-                    .sum();
-                let mut fragments_iter = fragments.iter();
+            let payload_size: usize = fragments
+                .iter()
+                .map(|fragment| {
+                    if fragment.header.adaptation_field_control
+                        == AdaptationFieldControl::AdaptationFieldOnly
+                    {
+                        return 0;
+                    }
+                    fragment
+                        .payload
+                        .as_ref()
+                        .map_or_else(|| 0, |payload| payload.data.len())
+                })
+                .sum();
+            let mut fragments_iter = fragments.iter();
 
-                row.col(|ui| {
-                    ui.label(format_packet_text(
-                        labels.next().unwrap_or_default(),
-                        fragments_iter.next().copied(),
-                    ));
-                });
+            row.col(|ui| {
+                ui.label(format_packet_text(
+                    labels.next().unwrap_or_default(),
+                    fragments_iter.next().copied(),
+                ));
+            });
 
-                row.col(|ui| {
-                    ui.label(format_packet_text(
-                        labels.next().unwrap_or_default(),
-                        fragments_iter.next().copied(),
-                    ));
-                });
+            row.col(|ui| {
+                ui.label(format_packet_text(
+                    labels.next().unwrap_or_default(),
+                    fragments_iter.next().copied(),
+                ));
+            });
 
-                row.col(|ui| {
-                    ui.label(format_packet_text(
-                        labels.next().unwrap_or_default(),
-                        fragments_iter.next().copied(),
-                    ));
-                });
+            row.col(|ui| {
+                ui.label(format_packet_text(
+                    labels.next().unwrap_or_default(),
+                    fragments_iter.next().copied(),
+                ));
+            });
 
-                row.col(|ui| {
-                    ui.label(format_packet_text(
-                        labels.next().unwrap_or_default(),
-                        fragments_iter.next().copied(),
-                    ));
-                });
+            row.col(|ui| {
+                ui.label(format_packet_text(
+                    labels.next().unwrap_or_default(),
+                    fragments_iter.next().copied(),
+                ));
+            });
 
-                row.col(|ui| {
-                    ui.label(format_packet_text(
-                        labels.next().unwrap_or_default(),
-                        fragments_iter.next().copied(),
-                    ));
-                });
+            row.col(|ui| {
+                ui.label(format_packet_text(
+                    labels.next().unwrap_or_default(),
+                    fragments_iter.next().copied(),
+                ));
+            });
 
-                row.col(|ui| {
-                    ui.label(format_packet_text(
-                        labels.next().unwrap_or_default(),
-                        fragments_iter.next().copied(),
-                    ));
-                });
+            row.col(|ui| {
+                ui.label(format_packet_text(
+                    labels.next().unwrap_or_default(),
+                    fragments_iter.next().copied(),
+                ));
+            });
 
-                row.col(|ui| {
-                    ui.label(format_packet_text(
-                        labels.next().unwrap_or_default(),
-                        fragments_iter.next().copied(),
-                    ));
-                });
+            row.col(|ui| {
+                ui.label(format_packet_text(
+                    labels.next().unwrap_or_default(),
+                    fragments_iter.next().copied(),
+                ));
+            });
 
-                row.col(|ui| {
-                    ui.label(payload_size.to_string());
-                });
-            },
-        );
+            row.col(|ui| {
+                ui.label(payload_size.to_string());
+            });
+        });
     }
 }
