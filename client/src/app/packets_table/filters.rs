@@ -43,9 +43,10 @@
 //! - `(type:rtp OR type:rtcp) AND NOT dest:10.0.0.1` - RTP/RTCP packets not going to specific host
 //! - `proto:tcp AND length:>=1500` - TCP packets with maximum size
 
-use crate::{declare_filter_type, filter_system, filter_system::*};
 use netpix_common::packet::{Packet, SessionProtocol};
 use std::str::FromStr;
+use crate::{declare_filter_type, filter_system};
+use crate::filter_system::{CommonFilterParser, ComparisonFilter, FilterExpression, FilterParser, ParseError};
 
 pub struct FilterContext<'a> {
     pub packet: &'a Packet,
