@@ -1,4 +1,4 @@
-use std::cmp::Ordering;
+use std::cmp::{max, Ordering};
 use std::collections::{BTreeMap, HashMap};
 use super::is_mpegts_stream_visible;
 use crate::streams::RefStreams;
@@ -14,19 +14,14 @@ use netpix_common::mpegts::psi::pmt::ProgramMapTable;
 use netpix_common::mpegts::psi::psi_buffer::PsiBuffer;
 use netpix_common::MpegtsStreamKey;
 
+const LINE_HEIGHT: f32 = 20.0;
+
 struct MpegTsInfo {
     pat: Option<ProgramAssociationTable>,
     pmt: Option<ProgramMapTable>,
 }
-struct MpegTsInfoRow {
-    source_addr: SocketAddr,
-    destination_addr: SocketAddr,
-    time: Duration,
-    info: MpegTsInfo,
-    duplicates: usize,
-}
 
-#[derive(Hash, Eq, PartialEq, Ord)]
+#[derive(Hash, Eq, PartialEq, Ord, Clone)]
 struct RowKey {
     pid: PIDTable,
     alias: String,
@@ -88,10 +83,7 @@ impl MpegTsInformationTable {
     fn build_table(&mut self, ui: &mut egui::Ui) {
         let header_labels = [
             ("Stream alias", "Stream alias"),
-            ("Source", "Source IP address and port"),
-            ("Destination", "Destination IP address and port"),
             ("Type", "Type of mpegts packet"),
-            ("Duplications", "Number of duplicated packets"),
             ("Packet count", "Number of packets in mpegts packet"),
             ("Addition information", "Additional information"),
         ];
@@ -99,10 +91,8 @@ impl MpegTsInformationTable {
             .striped(true)
             .resizable(true)
             .stick_to_bottom(true)
-            .column(Column::remainder().at_least(80.0))
-            .columns(Column::remainder().at_least(130.0), 2)
-            .columns(Column::remainder().at_least(40.0), 3)
-            .column(Column::remainder().at_least(800.0))
+            .columns(Column::remainder().at_least(100.0).at_most(200.0), 3)
+            .column(Column::remainder().at_least(1000.0))
             .header(30.0, |mut header| {
                 header_labels.iter().for_each(|(label, desc)| {
                     header.col(|ui| {
@@ -118,89 +108,48 @@ impl MpegTsInformationTable {
 
     fn build_table_body(&mut self, body: TableBody) {
         let streams = &self.streams.borrow();
-        let mut mpegts_rows: BTreeMap<RowKey, MpegTsInfoRow> = BTreeMap::default();
+        let mut mpegts_rows: BTreeMap<RowKey, MpegTsInfo> = BTreeMap::default();
+        let mut row_height: BTreeMap<RowKey, f32> = BTreeMap::default();
         streams.mpeg_ts_streams.iter().for_each(|(_key, stream)| {
-            let aggregator = &stream.aggregator;
-            stream.stream_info.packets.iter().for_each(|packet| {
-                packet.content.fragments.iter().for_each(|fragment| {
-                    let header = &fragment.header;
-                    if let PIDTable::ProgramAssociation = header.pid {
-                        if aggregator.is_pat_complete() {
-                            let info = MpegTsInfo { pat: Some(stream.clone().stream_info.pat.unwrap()), pmt: None };
-                            let key = RowKey { pid: header.pid, alias: stream.alias.clone() };
-                            if mpegts_rows.contains_key(&key) {
-                                let val = mpegts_rows.get_mut(&key).unwrap();
-                                val.duplicates += 1;
-                                val.time = packet.time;
-                            } else {
-                                mpegts_rows.insert(
-                                    key,
-                                    MpegTsInfoRow {
-                                        info,
-                                        duplicates: 0,
-                                        source_addr: packet.packet_association_table.source_addr,
-                                        destination_addr: packet.packet_association_table.destination_addr,
-                                        time: packet.time,
-                                    });
-                            }
-                        }
-                    } else if let PIDTable::PID(pid) = header.pid {
-                        if aggregator.is_pmt_complete(pid) {
-                            let info = MpegTsInfo {
-                                pat: None,
-                                pmt: Some(stream.stream_info.pmt.get(&header.pid).unwrap().clone()),
-                            };
-                            let key = RowKey { pid: header.pid, alias: stream.alias.clone() };
-                            if mpegts_rows.contains_key(&key) {
-                                let val = mpegts_rows.get_mut(&key).unwrap();
-                                val.duplicates += 1;
-                                val.time = packet.time;
-                            } else {
-                                mpegts_rows.insert(
-                                    key,
-                                    MpegTsInfoRow {
-                                        info,
-                                        duplicates: 0,
-                                        source_addr: packet.packet_association_table.source_addr,
-                                        destination_addr: packet.packet_association_table.destination_addr,
-                                        time: packet.time,
-                                    });
-                            }
-                        }
-                    }
-                })
-            })
+            if let Some(pat) = &stream.stream_info.pat {
+                let info = MpegTsInfo { pat: Some(pat.clone()), pmt: None };
+                let key = RowKey { pid: PIDTable::ProgramAssociation, alias: stream.alias.clone() };
+                mpegts_rows.insert(key.clone(), info);
+                row_height.insert(key, pat.programs.len() as f32 * LINE_HEIGHT);
+            }
+            stream.stream_info.pmt.iter().for_each(|(key, pmt)| {
+                let info = MpegTsInfo { pat: None, pmt: Some(pmt.clone()) };
+                let key = RowKey { pid: key.clone(), alias: stream.alias.clone() };
+                mpegts_rows.insert(key.clone(), info);
+                let mut counter: usize = 0;
+                pmt.elementary_streams_info.iter().for_each(|e|{
+                    counter += 3;
+                    counter += e.descriptors.len()
+                });
+                row_height.insert(key, counter as f32 * LINE_HEIGHT);
+            });
         });
+
         let keys = mpegts_rows.keys().collect::<Vec<_>>();
-        body.rows(25.0, mpegts_rows.len(), |row_ix, mut row| {
-            let key = keys.get(row_ix).unwrap();
-            let mpegts_row = mpegts_rows.get(key).unwrap();
-            let mpegts_info = &mpegts_row.info;
+        body.heterogeneous_rows(row_height.values().map(|height| *height).into_iter(), |mut row| {
+            let key = keys.get(row.index()).unwrap();
+            let info = mpegts_rows.get(key).unwrap();
 
             row.col(|ui| {
                 ui.label(&key.alias);
             });
             row.col(|ui| {
-                ui.label(mpegts_row.source_addr.to_string());
-            });
-            row.col(|ui| {
-                ui.label(mpegts_row.destination_addr.to_string());
-            });
-            row.col(|ui| {
                 ui.label(key.pid.to_string());
             });
             row.col(|ui| {
-                ui.label(&mpegts_row.duplicates.to_string());
-            });
-            row.col(|ui| {
-                if let Some(pat) = &mpegts_info.pat {
+                if let Some(pat) = &info.pat {
                     ui.label(pat.fragment_count.to_string());
-                } else if let Some(pmt) = &mpegts_info.pmt {
+                } else if let Some(pmt) = &info.pmt {
                     ui.label(pmt.fragment_count.to_string());
                 }
             });
             row.col(|ui| {
-                if let Some(pat) = &mpegts_info.pat {
+                if let Some(pat) = &info.pat {
                     let mut programs = String::new();
                     pat.programs.iter().for_each(|program| {
                         programs += format!("Program number: {} ", program.program_number).as_str();
@@ -211,8 +160,21 @@ impl MpegTsInformationTable {
                         }
                     });
                     ui.label(programs);
-                } else if let Some(pmt) = &mpegts_info.pmt {
-
+                } else if let Some(pmt) = &info.pmt {
+                    if pmt.elementary_streams_info.len() > 0 {
+                        let mut streams_info = String::from("Elementary stream info:\n");
+                        pmt.elementary_streams_info.iter().for_each(|stream_info| {
+                            streams_info += format!("\tStream type: {}\n", stream_info.stream_type).as_str();
+                            streams_info += format!("\tElementary PID: {}\n", PIDTable::from(stream_info.elementary_pid)).as_str();
+                            if stream_info.descriptors.len() > 0 {
+                                streams_info += "\tDescriptors:\n";
+                                stream_info.descriptors.iter().for_each(|desc| {
+                                    streams_info += format!("\t\t{}\n", desc).as_str();
+                                });
+                            }
+                        });
+                        ui.label(streams_info);
+                    }
                 }
             });
         })
