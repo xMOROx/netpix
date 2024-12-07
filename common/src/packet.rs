@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 
 use std::fmt;
 use std::net::SocketAddr;
-
+use std::str::FromStr;
 use std::time::Duration;
 
 #[cfg(not(target_arch = "wasm32"))]
@@ -21,6 +21,19 @@ pub enum SessionProtocol {
     Rtp,
     Rtcp,
     Mpegts,
+}
+
+impl FromStr for SessionProtocol {
+    type Err = ();
+    fn from_str(p0: &str) -> Result<Self, Self::Err> {
+        match p0.to_lowercase().as_str() {
+            "unknown" => Ok(Self::Unknown),
+            "rtp" => Ok(Self::Rtp),
+            "rtcp" => Ok(Self::Rtcp),
+            "mpeg-ts" => Ok(Self::Mpegts),
+            _ => Err(()),
+        }
+    }
 }
 
 impl SessionProtocol {

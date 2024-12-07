@@ -2,6 +2,7 @@ mod display;
 mod filters;
 mod types;
 
+use crate::app::utils::{FilterHelpContent, FilterInput};
 use crate::streams::RefStreams;
 use display::{
     format_packet_text, ES_FORMAT, PAT_FORMAT, PCR_ES_FORMAT, PCR_FORMAT, PID_FORMAT, PMT_FORMAT,
@@ -10,7 +11,7 @@ use egui_extras::{Column, TableBody, TableBuilder};
 use types::{PacketInfo, TableConfig};
 
 use crate::app::is_mpegts_stream_visible;
-use crate::app::mpegts_packets_table::filters::{parse_filter, FilterContext, PacketFilter};
+use crate::app::mpegts_packets_table::filters::{parse_filter, FilterContext};
 use crate::filter_system::{validate_filter_syntax, FilterExpression, ParseError};
 use egui::{Color32, RichText, TextEdit};
 use netpix_common::mpegts::header::{AdaptationFieldControl, PIDTable};
@@ -22,119 +23,58 @@ use web_time::Duration;
 #[derive(Clone)]
 pub struct MpegTsPacketsTable {
     streams: RefStreams,
-    filter_buffer: String,
+    filter_input: FilterInput,
     config: TableConfig,
-    filter_error: Option<ParseError>,
-    show_filter_help: bool,
 }
 
 impl MpegTsPacketsTable {
     pub fn new(streams: RefStreams) -> Self {
+        let help = FilterHelpContent::builder("MPEG-TS Packet Filters")
+            .filter("source:<ip>", "Filter by source IP address")
+            .filter("dest:<ip>", "Filter by destination IP address")
+            .filter("alias:<stream_alias>", "Filter by stream alias")
+            .filter("pid:<number>", "Filter by PID value")
+            .filter(
+                "type:<value>",
+                "Filter by packet type (PAT, PMT, ES, PCR, PCR+ES)",
+            )
+            .filter(
+                "payload:<op><size>",
+                "Filter by payload size (operators: <, <=, >, >=)",
+            )
+            .example("type:PAT AND payload:>1000")
+            .example("source:192.168 OR dest:10.0")
+            .example("alias:A AND type:PCR")
+            .example("(type:PMT AND payload:>500) OR pid:256")
+            .build();
+
         Self {
             streams,
-            filter_buffer: String::new(),
+            filter_input: FilterInput::new(help),
             config: TableConfig::default(),
-            filter_error: None,
-            show_filter_help: false,
         }
     }
 
     pub fn ui(&mut self, ctx: &egui::Context) {
-        egui::TopBottomPanel::top("filter_bar").show(ctx, |ui| {
-            self.build_filter(ui);
-        });
+        if self.filter_input.show(ctx) {
+            self.check_filter();
+        }
+
         egui::CentralPanel::default().show(ctx, |ui| {
             self.options_ui(ui);
             self.build_table(ui);
         });
-
-        if let Some(error) = &self.filter_error {
-            let modal = egui::Window::new("Filter Error")
-                .anchor(egui::Align2::RIGHT_BOTTOM, egui::vec2(-5.0, -30.0))
-                .collapsible(true)
-                .resizable(false);
-
-            modal.show(ctx, |ui| {
-                ui.colored_label(Color32::RED, format!("{}", error));
-            });
-        }
-
-        if self.show_filter_help {
-            let modal = egui::Window::new("Filter Syntax Help")
-                .anchor(egui::Align2::CENTER_CENTER, egui::vec2(0.0, 0.0))
-                .resizable(false)
-                .collapsible(false)
-                .min_width(400.0);
-
-            modal.show(ctx, |ui| {
-                ui.heading("Available Filter Types");
-
-                ui.add_space(10.0);
-                ui.label("Basic Filters:");
-                ui.label("• ALIAS:<stream_alias> - Filter by stream alias");
-                ui.label("• PID:<number> - Filter by PID value");
-                ui.label("• TYPE:<PAT|PMT|ES|PCR> - Filter by packet type");
-                ui.label("• SOURCE:<ip> - Filter by source IP address");
-                ui.label("• DEST:<ip> - Filter by destination IP address");
-                ui.label(
-                    "• PAYLOAD:<op><size> - Filter by payload size (operators: >, <, =, >=, <=)",
-                );
-
-                ui.add_space(10.0);
-                ui.label("Logical Operators:");
-                ui.label("• AND - Combine conditions (all must match)");
-                ui.label("• OR - Alternative conditions (any must match)");
-                ui.label("• NOT - Negate condition");
-                ui.label("• () - Group conditions");
-
-                ui.add_space(10.0);
-                ui.label("Examples:");
-                ui.label("• TYPE:PAT AND PAYLOAD:>1000");
-                ui.label("• SOURCE:192.168 OR DEST:10.0");
-                ui.label("• NOT PID:4096");
-                ui.label("• (TYPE:PMT AND PAYLOAD:>500) OR ALIAS:A");
-
-                ui.add_space(10.0);
-                if ui.button("Close").clicked() {
-                    self.show_filter_help = false;
-                }
-            });
-        }
     }
 
-    fn build_filter(&mut self, ui: &mut egui::Ui) {
-        ui.horizontal(|ui| {
-            let text_edit = TextEdit::singleline(&mut self.filter_buffer)
-                .font(egui::style::TextStyle::Monospace)
-                .desired_width(f32::INFINITY)
-                .hint_text(
-                    "Examples: ALIAS:A, DESC:123 AND TYPE:PAT, SOURCE:192.168 OR DEST:10.0, NOT PID:4096",
-                );
-            let response = ui.small_button("ℹ Help")
-                .on_hover_text("Show filter syntax help");
-
-            ui.add(text_edit);
-            self.show_filter_help = self.show_filter_help || response.clicked();
-        });
-    }
-
-    fn check_filter(&mut self) -> bool {
-        if self.filter_buffer.is_empty() {
-            self.filter_error = None;
-            return true;
+    fn check_filter(&mut self) {
+        let filter = self.filter_input.get_filter();
+        if filter.is_empty() {
+            self.filter_input.set_error(None);
+            return;
         }
 
-        let filter = self.filter_buffer.trim().to_lowercase();
-        match parse_filter(&filter) {
-            Ok(_) => {
-                self.filter_error = None;
-                true
-            }
-            Err(err) => {
-                self.filter_error = Some(err);
-                false
-            }
-        }
+        let result = parse_filter(&filter.to_lowercase());
+        self.filter_input.set_error(result.err());
     }
 
     fn packet_matches_filter(
@@ -144,11 +84,11 @@ impl MpegTsPacketsTable {
         es_pids: &[PIDTable],
         pcr_pids: &[PIDTable],
     ) -> bool {
-        if self.filter_buffer.is_empty() {
+        if self.filter_input.get_filter().is_empty() {
             return true;
         }
 
-        let filter = self.filter_buffer.trim().to_lowercase();
+        let filter = self.filter_input.get_filter().trim().to_lowercase();
         let streams = self.streams.borrow();
         let stream_alias = streams
             .mpeg_ts_streams
@@ -251,7 +191,8 @@ impl MpegTsPacketsTable {
     }
 
     fn build_table_body(&mut self, body: TableBody) {
-        let filter_valid = self.check_filter();
+        let filter_valid =
+            self.filter_input.get_filter().is_empty() || self.filter_input.get_error().is_none();
 
         let streams = &self.streams.borrow();
 
