@@ -181,13 +181,22 @@ fn parse_primary(lexer: &mut Lexer) -> ParseResult<FilterType> {
 }
 
 fn parse_filter_with_value(prefix: &str, value: &str) -> Result<FilterType, ParseError> {
+    if value.is_empty() {
+        return Err(ParseError::InvalidSyntax(format!(
+            "Empty value for filter '{}'. Value must not be empty",
+            prefix
+        )));
+    }
+
     match prefix.trim() {
         "source" => Ok(FilterType::Source(value.to_lowercase())),
         "dest" => Ok(FilterType::Destination(value.to_lowercase())),
-        "proto" | "protocol" => Ok(FilterType::Protocol(value.to_lowercase())), // Allow both "proto" and "protocol"
+        "proto" | "protocol" => Ok(FilterType::Protocol(value.to_lowercase())),
         "length" => parse_length_filter(value).ok_or_else(|| {
             ParseError::InvalidSyntax(format!(
-                "Invalid length filter format. Expected number or comparison (e.g. >100, <=1500), got '{}'",
+                "Invalid length filter format. Expected number or comparison (e.g. >100, <=1500), got '{}'. \
+                Valid formats are: exact number (100), greater than (>100), greater or equal (>=100), \
+                less than (<100), less or equal (<=100)",
                 value
             ))
         }),
@@ -195,12 +204,18 @@ fn parse_filter_with_value(prefix: &str, value: &str) -> Result<FilterType, Pars
             .map(FilterType::Type)
             .map_err(|_| {
                 ParseError::InvalidSyntax(format!(
-                    "Invalid protocol type: {}",
+                    "Invalid protocol type '{}'. Expected one of: RTP, RTCP (case insensitive). \
+                    Examples: 'type:rtp', 'type:RTCP', 'type:MPEG-TS'",
                     value
                 ))
             }),
         _ => Err(ParseError::InvalidSyntax(format!(
-            "Unknown filter type: {}",
+            "Unknown filter type: '{}'. Available filters are:\n\
+             - source: matches source IP (e.g. 'source:192.168')\n\
+             - dest: matches destination IP (e.g. 'dest:10.0')\n\
+             - proto: matches protocol (e.g. 'proto:udp')\n\
+             - length: matches packet length (e.g. 'length:>100')\n\
+             - type: matches session protocol (e.g. 'type:rtp')",
             prefix
         ))),
     }

@@ -26,11 +26,11 @@ pub enum SessionProtocol {
 impl FromStr for SessionProtocol {
     type Err = ();
     fn from_str(p0: &str) -> Result<Self, Self::Err> {
-        match p0 {
-            "Unknown" => Ok(Self::Unknown),
-            "RTP" => Ok(Self::Rtp),
-            "RTCP" => Ok(Self::Rtcp),
-            "MPEG-TS" => Ok(Self::Mpegts),
+        match p0.to_lowercase().as_str() {
+            "unknown" => Ok(Self::Unknown),
+            "rtp" => Ok(Self::Rtp),
+            "rtcp" => Ok(Self::Rtcp),
+            "mpeg-ts" => Ok(Self::Mpegts),
             _ => Err(()),
         }
     }
