@@ -52,9 +52,7 @@
 //! - `pid:256 AND (type:ES OR type:PCR+ES)` - ES or PCR+ES packets with PID 256
 //! - `alias:A AND payload:>=188` - Packets from stream aliased as "A" with full payloads
 
-use crate::filter_system::{
-    parse_expression, FilterCombinator, FilterExpression, Lexer, ParseError, ParseResult, Token,
-};
+use crate::filter_system::{parse_expression, validate_filter_syntax, FilterCombinator, FilterExpression, Lexer, ParseError, ParseResult, Token};
 use crate::streams::mpegts_stream::packet_info::MpegTsPacketInfo;
 use netpix_common::mpegts::header::{AdaptationFieldControl, PIDTable};
 use std::collections::VecDeque;
@@ -189,18 +187,35 @@ impl<'a> FilterCombinator<'a> for FilterType {
 }
 
 pub fn parse_filter(filter: &str) -> Option<FilterType> {
+    if let Err(_) = validate_filter_syntax(filter) {
+        return None;
+    }
+
     let mut lexer = Lexer::new(filter);
-    parse_expression(&mut lexer, 0, parse_primary).ok()
+    match parse_expression(&mut lexer, 0, parse_primary) {
+        Ok(filter_type) => {
+            Some(filter_type)
+        }
+        Err(_) => {
+            None
+        }
+    }
 }
 
 fn parse_primary(lexer: &mut Lexer) -> ParseResult<FilterType> {
-    let token = lexer.next_token().ok_or(ParseError::InvalidToken)?;
+    let token = lexer
+        .next_token()
+        .ok_or(ParseError::InvalidToken("Empty token".into()))?;
+
     match token {
         Token::OpenParen => {
             let expr = parse_expression(lexer, 0, parse_primary)?;
             match lexer.next_token() {
                 Some(Token::CloseParen) => Ok(expr),
-                _ => Err(ParseError::UnmatchedParenthesis),
+                Some(_other) => {
+                    Err(ParseError::UnmatchedParenthesis)
+                }
+                None => Err(ParseError::UnmatchedParenthesis),
             }
         }
         Token::Not => {
@@ -209,16 +224,26 @@ fn parse_primary(lexer: &mut Lexer) -> ParseResult<FilterType> {
         }
         Token::Filter(prefix) => {
             if lexer.next_token() != Some(Token::Colon) {
-                return Err(ParseError::InvalidToken);
+                return Err(ParseError::InvalidSyntax(
+                    "Missing colon after prefix".into(),
+                ));
             }
+
             match lexer.next_token() {
                 Some(Token::Filter(value)) => {
-                    parse_filter_with_value(&prefix, &value).ok_or(ParseError::InvalidToken)
+                    parse_filter_with_value(&prefix, &value).ok_or_else(|| {
+                        ParseError::InvalidToken(format!("Invalid filter: {}:{}", prefix, value))
+                    })
                 }
-                _ => Err(ParseError::InvalidToken),
+                _ => Err(ParseError::InvalidSyntax(
+                    "Missing value after colon".into(),
+                )),
             }
         }
-        _ => Err(ParseError::InvalidToken),
+        other => Err(ParseError::InvalidToken(format!(
+            "Unexpected token: {:?}",
+            other
+        ))),
     }
 }
 
