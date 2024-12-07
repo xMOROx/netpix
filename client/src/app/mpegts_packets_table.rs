@@ -25,6 +25,7 @@ pub struct MpegTsPacketsTable {
     filter_buffer: String,
     config: TableConfig,
     filter_error: Option<ParseError>,
+    show_filter_help: bool,
 }
 
 impl MpegTsPacketsTable {
@@ -34,6 +35,7 @@ impl MpegTsPacketsTable {
             filter_buffer: String::new(),
             config: TableConfig::default(),
             filter_error: None,
+            show_filter_help: false,
         }
     }
 
@@ -53,21 +55,66 @@ impl MpegTsPacketsTable {
                 .resizable(false);
 
             modal.show(ctx, |ui| {
-                ui.colored_label(Color32::RED, format!("{}",error ));
+                ui.colored_label(Color32::RED, format!("{}", error));
+            });
+        }
+
+        if self.show_filter_help {
+            let modal = egui::Window::new("Filter Syntax Help")
+                .anchor(egui::Align2::CENTER_CENTER, egui::vec2(0.0, 0.0))
+                .resizable(false)
+                .collapsible(false)
+                .min_width(400.0);
+
+            modal.show(ctx, |ui| {
+                ui.heading("Available Filter Types");
+
+                ui.add_space(10.0);
+                ui.label("Basic Filters:");
+                ui.label("• ALIAS:<stream_alias> - Filter by stream alias");
+                ui.label("• PID:<number> - Filter by PID value");
+                ui.label("• TYPE:<PAT|PMT|ES|PCR> - Filter by packet type");
+                ui.label("• SOURCE:<ip> - Filter by source IP address");
+                ui.label("• DEST:<ip> - Filter by destination IP address");
+                ui.label(
+                    "• PAYLOAD:<op><size> - Filter by payload size (operators: >, <, =, >=, <=)",
+                );
+
+                ui.add_space(10.0);
+                ui.label("Logical Operators:");
+                ui.label("• AND - Combine conditions (all must match)");
+                ui.label("• OR - Alternative conditions (any must match)");
+                ui.label("• NOT - Negate condition");
+                ui.label("• () - Group conditions");
+
+                ui.add_space(10.0);
+                ui.label("Examples:");
+                ui.label("• TYPE:PAT AND PAYLOAD:>1000");
+                ui.label("• SOURCE:192.168 OR DEST:10.0");
+                ui.label("• NOT PID:4096");
+                ui.label("• (TYPE:PMT AND PAYLOAD:>500) OR ALIAS:A");
+
+                ui.add_space(10.0);
+                if ui.button("Close").clicked() {
+                    self.show_filter_help = false;
+                }
             });
         }
     }
 
     fn build_filter(&mut self, ui: &mut egui::Ui) {
-        let text_edit = TextEdit::singleline(&mut self.filter_buffer)
-            .font(egui::style::TextStyle::Monospace)
-            .desired_width(f32::INFINITY)
-            .hint_text(
-                "Examples: ALIAS:A, DESC:123 AND TYPE:PAT, SOURCE:192.168 OR DEST:10.0, NOT PID:4096, (TYPE:PMT AND PAYLOAD:>1000)",
-            );
-
         ui.horizontal(|ui| {
+            let text_edit = TextEdit::singleline(&mut self.filter_buffer)
+                .font(egui::style::TextStyle::Monospace)
+                .desired_width(f32::INFINITY)
+                .hint_text(
+                    "Examples: ALIAS:A, DESC:123 AND TYPE:PAT, SOURCE:192.168 OR DEST:10.0, NOT PID:4096",
+                );
+            let response = ui.small_button("ℹ Help")
+                .on_hover_text("Show filter syntax help");
+
             ui.add(text_edit);
+            self.show_filter_help = self.show_filter_help || response.clicked();
         });
     }
 
