@@ -1,5 +1,6 @@
 mod filters;
 
+use crate::app::utils::{FilterHelpContent, FilterInput};
 use crate::filter_system::{validate_filter_syntax, FilterExpression, ParseError};
 use crate::streams::RefStreams;
 use eframe::epaint::Color32;
@@ -13,123 +14,66 @@ use netpix_common::Request;
 pub struct PacketsTable {
     streams: RefStreams,
     ws_sender: WsSender,
-    filter_buffer: String,
-    filter_error: Option<ParseError>,
-    show_filter_help: bool,
+    filter_input: FilterInput,
 }
 
 impl PacketsTable {
     pub fn new(streams: RefStreams, ws_sender: WsSender) -> Self {
+        let help = FilterHelpContent::builder("Network Packet Filters")
+            .filter("source:<ip>", "Filter by source IP address")
+            .filter("dest:<ip>", "Filter by destination IP address")
+            .filter(
+                "proto:<protocol> or protocol:<protocol> ",
+                "Filter by protocol (TCP, UDP, RTP, RTCP, MPEG-TS)",
+            )
+            .filter(
+                "type:<protocol>",
+                "Filter by protocol type (RTP, RTCP, MPEG-TS)",
+            )
+            .filter(
+                "length:<op><size>",
+                "Filter by packet size (operators: <, <=, >, >=)",
+            )
+            .example("source:192.168 AND proto:udp")
+            .example("length:>100 AND type:rtp")
+            .example("NOT dest:10.0.0.1")
+            .example("(proto:tcp AND length:>500) OR source:192.168")
+            .build();
+
         Self {
             streams,
             ws_sender,
-            filter_buffer: String::new(),
-            filter_error: None,
-            show_filter_help: false,
+            filter_input: FilterInput::new(help),
         }
     }
 
     pub fn ui(&mut self, ctx: &egui::Context) {
-        egui::TopBottomPanel::top("filter_bar").show(ctx, |ui| {
-            self.build_filter(ui);
-        });
+        if self.filter_input.show(ctx) {
+            self.check_filter();
+        }
+
         egui::CentralPanel::default().show(ctx, |ui| {
             self.build_table(ui);
         });
-
-        if let Some(error) = &self.filter_error {
-            let modal = egui::Window::new("Filter Error")
-                .anchor(egui::Align2::RIGHT_BOTTOM, egui::vec2(-5.0, -30.0))
-                .collapsible(true)
-                .resizable(false);
-
-            modal.show(ctx, |ui| {
-                ui.colored_label(Color32::RED, format!("{}", error));
-            });
-        }
-
-        if self.show_filter_help {
-            let modal = egui::Window::new("Filter Syntax Help")
-                .anchor(egui::Align2::CENTER_CENTER, egui::vec2(0.0, 0.0))
-                .resizable(false)
-                .collapsible(false)
-                .min_width(400.0);
-
-            modal.show(ctx, |ui| {
-                ui.heading("Available Filter Types");
-
-                ui.add_space(10.0);
-                ui.label("Basic Filters:");
-                ui.label("• source:<ip> - Filter by source IP address");
-                ui.label("• dest:<ip> - Filter by destination IP address");
-                ui.label("• proto:<protocol> - Filter by protocol (TCP, UDP, RTP, etc.)");
-                ui.label("• type:<protocol> - Filter by protocol type (RTP, RTCP, etc.)");
-                ui.label(
-                    "• length:<op><size> - Filter by packet size (operators: >, <, =, >=, <=)",
-                );
-
-                ui.add_space(10.0);
-                ui.label("Logical Operators:");
-                ui.label("• AND - Combine conditions (all must match)");
-                ui.label("• OR - Alternative conditions (any must match)");
-                ui.label("• NOT - Negate condition");
-                ui.label("• () - Group conditions");
-
-                ui.add_space(10.0);
-                ui.label("Examples:");
-                ui.label("• source:192.168 AND proto:udp");
-                ui.label("• length:>100 AND type:rtp");
-                ui.label("• NOT dest:10.0.0.1");
-                ui.label("• (proto:tcp AND length:>500) OR source:192.168");
-
-                ui.add_space(10.0);
-                if ui.button("Close").clicked() {
-                    self.show_filter_help = false;
-                }
-            });
-        }
     }
 
-    fn build_filter(&mut self, ui: &mut egui::Ui) {
-        ui.horizontal(|ui| {
-            let text_edit = TextEdit::singleline(&mut self.filter_buffer)
-                .font(egui::style::TextStyle::Monospace)
-                .desired_width(f32::INFINITY)
-                .hint_text("Examples: source:192.168, proto:udp AND length:>100");
-            let response = ui
-                .small_button("ℹ Help")
-                .on_hover_text("Show filter syntax help");
-
-            ui.add(text_edit);
-            self.show_filter_help = self.show_filter_help || response.clicked();
-        });
-    }
-
-    fn check_filter(&mut self) -> bool {
-        if self.filter_buffer.is_empty() {
-            self.filter_error = None;
-            return true;
+    fn check_filter(&mut self) {
+        let filter = self.filter_input.get_filter();
+        if filter.is_empty() {
+            self.filter_input.set_error(None);
+            return;
         }
 
-        let filter = self.filter_buffer.trim().to_lowercase();
-        match parse_filter(&filter) {
-            Ok(_) => {
-                self.filter_error = None;
-                true
-            }
-            Err(err) => {
-                self.filter_error = Some(err);
-                false
-            }
-        }
+        let result = parse_filter(&filter.to_lowercase());
+        self.filter_input.set_error(result.err());
     }
 
     fn packet_matches_filter(&self, packet: &Packet) -> bool {
-        if self.filter_buffer.is_empty() {
+        if self.filter_input.get_filter().is_empty() {
             return true;
         }
 
-        let filter = self.filter_buffer.trim();
+        let filter = self.filter_input.get_filter().trim();
         let ctx = FilterContext { packet };
 
         parse_filter(filter)
@@ -170,7 +114,7 @@ impl PacketsTable {
     }
 
     fn build_table_body(&mut self, body: TableBody) {
-        let filter_valid = self.check_filter();
+        let filter_valid = self.filter_input.get_error().is_none();
         let mut requests = Vec::new();
         let streams = self.streams.borrow();
         let packets = &streams.packets;
