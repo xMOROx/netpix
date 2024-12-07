@@ -43,10 +43,12 @@
 //! - `(type:rtp OR type:rtcp) AND NOT dest:10.0.0.1` - RTP/RTCP packets not going to specific host
 //! - `proto:tcp AND length:>=1500` - TCP packets with maximum size
 
+use crate::filter_system::{
+    CommonFilterParser, ComparisonFilter, FilterExpression, FilterParser, ParseError,
+};
+use crate::{declare_filter_type, filter_system};
 use netpix_common::packet::{Packet, SessionProtocol};
 use std::str::FromStr;
-use crate::{declare_filter_type, filter_system};
-use crate::filter_system::{CommonFilterParser, ComparisonFilter, FilterExpression, FilterParser, ParseError};
 
 pub struct FilterContext<'a> {
     pub packet: &'a Packet,
@@ -122,20 +124,80 @@ impl<'a> FilterExpression<'a> for FilterType {
 
 impl FilterParser for FilterType {
     fn parse_filter_value(prefix: &str, value: &str) -> Result<Self, ParseError> {
+        if value.trim().is_empty() {
+            return Err(ParseError::InvalidSyntax(format!(
+                "Empty value for filter '{}'.\nExample: {}:value",
+                prefix, prefix
+            )));
+        }
+
         match prefix.trim() {
-            "source" => Ok(FilterType::Source(value.to_lowercase())),
-            "dest" => Ok(FilterType::Destination(value.to_lowercase())),
-            "proto" | "protocol" => Ok(FilterType::Protocol(value.to_lowercase())),
+            "source" => value
+                .contains('.')
+                .then_some(Ok(FilterType::Source(value.to_lowercase())))
+                .unwrap_or_else(|| {
+                    Err(ParseError::InvalidSyntax(
+                        "Invalid IP address format (e.g. source:192.168.1.1)".into(),
+                    ))
+                }),
+
+            "dest" => value
+                .contains('.')
+                .then_some(Ok(FilterType::Destination(value.to_lowercase())))
+                .unwrap_or_else(|| {
+                    Err(ParseError::InvalidSyntax(
+                        "Invalid IP address format (e.g. dest:192.168.1.1)".into(),
+                    ))
+                }),
+
+            "proto" | "protocol" => (!value.is_empty())
+                .then(|| value.to_lowercase())
+                .map(FilterType::Protocol)
+                .ok_or_else(|| {
+                    ParseError::InvalidSyntax(
+                        "Invalid protocol filter format.\nAvailable filters:\n\
+                         - proto:udp (UDP protocol)\n\
+                         - proto:tcp (TCP protocol)\n\
+                         - proto:rtp (RTP protocol)\n\
+                         - proto:rtcp (RTCP protocol)\n
+                         - proto:mpeg-ts (MPEG Transport Stream)"
+                            .into(),
+                    )
+                }),
+
             "length" => ComparisonFilter::parse(value)
                 .map(FilterType::Length)
-                .ok_or_else(|| ParseError::InvalidSyntax("Invalid length filter format".into())),
+                .ok_or_else(|| {
+                    ParseError::InvalidSyntax(
+                        "Invalid length filter format.\nExamples:\n\
+                         - length:188 (exact match)\n\
+                         - length:>100 (greater than)\n\
+                         - length:<=188 (less or equal)\n\
+                         - length:<150 (less than)\n\
+                         - length:>=100 (greater or equal)"
+                            .into(),
+                    )
+                }),
             "type" => SessionProtocol::from_str(value)
                 .map(FilterType::Type)
-                .map_err(|_| ParseError::InvalidSyntax("Invalid protocol type".into())),
-            _ => Err(ParseError::InvalidSyntax(format!(
-                "Unknown filter type: '{}'",
-                prefix
-            ))),
+                .map_err(|_| {
+                    ParseError::InvalidSyntax(
+                        "Invalid packet type.\nMust be one of:\n\
+                     - type:RTP (Real-time Transport Protocol)\n\
+                     - type:RTCP (Real-time Control Protocol)\n\
+                     - type:MPEG-TS (MPEG Transport Stream)\n"
+                            .into(),
+                    )
+                }),
+            _ => Err(ParseError::InvalidSyntax(
+                "Unknown filter type.\nAvailable filters:\n\
+                - source: Match source IP (e.g., source:192.168)\n\
+                - dest: Match destination IP (e.g., dest:10.0.0)\n\
+                - proto/protocol: Match protocol (e.g., proto:udp)\n\
+                - length: Match packet size (e.g., length:>100)\n\
+                - type: Match session type (e.g., type:rtp)"
+                    .to_string(),
+            )),
         }
     }
 }

@@ -76,7 +76,6 @@ pub enum PacketType {
 
 declare_filter_type! {
     pub enum FilterType {
-        Description(String),
         Source(String),
         Destination(String),
         Alias(String),
@@ -86,7 +85,6 @@ declare_filter_type! {
         Type(PacketType),
     }
 }
-
 
 impl CommonFilterParser for FilterType {
     fn not(expr: Self) -> Self {
@@ -118,7 +116,6 @@ impl<'a> FilterExpression<'a> for FilterType {
 
     fn matches(&self, ctx: &Self::Context) -> bool {
         match self {
-            FilterType::Description(value) => ctx.packet.id.to_string().contains(value),
             FilterType::Source(value) => ctx
                 .packet
                 .packet_association_table
@@ -177,30 +174,95 @@ impl<'a> FilterExpression<'a> for FilterType {
 impl FilterParser for FilterType {
     fn parse_filter_value(prefix: &str, value: &str) -> Result<Self, ParseError> {
         match prefix.trim() {
-            "desc" => Ok(FilterType::Description(value.to_string())),
-            "source" => Ok(FilterType::Source(value.to_lowercase())),
-            "dest" => Ok(FilterType::Destination(value.to_lowercase())),
-            "alias" => Ok(FilterType::Alias(value.to_lowercase())),
+            "source" => value
+                .contains('.')
+                .then_some(Ok(FilterType::Source(value.to_lowercase())))
+                .unwrap_or_else(|| {
+                    Err(ParseError::InvalidSyntax(
+                        "Invalid IP address format (e.g. source:192.168.1.1)".into(),
+                    ))
+                }),
+
+            "dest" => value
+                .contains('.')
+                .then_some(Ok(FilterType::Destination(value.to_lowercase())))
+                .unwrap_or_else(|| {
+                    Err(ParseError::InvalidSyntax(
+                        "Invalid IP address format (e.g. dest:192.168.1.1)".into(),
+                    ))
+                }),
+
+            "alias" => value
+                .is_empty()
+                .then_some(Err(ParseError::InvalidSyntax(
+                    "Alias filter cannot be empty (e.g. alias:stream_a)".into(),
+                )))
+                .unwrap_or_else(|| Ok(FilterType::Alias(value.to_lowercase()))),
+
             "payload" => parse_payload_filter(value).ok_or_else(|| {
-                ParseError::InvalidSyntax(format!(
-                    "Invalid payload filter format. Expected number or comparison (e.g. >100, <=188), got '{}'",
-                    value
-                ))
+                ParseError::InvalidSyntax(
+                    "Invalid payload filter format.\nExamples:\n\
+                     - payload:188 (exact match)\n\
+                     - payload:>100 (greater than)\n\
+                     - payload:<=188 (less or equal)\n\
+                     - payload:<150 (less than)\n\
+                     - payload:>=100 (greater or equal)"
+                        .into(),
+                )
             }),
+
             p if p.starts_with('p') && p.len() == 2 => {
-                let packet_index = p[1..]
-                    .parse::<usize>()
-                    .map_err(|_| ParseError::InvalidSyntax(format!("Invalid PID position: {}", p)))?
-                    .saturating_sub(1);
-                Ok(FilterType::PacketPid(packet_index, value.to_string()))
+                let index_char = p.chars().nth(1).unwrap();
+                ('1'..='7')
+                    .contains(&index_char)
+                    .then(|| {
+                        let packet_index = (index_char as usize - '0' as usize) - 1;
+                        (!value.is_empty())
+                            .then_some(Ok(FilterType::PacketPid(packet_index, value.to_string())))
+                            .unwrap_or_else(|| {
+                                Err(ParseError::InvalidSyntax(
+                                    "PID filter value cannot be empty (e.g. p1:256)".into(),
+                                ))
+                            })
+                    })
+                    .unwrap_or_else(|| {
+                        Err(ParseError::InvalidSyntax(
+                            "Invalid PID position. Must be p1 through p7 (e.g. p1:256)".into(),
+                        ))
+                    })
             }
+
             "pid" => value.parse::<u16>().map(FilterType::Pid).map_err(|_| {
-                ParseError::InvalidSyntax(format!("Invalid PID number: {}", value))
+                ParseError::InvalidSyntax(
+                    "Invalid PID number. Must be 0-8191 (e.g. pid:256)".into(),
+                )
             }),
+
             "type" => PacketType::from_str(value)
                 .map(FilterType::Type)
-                .map_err(|_| ParseError::InvalidSyntax("Invalid packet type".into())),
-            _ => Err(ParseError::InvalidSyntax(format!("Unknown filter type: {}", prefix))),
+                .map_err(|_| {
+                    ParseError::InvalidSyntax(
+                        "Invalid packet type.\nMust be one of:\n\
+                     - type:PAT (Program Association Table)\n\
+                     - type:PMT (Program Map Table)\n\
+                     - type:PCR+ES (PCR and Elementary Stream)\n\
+                     - type:ES (Elementary Stream)\n\
+                     - type:PCR (Program Clock Reference)"
+                            .into(),
+                    )
+                }),
+
+            unknown => Err(ParseError::InvalidSyntax(format!(
+                "Unknown filter type: '{}'.\nAvailable filters:\n\
+                 - source: Source IP filter\n\
+                 - dest: Destination IP filter\n\
+                 - alias: Stream alias filter\n\
+                 - payload: Payload size filter\n\
+                 - p1-p7: PID position filter\n\
+                 - pid: PID number filter\n\
+                 - type: Packet type filter",
+                unknown
+            ))),
         }
     }
 }
