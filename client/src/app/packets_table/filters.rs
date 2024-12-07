@@ -43,7 +43,7 @@
 //! - `(type:rtp OR type:rtcp) AND NOT dest:10.0.0.1` - RTP/RTCP packets not going to specific host
 //! - `proto:tcp AND length:>=1500` - TCP packets with maximum size
 
-use crate::{declare_filter_type, filter_system::*};
+use crate::{declare_filter_type, filter_system, filter_system::*};
 use netpix_common::packet::{Packet, SessionProtocol};
 use std::str::FromStr;
 
@@ -59,6 +59,16 @@ declare_filter_type! {
         Length(ComparisonFilter<usize>),
         Type(SessionProtocol)
     }
+}
+
+impl CommonFilterParser for FilterType {
+    fn not(expr: Self) -> Self {
+        FilterType::Not(Box::new(expr))
+    }
+}
+
+pub fn parse_filter(filter: &str) -> Result<FilterType, ParseError> {
+    filter_system::parse_filter(filter)
 }
 
 impl<'a> FilterExpression<'a> for FilterType {
@@ -127,52 +137,4 @@ impl FilterParser for FilterType {
             ))),
         }
     }
-}
-
-fn parse_primary(lexer: &mut Lexer) -> ParseResult<FilterType> {
-    let token = lexer
-        .next_token()
-        .ok_or(ParseError::InvalidToken("Empty token".into()))?;
-
-    match token {
-        Token::OpenParen => {
-            let expr = parse_expression(lexer, 0, parse_primary)?;
-            match lexer.next_token() {
-                Some(Token::CloseParen) => Ok(expr),
-                Some(_other) => Err(ParseError::UnmatchedParenthesis),
-                None => Err(ParseError::UnmatchedParenthesis),
-            }
-        }
-        Token::Not => {
-            let expr = parse_primary(lexer)?;
-            Ok(FilterType::Not(Box::new(expr)))
-        }
-        Token::Filter(prefix) => {
-            if lexer.next_token() != Some(Token::Colon) {
-                return Err(ParseError::InvalidSyntax(format!(
-                    "Missing colon after '{}' filter",
-                    prefix
-                )));
-            }
-
-            match lexer.next_token() {
-                Some(Token::Filter(value)) => FilterType::parse_filter_value(&prefix, &value),
-                _ => Err(ParseError::InvalidSyntax(format!(
-                    "Missing value after '{}':",
-                    prefix
-                ))),
-            }
-        }
-        other => Err(ParseError::InvalidToken(format!(
-            "Unexpected token: {:?}",
-            other
-        ))),
-    }
-}
-
-pub fn parse_filter(filter: &str) -> Result<FilterType, ParseError> {
-    validate_filter_syntax(filter)?;
-
-    let mut lexer = Lexer::new(filter);
-    parse_expression(&mut lexer, 0, parse_primary).map_err(|e| e.into())
 }

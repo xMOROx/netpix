@@ -53,7 +53,7 @@
 //! - `alias:A AND payload:>=188` - Packets from stream aliased as "A" with full payloads
 
 use crate::streams::mpegts_stream::packet_info::MpegTsPacketInfo;
-use crate::{declare_filter_type, filter_system::*};
+use crate::{declare_filter_type, filter_system, filter_system::*};
 use netpix_common::mpegts::header::{AdaptationFieldControl, PIDTable};
 use std::collections::VecDeque;
 use std::str::FromStr;
@@ -81,9 +81,16 @@ declare_filter_type! {
         Destination(String),
         Alias(String),
         Payload(ComparisonFilter<usize>),
-        PacketPid(usize, String), 
+        PacketPid(usize, String),
         Pid(u16),
-        Type(PacketType),  
+        Type(PacketType),
+    }
+}
+
+
+impl CommonFilterParser for FilterType {
+    fn not(expr: Self) -> Self {
+        FilterType::Not(Box::new(expr))
     }
 }
 
@@ -100,6 +107,10 @@ impl FromStr for PacketType {
             _ => Err(()),
         }
     }
+}
+
+pub fn parse_filter(filter: &str) -> Result<FilterType, ParseError> {
+    filter_system::parse_filter(filter)
 }
 
 impl<'a> FilterExpression<'a> for FilterType {
@@ -163,89 +174,34 @@ impl<'a> FilterExpression<'a> for FilterType {
     }
 }
 
-
-pub fn parse_filter(filter: &str) -> Result<FilterType, ParseError> {
-    validate_filter_syntax(filter)?;
-
-    let mut lexer = Lexer::new(filter);
-    parse_expression(&mut lexer, 0, parse_primary).map_err(|e| e.into())
-}
-
-fn parse_primary(lexer: &mut Lexer) -> ParseResult<FilterType> {
-    let token = lexer
-        .next_token()
-        .ok_or(ParseError::InvalidToken("Empty token".into()))?;
-
-    match token {
-        Token::OpenParen => {
-            let expr = parse_expression(lexer, 0, parse_primary)?;
-            match lexer.next_token() {
-                Some(Token::CloseParen) => Ok(expr),
-                Some(_other) => Err(ParseError::UnmatchedParenthesis),
-                None => Err(ParseError::UnmatchedParenthesis),
-            }
-        }
-        Token::Not => {
-            let expr = parse_primary(lexer)?;
-            Ok(FilterType::Not(Box::new(expr)))
-        }
-        Token::Filter(prefix) => {
-            if lexer.next_token() != Some(Token::Colon) {
-                return Err(ParseError::InvalidSyntax(format!(
-                    "Missing colon after '{}' filter",
-                    prefix
-                )));
-            }
-
-            match lexer.next_token() {
-                Some(Token::Filter(value)) => parse_filter_with_value(&prefix, &value),
-                _ => Err(ParseError::InvalidSyntax(format!(
-                    "Missing value after '{}':",
-                    prefix
-                ))),
-            }
-        }
-        other => Err(ParseError::InvalidToken(format!(
-            "Unexpected token: {:?}",
-            other
-        ))),
-    }
-}
-
-fn parse_filter_with_value(prefix: &str, value: &str) -> Result<FilterType, ParseError> {
-    match prefix.trim() {
-        "desc" => Ok(FilterType::Description(value.to_string())),
-        "source" => Ok(FilterType::Source(value.to_lowercase())),
-        "dest" => Ok(FilterType::Destination(value.to_lowercase())),
-        "alias" => Ok(FilterType::Alias(value.to_lowercase())),
-        "payload" => parse_payload_filter(value).ok_or_else(|| {
-            ParseError::InvalidSyntax(format!(
-                "Invalid payload filter format. Expected number or comparison (e.g. >100, <=188), got '{}'",
-                value
-            ))
-        }),
-        p if p.starts_with('p') && p.len() == 2 => {
-            let packet_index = p[1..]
-                .parse::<usize>()
-                .map_err(|_| ParseError::InvalidSyntax(format!("Invalid PID position: {}", p)))?
-                .saturating_sub(1);
-            Ok(FilterType::PacketPid(packet_index, value.to_string()))
-        }
-        "pid" => value.parse::<u16>().map(FilterType::Pid).map_err(|_| {
-            ParseError::InvalidSyntax(format!("Invalid PID number: {}", value))
-        }),
-        "type" => PacketType::from_str(value)
-            .map(FilterType::Type)
-            .map_err(|_| {
+impl FilterParser for FilterType {
+    fn parse_filter_value(prefix: &str, value: &str) -> Result<Self, ParseError> {
+        match prefix.trim() {
+            "desc" => Ok(FilterType::Description(value.to_string())),
+            "source" => Ok(FilterType::Source(value.to_lowercase())),
+            "dest" => Ok(FilterType::Destination(value.to_lowercase())),
+            "alias" => Ok(FilterType::Alias(value.to_lowercase())),
+            "payload" => parse_payload_filter(value).ok_or_else(|| {
                 ParseError::InvalidSyntax(format!(
-                    "Invalid packet type. Expected one of: PAT, PMT, PCR+ES, ES, PCR. Got: {}",
+                    "Invalid payload filter format. Expected number or comparison (e.g. >100, <=188), got '{}'",
                     value
                 ))
             }),
-        _ => Err(ParseError::InvalidSyntax(format!(
-            "Unknown filter type: {}",
-            prefix
-        ))),
+            p if p.starts_with('p') && p.len() == 2 => {
+                let packet_index = p[1..]
+                    .parse::<usize>()
+                    .map_err(|_| ParseError::InvalidSyntax(format!("Invalid PID position: {}", p)))?
+                    .saturating_sub(1);
+                Ok(FilterType::PacketPid(packet_index, value.to_string()))
+            }
+            "pid" => value.parse::<u16>().map(FilterType::Pid).map_err(|_| {
+                ParseError::InvalidSyntax(format!("Invalid PID number: {}", value))
+            }),
+            "type" => PacketType::from_str(value)
+                .map(FilterType::Type)
+                .map_err(|_| ParseError::InvalidSyntax("Invalid packet type".into())),
+            _ => Err(ParseError::InvalidSyntax(format!("Unknown filter type: {}", prefix))),
+        }
     }
 }
 
