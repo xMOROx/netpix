@@ -11,13 +11,13 @@ use types::{PacketInfo, TableConfig};
 
 use crate::app::is_mpegts_stream_visible;
 use crate::app::mpegts_packets_table::filters::{parse_filter, FilterContext, PacketFilter};
+use crate::filter_system::FilterExpression;
 use egui::{Color32, RichText, TextEdit};
 use netpix_common::mpegts::header::{AdaptationFieldControl, PIDTable};
 use netpix_common::mpegts::MpegtsFragment;
 use netpix_common::MpegtsStreamKey;
 use std::collections::HashMap;
 use web_time::Duration;
-use crate::filter_system::FilterExpression;
 
 #[derive(Clone)]
 pub struct MpegTsPacketsTable {
@@ -85,11 +85,9 @@ impl MpegTsPacketsTable {
             stream_alias,
         };
 
-        if let Some(filter_type) = parse_filter(&filter) {
-            filter_type.matches(&ctx)
-        } else {
-            true
-        }
+        parse_filter(&filter)
+            .map(|filter_type| filter_type.matches(&ctx))
+            .unwrap_or(true) // If parsing fails, show all packets
     }
 
     fn options_ui(&mut self, ui: &mut egui::Ui) {
@@ -260,41 +258,38 @@ impl MpegTsPacketsTable {
             .filter(|info| self.packet_matches_filter(info, &pmt_pids, &es_pids, &pcr_pids))
             .collect();
 
-        body.rows(
-            self.config.row_height,
-            filtered_packets.len(),
-            |mut row| {
-                let row_ix = row.index();
-                let info = &filtered_packets[row_ix];
+        body.rows(self.config.row_height, filtered_packets.len(), |mut row| {
+            let row_ix = row.index();
+            let info = &filtered_packets[row_ix];
 
-                row.col(|ui| {
-                    ui.label(info.packet.id.to_string());
-                });
+            row.col(|ui| {
+                ui.label(info.packet.id.to_string());
+            });
 
-                row.col(|ui| {
-                    let binding = String::new();
-                    let alias = alias_to_display.get(&info.key).unwrap_or(&binding);
-                    ui.label(alias);
-                });
+            row.col(|ui| {
+                let binding = String::new();
+                let alias = alias_to_display.get(&info.key).unwrap_or(&binding);
+                ui.label(alias);
+            });
 
-                row.col(|ui| {
-                    let timestamp = info.packet.time.saturating_sub(first_ts);
-                    ui.label(format!("{:.4}", timestamp.as_secs_f64()));
-                });
-                row.col(|ui| {
-                    ui.label(info.packet.packet_association_table.source_addr.to_string());
-                });
-                row.col(|ui| {
-                    ui.label(
-                        info.packet
-                            .packet_association_table
-                            .destination_addr
-                            .to_string(),
-                    );
-                });
+            row.col(|ui| {
+                let timestamp = info.packet.time.saturating_sub(first_ts);
+                ui.label(format!("{:.4}", timestamp.as_secs_f64()));
+            });
+            row.col(|ui| {
+                ui.label(info.packet.packet_association_table.source_addr.to_string());
+            });
+            row.col(|ui| {
+                ui.label(
+                    info.packet
+                        .packet_association_table
+                        .destination_addr
+                        .to_string(),
+                );
+            });
 
-                let mut labels = info
-                    .packet
+            let mut labels =
+                info.packet
                     .content
                     .fragments
                     .iter()
@@ -320,77 +315,76 @@ impl MpegTsPacketsTable {
                         PIDTable::IPMPControlInformation => String::from("IPMPControlInformation"),
                     });
 
-                let fragments: Vec<_> = info.packet.content.fragments.iter().collect();
+            let fragments: Vec<_> = info.packet.content.fragments.iter().collect();
 
-                let payload_size: usize = fragments
-                    .iter()
-                    .map(|fragment| {
-                        if fragment.header.adaptation_field_control
-                            == AdaptationFieldControl::AdaptationFieldOnly
-                        {
-                            return 0;
-                        }
-                        fragment
-                            .payload
-                            .as_ref()
-                            .map_or_else(|| 0, |payload| payload.data.len())
-                    })
-                    .sum();
-                let mut fragments_iter = fragments.iter();
+            let payload_size: usize = fragments
+                .iter()
+                .map(|fragment| {
+                    if fragment.header.adaptation_field_control
+                        == AdaptationFieldControl::AdaptationFieldOnly
+                    {
+                        return 0;
+                    }
+                    fragment
+                        .payload
+                        .as_ref()
+                        .map_or_else(|| 0, |payload| payload.data.len())
+                })
+                .sum();
+            let mut fragments_iter = fragments.iter();
 
-                row.col(|ui| {
-                    ui.label(format_packet_text(
-                        labels.next().unwrap_or_default(),
-                        fragments_iter.next().copied(),
-                    ));
-                });
+            row.col(|ui| {
+                ui.label(format_packet_text(
+                    labels.next().unwrap_or_default(),
+                    fragments_iter.next().copied(),
+                ));
+            });
 
-                row.col(|ui| {
-                    ui.label(format_packet_text(
-                        labels.next().unwrap_or_default(),
-                        fragments_iter.next().copied(),
-                    ));
-                });
+            row.col(|ui| {
+                ui.label(format_packet_text(
+                    labels.next().unwrap_or_default(),
+                    fragments_iter.next().copied(),
+                ));
+            });
 
-                row.col(|ui| {
-                    ui.label(format_packet_text(
-                        labels.next().unwrap_or_default(),
-                        fragments_iter.next().copied(),
-                    ));
-                });
+            row.col(|ui| {
+                ui.label(format_packet_text(
+                    labels.next().unwrap_or_default(),
+                    fragments_iter.next().copied(),
+                ));
+            });
 
-                row.col(|ui| {
-                    ui.label(format_packet_text(
-                        labels.next().unwrap_or_default(),
-                        fragments_iter.next().copied(),
-                    ));
-                });
+            row.col(|ui| {
+                ui.label(format_packet_text(
+                    labels.next().unwrap_or_default(),
+                    fragments_iter.next().copied(),
+                ));
+            });
 
-                row.col(|ui| {
-                    ui.label(format_packet_text(
-                        labels.next().unwrap_or_default(),
-                        fragments_iter.next().copied(),
-                    ));
-                });
+            row.col(|ui| {
+                ui.label(format_packet_text(
+                    labels.next().unwrap_or_default(),
+                    fragments_iter.next().copied(),
+                ));
+            });
 
-                row.col(|ui| {
-                    ui.label(format_packet_text(
-                        labels.next().unwrap_or_default(),
-                        fragments_iter.next().copied(),
-                    ));
-                });
+            row.col(|ui| {
+                ui.label(format_packet_text(
+                    labels.next().unwrap_or_default(),
+                    fragments_iter.next().copied(),
+                ));
+            });
 
-                row.col(|ui| {
-                    ui.label(format_packet_text(
-                        labels.next().unwrap_or_default(),
-                        fragments_iter.next().copied(),
-                    ));
-                });
+            row.col(|ui| {
+                ui.label(format_packet_text(
+                    labels.next().unwrap_or_default(),
+                    fragments_iter.next().copied(),
+                ));
+            });
 
-                row.col(|ui| {
-                    ui.label(payload_size.to_string());
-                });
-            },
-        );
+            row.col(|ui| {
+                ui.label(payload_size.to_string());
+            });
+        });
     }
 }

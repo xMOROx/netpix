@@ -68,6 +68,16 @@ impl Lexer {
     }
 }
 
+#[derive(Debug)]
+pub enum ParseError {
+    UnmatchedParenthesis,
+    MissingOperand,
+    InvalidToken,
+    UnexpectedToken,
+}
+
+pub type ParseResult<T> = Result<T, ParseError>;
+
 pub trait FilterExpression<'a> {
     type Context;
     fn matches(&self, ctx: &Self::Context) -> bool;
@@ -76,8 +86,8 @@ pub trait FilterExpression<'a> {
 pub fn parse_expression<'a, F, C>(
     lexer: &mut Lexer,
     precedence: u8,
-    parse_primary: impl Fn(&mut Lexer) -> Option<F>,
-) -> Option<F>
+    parse_primary: impl Fn(&mut Lexer) -> ParseResult<F>,
+) -> ParseResult<F>
 where
     F: FilterExpression<'a, Context = C> + FilterCombinator<'a>,
 {
@@ -91,8 +101,8 @@ where
 
         match token {
             Token::And | Token::Or => {
-                let op = lexer.next_token().unwrap();
-                let right = parse_primary(lexer)?;
+                let op = lexer.next_token().ok_or(ParseError::UnexpectedToken)?;
+                let right = parse_primary(lexer).map_err(|_| ParseError::MissingOperand)?;
                 left = match op {
                     Token::And => F::and(left, right),
                     Token::Or => F::or(left, right),
@@ -103,7 +113,7 @@ where
         }
     }
 
-    Some(left)
+    Ok(left)
 }
 
 pub trait FilterCombinator<'a>: Sized {

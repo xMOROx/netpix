@@ -52,7 +52,9 @@
 //! - `pid:256 AND (type:ES OR type:PCR+ES)` - ES or PCR+ES packets with PID 256
 //! - `alias:A AND payload:>=188` - Packets from stream aliased as "A" with full payloads
 
-use crate::filter_system::{parse_expression, FilterCombinator, FilterExpression, Lexer, Token};
+use crate::filter_system::{
+    parse_expression, FilterCombinator, FilterExpression, Lexer, ParseError, ParseResult, Token,
+};
 use crate::streams::mpegts_stream::packet_info::MpegTsPacketInfo;
 use netpix_common::mpegts::header::{AdaptationFieldControl, PIDTable};
 use std::collections::VecDeque;
@@ -188,33 +190,35 @@ impl<'a> FilterCombinator<'a> for FilterType {
 
 pub fn parse_filter(filter: &str) -> Option<FilterType> {
     let mut lexer = Lexer::new(filter);
-    parse_expression(&mut lexer, 0, parse_primary)
+    parse_expression(&mut lexer, 0, parse_primary).ok()
 }
 
-fn parse_primary(lexer: &mut Lexer) -> Option<FilterType> {
-    match lexer.next_token()? {
+fn parse_primary(lexer: &mut Lexer) -> ParseResult<FilterType> {
+    let token = lexer.next_token().ok_or(ParseError::InvalidToken)?;
+    match token {
         Token::OpenParen => {
             let expr = parse_expression(lexer, 0, parse_primary)?;
-            if lexer.next_token() != Some(Token::CloseParen) {
-                return None;
+            match lexer.next_token() {
+                Some(Token::CloseParen) => Ok(expr),
+                _ => Err(ParseError::UnmatchedParenthesis),
             }
-            Some(expr)
         }
         Token::Not => {
             let expr = parse_primary(lexer)?;
-            Some(FilterType::Not(Box::new(expr)))
+            Ok(FilterType::Not(Box::new(expr)))
         }
         Token::Filter(prefix) => {
             if lexer.next_token() != Some(Token::Colon) {
-                return None;
+                return Err(ParseError::InvalidToken);
             }
-            if let Some(Token::Filter(value)) = lexer.next_token() {
-                parse_filter_with_value(&prefix, &value)
-            } else {
-                None
+            match lexer.next_token() {
+                Some(Token::Filter(value)) => {
+                    parse_filter_with_value(&prefix, &value).ok_or(ParseError::InvalidToken)
+                }
+                _ => Err(ParseError::InvalidToken),
             }
         }
-        _ => None,
+        _ => Err(ParseError::InvalidToken),
     }
 }
 
