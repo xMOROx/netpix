@@ -1,6 +1,6 @@
 use futures_util::StreamExt;
-use pcap::{Capture, PacketCodec, PacketStream};
 use netpix_common::{Packet, Source};
+use pcap::{Capture, PacketCodec, PacketStream};
 
 #[derive(Debug)]
 pub enum Error {
@@ -12,7 +12,7 @@ pub enum Error {
     InvalidFilter,
     PacketStreamUnavailable,
 }
-
+#[derive(Debug)]
 struct PacketDecoder {
     packet_id: usize,
 }
@@ -58,7 +58,6 @@ impl OfflineStream {
         Some(Ok(self.decoder.decode(packet)))
     }
 }
-
 enum CaptureType {
     Offline(OfflineStream),
     Online(PacketStream<pcap::Active, PacketDecoder>),
@@ -84,12 +83,12 @@ impl Sniffer {
         })
     }
 
-    pub fn from_device(device: &str) -> Result<Self, Error> {
+    pub fn from_device(device: &str, promisc: bool) -> Result<Self, Error> {
         let Ok(capture) = pcap::Capture::from_device(device) else {
             return Err(Error::DeviceNotFound);
         };
 
-        let Ok(capture) = capture.immediate_mode(true).open() else {
+        let Ok(capture) = capture.immediate_mode(true).promisc(promisc).open() else {
             return Err(Error::DeviceUnavailable);
         };
 
@@ -104,7 +103,7 @@ impl Sniffer {
 
         Ok(Self {
             capture: CaptureType::Online(stream),
-            source: Source::Interface(device.to_string()),
+            source: Source::Interface(format!("{} {}", device, if promisc { "👁️" } else { "" })),
         })
     }
 
