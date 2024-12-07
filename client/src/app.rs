@@ -203,27 +203,30 @@ impl App {
             egui::menu::bar(ui, |ui| {
                 self.build_dropdown_source(ui, frame);
                 ui.separator();
-                ui.menu_button("📑 Open tabs", |ui| {
-                    ui.heading("Tabs");
-
-                    let menu_sections = Tab::sections();
-
-                    for (label, sections) in menu_sections {
-                        ui.menu_button(label, |ui| {
-                            for tab in sections {
-                                let resp =
-                                    ui.selectable_value(&mut self.tab, tab, tab.display_name());
-                                if resp.clicked() {
-                                    if let Some(storage) = frame.storage_mut() {
-                                        storage.set_string(TAB_KEY, tab.to_string());
-                                    }
-                                }
-                            }
-                        });
-                    }
-                });
+                self.build_menu_button(ui, frame);
                 Label::new(selected).ui(ui);
             });
+        });
+    }
+
+    fn build_menu_button(&mut self, ui: &mut Ui, frame: &mut eframe::Frame) {
+        ui.menu_button("📑 Open tabs", |ui| {
+            ui.heading("Tabs");
+
+            let menu_sections = Tab::sections();
+
+            for (label, sections) in menu_sections {
+                ui.menu_button(label, |ui| {
+                    for tab in sections {
+                        let resp = ui.selectable_value(&mut self.tab, tab, tab.display_name());
+                        if resp.clicked() {
+                            if let Some(storage) = frame.storage_mut() {
+                                storage.set_string(TAB_KEY, tab.to_string());
+                            }
+                        }
+                    }
+                });
+            }
         });
     }
 
