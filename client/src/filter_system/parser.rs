@@ -78,7 +78,7 @@ where
 {
     validate_filter_syntax(filter)?;
     let mut lexer = Lexer::new(filter);
-    parse_expression(&mut lexer, 0, primary_parser::<F>).map_err(|e| e.into())
+    parse_expression(&mut lexer, 0, primary_parser::<F>)
 }
 
 fn primary_parser<F>(lexer: &mut Lexer) -> ParseResult<F>

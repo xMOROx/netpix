@@ -78,7 +78,7 @@ impl FilterInput {
                     .on_hover_text(HELP_BUTTON_TOOLTIP);
 
                 changed = ui.add(text_edit).changed();
-                self.show_filter_help = self.show_filter_help ^ response.clicked();
+                self.show_filter_help ^= response.clicked();
             });
         });
 
