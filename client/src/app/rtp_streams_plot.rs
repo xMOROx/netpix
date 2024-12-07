@@ -772,7 +772,7 @@ fn build_on_hover_text(
             }
         }
     } else {
-        "".as_str()
+        ""
     };
     on_hover.push_str(marker_info);
     on_hover.push('\n');

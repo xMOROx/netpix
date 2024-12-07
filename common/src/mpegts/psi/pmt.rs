@@ -15,6 +15,7 @@ pub struct ProgramMapTable {
     pub descriptors: Vec<Descriptors>,
     pub elementary_streams_info: Vec<ElementaryStreamInfo>,
     pub crc_32: u32,
+    pub fragment_count: usize,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, Ord, PartialOrd, Eq)]
@@ -69,6 +70,7 @@ impl ProgramMapTable {
         fields: PmtFields,
         descriptors_payload: &[u8],
         payload: &[u8],
+        fragment_count: usize,
     ) -> Option<ProgramMapTable> {
         let crc_reader = Crc32Reader::new(payload);
 
@@ -79,6 +81,7 @@ impl ProgramMapTable {
                 crc_reader.data_without_crc(),
             )?,
             crc_32: crc_reader.read_crc32()?,
+            fragment_count,
         })
     }
 

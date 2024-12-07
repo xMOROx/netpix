@@ -229,6 +229,7 @@ fn test_pmt_buffer_with_one_fragment() {
             },
         ],
         crc_32: 0x3359b688,
+        fragment_count: 1,
     });
 
     assert!(buffer.is_complete());

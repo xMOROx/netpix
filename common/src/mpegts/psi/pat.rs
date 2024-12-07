@@ -11,6 +11,7 @@ pub struct ProgramAssociationTable {
     pub transport_stream_id: u16,
     pub programs: Vec<ProgramAssociationItem>,
     pub crc_32: u32,
+    pub fragment_count: usize,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, Ord, PartialOrd, Eq)]
@@ -49,13 +50,14 @@ impl PartialEq for ProgramAssociationItem {
 }
 
 impl ProgramAssociationTable {
-    pub fn build(transport_stream_id: u16, data: &[u8]) -> Option<Self> {
+    pub fn build(transport_stream_id: u16, data: &[u8], fragment_count: usize) -> Option<Self> {
         let crc_reader = Crc32Reader::new(data);
 
         Some(ProgramAssociationTable {
             transport_stream_id,
             programs: Self::unmarshal_programs(crc_reader.data_without_crc())?,
             crc_32: crc_reader.read_crc32()?,
+            fragment_count,
         })
     }
 
