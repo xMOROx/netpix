@@ -1,7 +1,8 @@
 mod filters;
 
-use crate::filter_system::FilterExpression;
+use crate::filter_system::{validate_filter_syntax, FilterExpression, ParseError};
 use crate::streams::RefStreams;
+use eframe::epaint::Color32;
 use egui::widgets::TextEdit;
 use egui_extras::{Column, TableBody, TableBuilder};
 use ewebsock::{WsMessage, WsSender};
@@ -13,6 +14,8 @@ pub struct PacketsTable {
     streams: RefStreams,
     ws_sender: WsSender,
     filter_buffer: String,
+    filter_error: Option<ParseError>,
+    show_filter_help: bool,
 }
 
 impl PacketsTable {
@@ -21,6 +24,8 @@ impl PacketsTable {
             streams,
             ws_sender,
             filter_buffer: String::new(),
+            filter_error: None,
+            show_filter_help: false,
         }
     }
 
@@ -31,6 +36,58 @@ impl PacketsTable {
         egui::CentralPanel::default().show(ctx, |ui| {
             self.build_table(ui);
         });
+
+        if let Some(error) = &self.filter_error {
+            let modal = egui::Window::new("Filter Error")
+                .anchor(egui::Align2::RIGHT_BOTTOM, egui::vec2(-5.0, -30.0))
+                .collapsible(true)
+                .resizable(false);
+
+            modal.show(ctx, |ui| {
+                ui.colored_label(Color32::RED, format!("{}", error));
+            });
+        }
+
+        if self.show_filter_help {
+            let modal = egui::Window::new("Filter Syntax Help")
+                .anchor(egui::Align2::CENTER_CENTER, egui::vec2(0.0, 0.0))
+                .resizable(false)
+                .collapsible(false)
+                .min_width(400.0);
+
+            modal.show(ctx, |ui| {
+                ui.heading("Available Filter Types");
+
+                ui.add_space(10.0);
+                ui.label("Basic Filters:");
+                ui.label("• source:<ip> - Filter by source IP address");
+                ui.label("• dest:<ip> - Filter by destination IP address");
+                ui.label("• proto:<protocol> - Filter by protocol (TCP, UDP, RTP, etc.)");
+                ui.label("• type:<protocol> - Filter by protocol type (RTP, RTCP, etc.)");
+                ui.label(
+                    "• length:<op><size> - Filter by packet size (operators: >, <, =, >=, <=)",
+                );
+
+                ui.add_space(10.0);
+                ui.label("Logical Operators:");
+                ui.label("• AND - Combine conditions (all must match)");
+                ui.label("• OR - Alternative conditions (any must match)");
+                ui.label("• NOT - Negate condition");
+                ui.label("• () - Group conditions");
+
+                ui.add_space(10.0);
+                ui.label("Examples:");
+                ui.label("• source:192.168 AND proto:udp");
+                ui.label("• length:>100 AND type:rtp");
+                ui.label("• NOT dest:10.0.0.1");
+                ui.label("• (proto:tcp AND length:>500) OR source:192.168");
+
+                ui.add_space(10.0);
+                if ui.button("Close").clicked() {
+                    self.show_filter_help = false;
+                }
+            });
+        }
     }
 
     fn build_filter(&mut self, ui: &mut egui::Ui) {
@@ -44,16 +101,27 @@ impl PacketsTable {
                 .on_hover_text("Show filter syntax help");
 
             ui.add(text_edit);
+            self.show_filter_help = self.show_filter_help || response.clicked();
         });
     }
 
-    fn check_filter(&self) -> bool {
+    fn check_filter(&mut self) -> bool {
         if self.filter_buffer.is_empty() {
+            self.filter_error = None;
             return true;
         }
 
-        let filter = self.filter_buffer.trim();
-        parse_filter(filter).is_ok()
+        let filter = self.filter_buffer.trim().to_lowercase();
+        match parse_filter(&filter) {
+            Ok(_) => {
+                self.filter_error = None;
+                true
+            }
+            Err(err) => {
+                self.filter_error = Some(err);
+                false
+            }
+        }
     }
 
     fn packet_matches_filter(&self, packet: &Packet) -> bool {
@@ -111,25 +179,23 @@ impl PacketsTable {
             return;
         }
 
-        let first_timestamp = packets.first().unwrap().timestamp;
-        let filtered_count = packets
-            .values()
+        let mut all_packets: Vec<_> = packets.values().collect();
+        all_packets.sort_by_key(|p| p.timestamp);
+
+        let first_timestamp = all_packets[0].timestamp;
+
+        let filtered_packets: Vec<_> = all_packets
+            .iter()
             .filter(|packet| filter_valid && self.packet_matches_filter(packet))
-            .count();
+            .collect();
 
-        body.rows(25.0, filtered_count, |mut row| {
-            let row_index = row.index();
-
-            let packet = packets
-                .values()
-                .filter(|packet| filter_valid && self.packet_matches_filter(packet))
-                .nth(row_index)
-                .unwrap();
+        body.rows(25.0, filtered_packets.len(), |mut row| {
+            let packet = filtered_packets[row.index()];
+            let timestamp = packet.timestamp - first_timestamp;
 
             row.col(|ui| {
                 ui.label(packet.id.to_string());
             });
-            let timestamp = packet.timestamp - first_timestamp;
             row.col(|ui| {
                 ui.label(timestamp.as_secs_f64().to_string());
             });
@@ -156,8 +222,6 @@ impl PacketsTable {
             });
         });
 
-        // cannot take mutable reference to self
-        // unless `packets` is dropped, hence the `request` vector
         drop(streams);
         requests
             .iter()

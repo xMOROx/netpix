@@ -1,3 +1,48 @@
+//! Network Packet Filtering
+//!
+//! This module provides a filtering system for network packets with support for complex queries.
+//!
+//! # Filter Syntax
+//!
+//! The basic filter syntax is: `field:value`
+//!
+//! Multiple filters can be combined using:
+//! - `AND` - both conditions must match
+//! - `OR` - either condition must match
+//! - `NOT` - negates the condition
+//! - Parentheses `()` for grouping
+//!
+//! # Available Filters
+//!
+//! ## Address Filters
+//! - `source:value` - Matches source IP address containing the value
+//! - `dest:value` - Matches destination IP address containing the value
+//!
+//! ## Protocol Filters
+//! - `proto:value` or `protocol:value` - Matches transport or session protocol name
+//! - `type:value` - Matches specific session protocol (RTP, RTCP, etc.)
+//!
+//! ## Size Filters
+//! - `length:number` - Matches exact packet length
+//! - `length:>number` - Matches length greater than number
+//! - `length:>=number` - Matches length greater or equal to number
+//! - `length:<number` - Matches length less than number
+//! - `length:<=number` - Matches length less or equal to number
+//!
+//! # Examples
+//!
+//! Simple filters:
+//! - `source:192.168` - Matches packets from addresses containing "192.168"
+//! - `proto:udp` - Matches UDP packets
+//! - `type:rtp` - Matches RTP packets
+//! - `length:>100` - Matches packets larger than 100 bytes
+//!
+//! Complex filters:
+//! - `proto:udp AND length:>100` - UDP packets larger than 100 bytes
+//! - `source:10.0.0 OR source:192.168` - Packets from specific networks
+//! - `(type:rtp OR type:rtcp) AND NOT dest:10.0.0.1` - RTP/RTCP packets not going to specific host
+//! - `proto:tcp AND length:>=1500` - TCP packets with maximum size
+
 use crate::filter_system::{
     parse_expression, validate_filter_syntax, FilterCombinator, FilterExpression, Lexer,
     ParseError, ParseResult, Token,
