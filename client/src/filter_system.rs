@@ -1,6 +1,5 @@
 use std::collections::VecDeque;
 
-
 pub trait FilterCombinator<'a>: Sized {
     fn and(left: Self, right: Self) -> Self;
     fn or(left: Self, right: Self) -> Self;
@@ -26,6 +25,17 @@ pub enum ParseError {
     InvalidSyntax(String),
     EmptyExpression,
 }
+
+/// Common comparison operators for numeric filters
+#[derive(Debug, Clone, PartialEq)]
+pub enum ComparisonFilter<T> {
+    GreaterThan(T),
+    GreaterOrEqualThan(T),
+    LessThan(T),
+    LessOrEqualThan(T),
+    Equals(String),
+}
+
 
 pub struct Lexer {
     tokens: VecDeque<Token>,
@@ -95,7 +105,6 @@ impl Lexer {
         self.tokens.is_empty()
     }
 }
-
 
 impl std::fmt::Display for ParseError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -192,4 +201,60 @@ pub fn validate_filter_syntax(input: &str) -> ParseResult<()> {
     }
 
     Ok(())
+}
+
+impl<T: std::str::FromStr> ComparisonFilter<T> {
+    pub fn parse(value: &str) -> Option<Self> {
+        if let Some(stripped) = value.strip_prefix('>') {
+            if let Some(stripped) = stripped.strip_prefix('=') {
+                stripped.trim().parse().ok().map(Self::GreaterOrEqualThan)
+            } else {
+                stripped.trim().parse().ok().map(Self::GreaterThan)
+            }
+        } else if let Some(stripped) = value.strip_prefix("<=") {
+            stripped.trim().parse().ok().map(Self::LessOrEqualThan)
+        } else if let Some(stripped) = value.strip_prefix('<') {
+            stripped.trim().parse().ok().map(Self::LessThan)
+        } else {
+            Some(Self::Equals(value.to_string()))
+        }
+    }
+}
+
+#[macro_export]
+macro_rules! declare_filter_type {
+    (
+        $(#[$meta:meta])*
+        $vis:vis enum $name:ident {
+            $(
+                $(#[$variant_meta:meta])*
+                $variant:ident$(($($type:ty),+))?
+            ),* $(,)?
+        }
+    ) => {
+        $(#[$meta])*
+        $vis enum $name {
+            $(
+                $(#[$variant_meta])*
+                $variant$(($($type),+))?,
+            )*
+            And(Box<$name>, Box<$name>),
+            Or(Box<$name>, Box<$name>),
+            Not(Box<$name>),
+        }
+
+        impl<'a> $crate::filter_system::FilterCombinator<'a> for $name {
+            fn and(left: Self, right: Self) -> Self {
+                Self::And(Box::new(left), Box::new(right))
+            }
+
+            fn or(left: Self, right: Self) -> Self {
+                Self::Or(Box::new(left), Box::new(right))
+            }
+        }
+    };
+}
+
+pub trait FilterParser: Sized {
+    fn parse_filter_value(prefix: &str, value: &str) -> Result<Self, ParseError>;
 }

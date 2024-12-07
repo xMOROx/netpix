@@ -43,10 +43,7 @@
 //! - `(type:rtp OR type:rtcp) AND NOT dest:10.0.0.1` - RTP/RTCP packets not going to specific host
 //! - `proto:tcp AND length:>=1500` - TCP packets with maximum size
 
-use crate::filter_system::{
-    parse_expression, validate_filter_syntax, FilterCombinator, FilterExpression, Lexer,
-    ParseError, ParseResult, Token,
-};
+use crate::{declare_filter_type, filter_system::*};
 use netpix_common::packet::{Packet, SessionProtocol};
 use std::str::FromStr;
 
@@ -54,23 +51,14 @@ pub struct FilterContext<'a> {
     pub packet: &'a Packet,
 }
 
-pub enum FilterType {
-    Source(String),
-    Destination(String),
-    Protocol(String),
-    Length(LengthFilter),
-    Type(SessionProtocol),
-    And(Box<FilterType>, Box<FilterType>),
-    Or(Box<FilterType>, Box<FilterType>),
-    Not(Box<FilterType>),
-}
-
-pub enum LengthFilter {
-    GreaterOrEqualThan(usize),
-    GreaterThan(usize),
-    LessOrEqualThan(usize),
-    LessThan(usize),
-    Equals(String),
+declare_filter_type! {
+    pub enum FilterType {
+        Source(String),
+        Destination(String),
+        Protocol(String),
+        Length(ComparisonFilter<usize>),
+        Type(SessionProtocol)
+    }
 }
 
 impl<'a> FilterExpression<'a> for FilterType {
@@ -91,7 +79,6 @@ impl<'a> FilterExpression<'a> for FilterType {
                 .to_lowercase()
                 .contains(value),
             FilterType::Protocol(value) => {
-                // Check both transport and session protocols
                 ctx.packet
                     .transport_protocol
                     .to_string()
@@ -104,14 +91,14 @@ impl<'a> FilterExpression<'a> for FilterType {
                         .to_lowercase()
                         .contains(value)
             }
-            FilterType::Length(length_filter) => {
-                let length = ctx.packet.length;
-                match length_filter {
-                    LengthFilter::GreaterThan(size) => length > *size as u32,
-                    LengthFilter::GreaterOrEqualThan(size) => length >= *size as u32,
-                    LengthFilter::LessThan(size) => length < *size as u32,
-                    LengthFilter::LessOrEqualThan(size) => length <= *size as u32,
-                    LengthFilter::Equals(value) => length.to_string() == *value,
+            FilterType::Length(comp) => {
+                let length = ctx.packet.length as usize;
+                match comp {
+                    ComparisonFilter::GreaterThan(size) => length > *size,
+                    ComparisonFilter::GreaterOrEqualThan(size) => length >= *size,
+                    ComparisonFilter::LessThan(size) => length < *size,
+                    ComparisonFilter::LessOrEqualThan(size) => length <= *size,
+                    ComparisonFilter::Equals(value) => length.to_string() == *value,
                 }
             }
             FilterType::Type(protocol) => ctx.packet.session_protocol == *protocol,
@@ -122,21 +109,24 @@ impl<'a> FilterExpression<'a> for FilterType {
     }
 }
 
-impl<'a> FilterCombinator<'a> for FilterType {
-    fn and(left: Self, right: Self) -> Self {
-        FilterType::And(Box::new(left), Box::new(right))
+impl FilterParser for FilterType {
+    fn parse_filter_value(prefix: &str, value: &str) -> Result<Self, ParseError> {
+        match prefix.trim() {
+            "source" => Ok(FilterType::Source(value.to_lowercase())),
+            "dest" => Ok(FilterType::Destination(value.to_lowercase())),
+            "proto" | "protocol" => Ok(FilterType::Protocol(value.to_lowercase())),
+            "length" => ComparisonFilter::parse(value)
+                .map(FilterType::Length)
+                .ok_or_else(|| ParseError::InvalidSyntax("Invalid length filter format".into())),
+            "type" => SessionProtocol::from_str(value)
+                .map(FilterType::Type)
+                .map_err(|_| ParseError::InvalidSyntax("Invalid protocol type".into())),
+            _ => Err(ParseError::InvalidSyntax(format!(
+                "Unknown filter type: '{}'",
+                prefix
+            ))),
+        }
     }
-
-    fn or(left: Self, right: Self) -> Self {
-        FilterType::Or(Box::new(left), Box::new(right))
-    }
-}
-
-pub fn parse_filter(filter: &str) -> Result<FilterType, ParseError> {
-    validate_filter_syntax(filter)?;
-
-    let mut lexer = Lexer::new(filter);
-    parse_expression(&mut lexer, 0, parse_primary).map_err(|e| e.into())
 }
 
 fn parse_primary(lexer: &mut Lexer) -> ParseResult<FilterType> {
@@ -166,7 +156,7 @@ fn parse_primary(lexer: &mut Lexer) -> ParseResult<FilterType> {
             }
 
             match lexer.next_token() {
-                Some(Token::Filter(value)) => parse_filter_with_value(&prefix, &value),
+                Some(Token::Filter(value)) => FilterType::parse_filter_value(&prefix, &value),
                 _ => Err(ParseError::InvalidSyntax(format!(
                     "Missing value after '{}':",
                     prefix
@@ -180,70 +170,9 @@ fn parse_primary(lexer: &mut Lexer) -> ParseResult<FilterType> {
     }
 }
 
-fn parse_filter_with_value(prefix: &str, value: &str) -> Result<FilterType, ParseError> {
-    if value.is_empty() {
-        return Err(ParseError::InvalidSyntax(format!(
-            "Empty value for filter '{}'. Value must not be empty",
-            prefix
-        )));
-    }
+pub fn parse_filter(filter: &str) -> Result<FilterType, ParseError> {
+    validate_filter_syntax(filter)?;
 
-    match prefix.trim() {
-        "source" => Ok(FilterType::Source(value.to_lowercase())),
-        "dest" => Ok(FilterType::Destination(value.to_lowercase())),
-        "proto" | "protocol" => Ok(FilterType::Protocol(value.to_lowercase())),
-        "length" => parse_length_filter(value).ok_or_else(|| {
-            ParseError::InvalidSyntax(format!(
-                "Invalid length filter format. Expected number or comparison (e.g. >100, <=1500), got '{}'. \
-                Valid formats are: exact number (100), greater than (>100), greater or equal (>=100), \
-                less than (<100), less or equal (<=100)",
-                value
-            ))
-        }),
-        "type" => SessionProtocol::from_str(value)
-            .map(FilterType::Type)
-            .map_err(|_| {
-                ParseError::InvalidSyntax(format!(
-                    "Invalid protocol type '{}'. Expected one of: RTP, RTCP (case insensitive). \
-                    Examples: 'type:rtp', 'type:RTCP', 'type:MPEG-TS'",
-                    value
-                ))
-            }),
-        _ => Err(ParseError::InvalidSyntax(format!(
-            "Unknown filter type: '{}'. Available filters are:\n\
-             - source: matches source IP (e.g. 'source:192.168')\n\
-             - dest: matches destination IP (e.g. 'dest:10.0')\n\
-             - proto: matches protocol (e.g. 'proto:udp')\n\
-             - length: matches packet length (e.g. 'length:>100')\n\
-             - type: matches session protocol (e.g. 'type:rtp')",
-            prefix
-        ))),
-    }
-}
-
-fn parse_length_filter(value: &str) -> Option<FilterType> {
-    let result = if let Some(stripped) = value.strip_prefix('>') {
-        stripped.trim().parse().ok().map(LengthFilter::GreaterThan)
-    } else if let Some(stripped) = value.strip_prefix(">=") {
-        stripped
-            .trim()
-            .parse()
-            .ok()
-            .map(LengthFilter::GreaterOrEqualThan)
-    } else if let Some(stripped) = value.strip_prefix("<=") {
-        stripped
-            .trim()
-            .parse()
-            .ok()
-            .map(LengthFilter::LessOrEqualThan)
-    } else if let Some(stripped) = value.strip_prefix('<') {
-        stripped.trim().parse().ok().map(LengthFilter::LessThan)
-    } else {
-        match value.parse::<usize>() {
-            Ok(_) => Some(LengthFilter::Equals(value.to_string())),
-            Err(_) => None,
-        }
-    };
-
-    result.map(FilterType::Length)
+    let mut lexer = Lexer::new(filter);
+    parse_expression(&mut lexer, 0, parse_primary).map_err(|e| e.into())
 }
