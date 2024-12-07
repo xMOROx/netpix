@@ -23,7 +23,7 @@ impl PacketsTable {
             .filter("source:<ip>", "Filter by source IP address")
             .filter("dest:<ip>", "Filter by destination IP address")
             .filter(
-                "proto:<protocol> or protocol:<protocol> ",
+                "proto:<protocol> or protocol:<protocol>",
                 "Filter by protocol (TCP, UDP, RTP, RTCP, MPEG-TS)",
             )
             .filter(

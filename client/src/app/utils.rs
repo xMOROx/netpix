@@ -27,9 +27,12 @@ const LOGICAL_OPERATORS: [(&str, &str); 4] = [
 
 // Header styling constants
 const HEADER_TEXT_SIZE: f32 = 20.0;
+const SECTION_HEADER_TEXT_SIZE: f32 = 16.0;
 const HEADER_BOTTOM_MARGIN: f32 = 15.0;
+const SECTION_BOTTOM_MARGIN: f32 = 8.0;
 const FILTER_SYNTAX_COLOR: Color32 = Color32::WHITE;
 const FILTER_DESC_COLOR: Color32 = Color32::GRAY;
+const SECTION_HEADER_COLOR: Color32 = Color32::from_rgb(255, 180, 0); // Golden yellow
 
 #[derive(Debug, Clone)]
 pub struct FilterInput {
@@ -75,7 +78,7 @@ impl FilterInput {
                     .on_hover_text(HELP_BUTTON_TOOLTIP);
 
                 changed = ui.add(text_edit).changed();
-                self.show_filter_help = self.show_filter_help || response.clicked();
+                self.show_filter_help = self.show_filter_help ^ response.clicked();
             });
         });
 
@@ -98,7 +101,7 @@ impl FilterInput {
                 .min_width(HELP_WINDOW_MIN_WIDTH);
 
             modal.show(ctx, |ui| {
-                // Make the header more prominent
+                // Main header
                 ui.heading(
                     RichText::new(&self.help_content.title)
                         .size(HEADER_TEXT_SIZE)
@@ -106,7 +109,13 @@ impl FilterInput {
                 );
                 ui.add_space(HEADER_BOTTOM_MARGIN);
 
-                ui.label(BASIC_FILTERS_TITLE);
+                // Basic Filters section
+                ui.heading(
+                    RichText::new(BASIC_FILTERS_TITLE)
+                        .color(SECTION_HEADER_COLOR)
+                        .size(SECTION_HEADER_TEXT_SIZE),
+                );
+                ui.add_space(SECTION_BOTTOM_MARGIN);
                 for (filter, desc) in &self.help_content.basic_filters {
                     ui.horizontal(|ui| {
                         ui.label("•");
@@ -116,7 +125,13 @@ impl FilterInput {
                 }
 
                 ui.add_space(VERTICAL_SPACING);
-                ui.label(LOGICAL_OPERATORS_TITLE);
+                // Logical Operators section
+                ui.heading(
+                    RichText::new(LOGICAL_OPERATORS_TITLE)
+                        .color(SECTION_HEADER_COLOR)
+                        .size(SECTION_HEADER_TEXT_SIZE),
+                );
+                ui.add_space(SECTION_BOTTOM_MARGIN);
                 for (op, desc) in LOGICAL_OPERATORS {
                     ui.horizontal(|ui| {
                         ui.label("•");
@@ -126,7 +141,13 @@ impl FilterInput {
                 }
 
                 ui.add_space(VERTICAL_SPACING);
-                ui.label(EXAMPLES_TITLE);
+                // Examples section
+                ui.heading(
+                    RichText::new(EXAMPLES_TITLE)
+                        .color(SECTION_HEADER_COLOR)
+                        .size(SECTION_HEADER_TEXT_SIZE),
+                );
+                ui.add_space(SECTION_BOTTOM_MARGIN);
                 for example in &self.help_content.examples {
                     ui.horizontal(|ui| {
                         ui.label("•");
