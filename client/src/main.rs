@@ -10,9 +10,9 @@ use egui::TextBuffer;
 
 #[cfg(target_arch = "wasm32")]
 mod app;
+mod filter_system;
 mod streams;
 mod utils;
-
 const CANVAS_ID: &str = "the_canvas_id";
 
 #[cfg(target_arch = "wasm32")]
