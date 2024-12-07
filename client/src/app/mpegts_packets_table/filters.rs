@@ -61,10 +61,6 @@ use netpix_common::mpegts::header::{AdaptationFieldControl, PIDTable};
 use std::collections::VecDeque;
 use std::str::FromStr;
 
-pub trait PacketFilter {
-    fn matches(&self, info: &FilterContext) -> bool;
-}
-
 pub struct FilterContext<'a> {
     pub packet: &'a MpegTsPacketInfo,
     pub pmt_pids: &'a [PIDTable],

@@ -10,7 +10,7 @@ use egui_extras::{Column, TableBody, TableBuilder};
 use types::{PacketInfo, TableConfig};
 
 use crate::app::is_mpegts_stream_visible;
-use crate::app::mpegts_packets_table::filters::{parse_filter, FilterContext, PacketFilter};
+use crate::app::mpegts_packets_table::filters::{parse_filter, FilterContext};
 use crate::filter_system::{validate_filter_syntax, FilterExpression, ParseError};
 use egui::{Color32, RichText, TextEdit};
 use netpix_common::mpegts::header::{AdaptationFieldControl, PIDTable};
