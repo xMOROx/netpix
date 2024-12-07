@@ -1,5 +1,11 @@
 use std::collections::VecDeque;
 
+
+pub trait FilterCombinator<'a>: Sized {
+    fn and(left: Self, right: Self) -> Self;
+    fn or(left: Self, right: Self) -> Self;
+}
+
 #[derive(Debug, Clone, PartialEq)]
 pub enum Token {
     OpenParen,
@@ -9,6 +15,16 @@ pub enum Token {
     Not,
     Colon,
     Filter(String),
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum ParseError {
+    UnmatchedParenthesis,
+    MissingOperand,
+    InvalidToken(String),
+    UnexpectedToken,
+    InvalidSyntax(String),
+    EmptyExpression,
 }
 
 pub struct Lexer {
@@ -80,24 +96,15 @@ impl Lexer {
     }
 }
 
-#[derive(Debug, Clone, PartialEq)]
-pub enum ParseError {
-    UnmatchedParenthesis,
-    MissingOperand,
-    InvalidToken(String),
-    UnexpectedToken,
-    InvalidSyntax(String),
-    EmptyExpression,
-}
 
 impl std::fmt::Display for ParseError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             ParseError::UnmatchedParenthesis => write!(f, "Unmatched parenthesis"),
             ParseError::MissingOperand => write!(f, "Missing operand"),
-            ParseError::InvalidToken(t) => write!(f, "Invalid token: {}", t),
+            ParseError::InvalidToken(t) => write!(f, "{}", t),
             ParseError::UnexpectedToken => write!(f, "Unexpected token"),
-            ParseError::InvalidSyntax(s) => write!(f, "Invalid syntax: {}", s),
+            ParseError::InvalidSyntax(s) => write!(f, "{}", s),
             ParseError::EmptyExpression => write!(f, "Empty expression"),
         }
     }
@@ -135,9 +142,7 @@ where
         match token {
             Token::And | Token::Or => {
                 let op = lexer.next_token().ok_or(ParseError::UnexpectedToken)?;
-                let right = parse_primary(lexer).map_err(|_e| {
-                    ParseError::MissingOperand
-                })?;
+                let right = parse_primary(lexer).map_err(|_e| ParseError::MissingOperand)?;
 
                 left = match op {
                     Token::And => F::and(left, right),
@@ -150,11 +155,6 @@ where
     }
 
     Ok(left)
-}
-
-pub trait FilterCombinator<'a>: Sized {
-    fn and(left: Self, right: Self) -> Self;
-    fn or(left: Self, right: Self) -> Self;
 }
 
 pub fn get_operator_precedence(token: &Token) -> u8 {
