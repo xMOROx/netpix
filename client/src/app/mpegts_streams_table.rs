@@ -1,3 +1,4 @@
+use crate::app::utils::{FilterHelpContent, FilterInput};
 use crate::streams::mpegts_stream::substream::MpegtsSubStream;
 use crate::streams::stream_statistics::StreamStatistics;
 use crate::streams::RefStreams;
@@ -5,20 +6,70 @@ use eframe::emath::Vec2;
 use egui_extras::{Column, TableBody, TableBuilder};
 use egui_plot::{Line, Plot, PlotPoints};
 use std::collections::HashMap;
+use crate::filter_system::FilterExpression;
+
+mod filters;
 
 pub struct MpegTsStreamsTable {
     streams: RefStreams,
+    filter_input: FilterInput,
 }
 
 impl MpegTsStreamsTable {
     pub fn new(streams: RefStreams) -> Self {
-        Self { streams }
+        let help = FilterHelpContent::builder("MPEG-TS Streams Filters")
+            .filter("alias:<value>", "Filter by stream alias")
+            .filter("program:<number>", "Filter by program number")
+            .filter("source:<ip>", "Filter by source IP address")
+            .filter("dest:<ip>", "Filter by destination IP address")
+            .filter("fragments:<op><number>", "Filter by number of fragments")
+            .filter("duration:<op><seconds>", "Filter by stream duration")
+            .filter("bitrate:<op><kbps>", "Filter by mean bitrate")
+            .filter("fragmentrate:<op><number>", "Filter by fragment rate")
+            .example("alias:stream1 AND bitrate:>1000")
+            .example("source:192.168 OR dest:10.0")
+            .example("fragments:>100 AND duration:<10")
+            .example("(program:1 AND bitrate:>500) OR fragmentrate:>30")
+            .build();
+
+        Self {
+            streams,
+            filter_input: FilterInput::new(help),
+        }
     }
 
     pub fn ui(&mut self, ctx: &egui::Context) {
+        if self.filter_input.show(ctx) {
+            self.check_filter();
+        }
+
         egui::CentralPanel::default().show(ctx, |ui| {
             self.build_table(ui);
         });
+    }
+
+    fn check_filter(&mut self) {
+        let filter = self.filter_input.get_filter();
+        if filter.is_empty() {
+            self.filter_input.set_error(None);
+            return;
+        }
+
+        let result = filters::parse_filter(&filter.to_lowercase());
+        self.filter_input.set_error(result.err());
+    }
+
+    fn stream_matches_filter(&self, stream: &MpegtsSubStream) -> bool {
+        if self.filter_input.get_filter().is_empty() {
+            return true;
+        }
+
+        let filter = self.filter_input.get_filter().trim().to_lowercase();
+        let ctx = filters::FilterContext { stream };
+
+        filters::parse_filter(&filter)
+            .map(|filter_type| filter_type.matches(&ctx))
+            .unwrap_or(true) // Show all streams if filter parsing fails
     }
 
     fn build_table(&mut self, ui: &mut egui::Ui) {
@@ -82,13 +133,18 @@ impl MpegTsStreamsTable {
     }
 
     fn build_table_body(&mut self, body: TableBody) {
+        let filter_valid = self.filter_input.get_error().is_none();
         let mut streams = self.streams.borrow_mut();
         let mut keys: Vec<_> = vec![];
         let mut substreams: HashMap<_, _> = HashMap::new();
 
         for stream in streams.mpeg_ts_streams.values_mut() {
-            keys.extend(stream.substreams.keys());
-            substreams.extend(stream.substreams.clone());
+            for (key, substream) in stream.substreams.iter() {
+                if filter_valid && self.stream_matches_filter(substream) {
+                    keys.push(key.clone());
+                    substreams.insert(key.clone(), substream.clone());
+                }
+            }
         }
 
         body.rows(100.0, keys.len(), |mut row| {
