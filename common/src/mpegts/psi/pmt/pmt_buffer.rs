@@ -87,6 +87,7 @@ impl PsiBuffer<ProgramMapTable, FragmentaryProgramMapTable> for PmtBuffer {
             fields,
             &self.accumulate_descriptors(),
             &self.accumulate_payload(),
+            self.pmt_fragments.len()
         )
     }
 

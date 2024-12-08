@@ -36,6 +36,7 @@ fn test_pat_buffer_with_one_fragment() {
                 program_map_pid: Some(0x0dad),
             },],
             crc_32: 0x5ae97dda,
+            fragment_count: 1,
         })
     );
 }
