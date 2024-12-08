@@ -90,7 +90,7 @@ impl MpegtsPacket {
     ) -> Option<(Option<AdaptationField>, usize)> {
         match header.adaptation_field_control {
             AdaptationFieldControl::AdaptationFieldOnly
-            | AdaptationFieldControl::AdaptationFieldAndPaylod => {
+            | AdaptationFieldControl::AdaptationFieldAndPayload => {
                 let field = AdaptationField::unmarshall(&buffer[start_index..])?;
                 let next_index = start_index + field.adaptation_field_length as usize + 1;
                 Some((Some(field), next_index))
@@ -107,7 +107,7 @@ impl MpegtsPacket {
     ) -> Option<RawPayload> {
         match header.adaptation_field_control {
             AdaptationFieldControl::PayloadOnly
-            | AdaptationFieldControl::AdaptationFieldAndPaylod => {
+            | AdaptationFieldControl::AdaptationFieldAndPayload => {
                 Self::get_payload(buffer, start_index, fragment_number)
             }
             _ => None,
@@ -128,7 +128,7 @@ impl MpegtsPacket {
             adaptation_field_control: match reader.get_bits(3, AFC_MASK, 4)? {
                 1 => AdaptationFieldControl::PayloadOnly,
                 2 => AdaptationFieldControl::AdaptationFieldOnly,
-                3 => AdaptationFieldControl::AdaptationFieldAndPaylod,
+                3 => AdaptationFieldControl::AdaptationFieldAndPayload,
                 _ => return None,
             },
             continuity_counter: reader.get_bits(3, CC_MASK, 0)?,

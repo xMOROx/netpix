@@ -35,7 +35,7 @@ pub enum AdaptationFieldControl {
     #[default]
     PayloadOnly,
     AdaptationFieldOnly,
-    AdaptationFieldAndPaylod,
+    AdaptationFieldAndPayload,
 }
 
 impl std::fmt::Display for PIDTable {

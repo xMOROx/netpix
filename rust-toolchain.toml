@@ -1,4 +1,4 @@
 [toolchain]
 
-channel = "nightly-2024-10-17"
+channel = "1.83.0"
 target = ["x84_64-unknown-linux-gnu"]
