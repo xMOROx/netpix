@@ -25,6 +25,9 @@ clap = { version = "4", features = ["derive"] }
 rust-embed = "8.0.0"
 mime_guess = "2.0.4"
 
+[profile.release]
+opt-level = 3
+
 [lints.clippy]
 result_unit_err = "allow"
 new_without_default = "allow"
