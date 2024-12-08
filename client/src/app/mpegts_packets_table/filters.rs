@@ -53,13 +53,10 @@
 //! - `alias:A AND payload:>=188` - Packets from stream aliased as "A" with full payloads
 
 use crate::streams::mpegts_stream::packet_info::MpegTsPacketInfo;
+use crate::{declare_filter_type, filter_system, filter_system::*};
 use netpix_common::mpegts::header::{AdaptationFieldControl, PIDTable};
 use std::collections::VecDeque;
 use std::str::FromStr;
-
-pub trait PacketFilter {
-    fn matches(&self, info: &FilterContext) -> bool;
-}
 
 pub struct FilterContext<'a> {
     pub packet: &'a MpegTsPacketInfo,
@@ -67,20 +64,6 @@ pub struct FilterContext<'a> {
     pub es_pids: &'a [PIDTable],
     pub pcr_pids: &'a [PIDTable],
     pub stream_alias: Option<String>,
-}
-
-pub enum FilterType {
-    Description(String),
-    Source(String),
-    Destination(String),
-    Alias(String),
-    Payload(PayloadFilter),
-    PacketPid(usize, String),
-    Pid(u16),
-    Type(PacketType),
-    And(Box<FilterType>, Box<FilterType>),
-    Or(Box<FilterType>, Box<FilterType>),
-    Not(Box<FilterType>),
 }
 
 pub enum PacketType {
@@ -91,12 +74,22 @@ pub enum PacketType {
     Pcr,
 }
 
-pub enum PayloadFilter {
-    GreaterOrEqualThan(usize),
-    GreaterThan(usize),
-    LessOrEqualThan(usize),
-    LessThan(usize),
-    Equals(String),
+declare_filter_type! {
+    pub enum FilterType {
+        Source(String),
+        Destination(String),
+        Alias(String),
+        Payload(ComparisonFilter<usize>),
+        PacketPid(usize, String),
+        Pid(u16),
+        Type(PacketType),
+    }
+}
+
+impl CommonFilterParser for FilterType {
+    fn not(expr: Self) -> Self {
+        FilterType::Not(Box::new(expr))
+    }
 }
 
 impl FromStr for PacketType {
@@ -114,10 +107,15 @@ impl FromStr for PacketType {
     }
 }
 
-impl PacketFilter for FilterType {
-    fn matches(&self, ctx: &FilterContext) -> bool {
+pub fn parse_filter(filter: &str) -> Result<FilterType, ParseError> {
+    filter_system::parse_filter(filter)
+}
+
+impl<'a> FilterExpression<'a> for FilterType {
+    type Context = FilterContext<'a>;
+
+    fn matches(&self, ctx: &Self::Context) -> bool {
         match self {
-            FilterType::Description(value) => ctx.packet.id.to_string().contains(value),
             FilterType::Source(value) => ctx
                 .packet
                 .packet_association_table
@@ -140,11 +138,11 @@ impl PacketFilter for FilterType {
             FilterType::Payload(payload_filter) => {
                 let payload_size = calculate_payload_size(ctx.packet);
                 match payload_filter {
-                    PayloadFilter::GreaterThan(size) => payload_size > *size,
-                    PayloadFilter::GreaterOrEqualThan(size) => payload_size >= *size,
-                    PayloadFilter::LessThan(size) => payload_size < *size,
-                    PayloadFilter::LessOrEqualThan(size) => payload_size <= *size,
-                    PayloadFilter::Equals(value) => payload_size.to_string() == *value,
+                    ComparisonFilter::GreaterThan(size) => payload_size > *size,
+                    ComparisonFilter::GreaterOrEqualThan(size) => payload_size >= *size,
+                    ComparisonFilter::LessThan(size) => payload_size < *size,
+                    ComparisonFilter::LessOrEqualThan(size) => payload_size <= *size,
+                    ComparisonFilter::Equals(value) => payload_size.to_string() == *value,
                 }
             }
             FilterType::PacketPid(index, value) => ctx
@@ -173,180 +171,131 @@ impl PacketFilter for FilterType {
     }
 }
 
-#[derive(Debug, Clone, PartialEq)]
-enum Token {
-    OpenParen,
-    CloseParen,
-    And,
-    Or,
-    Not,
-    Filter(String),
-    Colon,
-}
+impl FilterParser for FilterType {
+    fn parse_filter_value(prefix: &str, value: &str) -> Result<Self, ParseError> {
+        match prefix.trim() {
+            "source" => value
+                .contains('.')
+                .then_some(Ok(FilterType::Source(value.to_lowercase())))
+                .unwrap_or_else(|| {
+                    Err(ParseError::InvalidSyntax(
+                        "Invalid IP address format (e.g. source:192.168.1.1)".into(),
+                    ))
+                }),
 
-struct Lexer {
-    tokens: VecDeque<Token>,
-}
+            "dest" => value
+                .contains('.')
+                .then_some(Ok(FilterType::Destination(value.to_lowercase())))
+                .unwrap_or_else(|| {
+                    Err(ParseError::InvalidSyntax(
+                        "Invalid IP address format (e.g. dest:192.168.1.1)".into(),
+                    ))
+                }),
 
-impl Lexer {
-    fn new(input: &str) -> Self {
-        let mut tokens = VecDeque::new();
-        let chars = input.chars().peekable();
-        let mut current = String::new();
+            "alias" => value
+                .is_empty()
+                .then_some(Err(ParseError::InvalidSyntax(
+                    "Alias filter cannot be empty (e.g. alias:stream_a)".into(),
+                )))
+                .unwrap_or_else(|| Ok(FilterType::Alias(value.to_lowercase()))),
 
-        for c in chars {
-            match c {
-                '(' => {
-                    Self::push_if_not_empty(&mut tokens, &mut current);
-                    tokens.push_back(Token::OpenParen);
-                }
-                ')' => {
-                    Self::push_if_not_empty(&mut tokens, &mut current);
-                    tokens.push_back(Token::CloseParen);
-                }
-                ':' => {
-                    Self::push_if_not_empty(&mut tokens, &mut current);
-                    tokens.push_back(Token::Colon);
-                }
-                ' ' => {
-                    if !current.is_empty() {
-                        match current.to_lowercase().as_str() {
-                            "and" => tokens.push_back(Token::And),
-                            "or" => tokens.push_back(Token::Or),
-                            "not" => tokens.push_back(Token::Not),
-                            _ => tokens.push_back(Token::Filter(current.clone())),
-                        }
-                        current.clear();
-                    }
-                }
-                _ => current.push(c),
+            "payload" => parse_payload_filter(value).ok_or_else(|| {
+                ParseError::InvalidSyntax(
+                    "Invalid payload filter format.\nExamples:\n\
+                     - payload:188 (exact match)\n\
+                     - payload:>100 (greater than)\n\
+                     - payload:<=188 (less or equal)\n\
+                     - payload:<150 (less than)\n\
+                     - payload:>=100 (greater or equal)"
+                        .into(),
+                )
+            }),
+
+            p if p.starts_with('p') && p.len() == 2 => {
+                let index_char = p.chars().nth(1).unwrap();
+                ('1'..='7')
+                    .contains(&index_char)
+                    .then(|| {
+                        let packet_index = (index_char as usize - '0' as usize) - 1;
+                        (!value.is_empty())
+                            .then_some(Ok(FilterType::PacketPid(packet_index, value.to_string())))
+                            .unwrap_or_else(|| {
+                                Err(ParseError::InvalidSyntax(
+                                    "PID filter value cannot be empty (e.g. p1:256)".into(),
+                                ))
+                            })
+                    })
+                    .unwrap_or_else(|| {
+                        Err(ParseError::InvalidSyntax(
+                            "Invalid PID position. Must be p1 through p7 (e.g. p1:256)".into(),
+                        ))
+                    })
             }
+
+            "pid" => value.parse::<u16>().map(FilterType::Pid).map_err(|_| {
+                ParseError::InvalidSyntax(
+                    "Invalid PID number. Must be 0-8191 (e.g. pid:256)".into(),
+                )
+            }),
+
+            "type" => PacketType::from_str(value)
+                .map(FilterType::Type)
+                .map_err(|_| {
+                    ParseError::InvalidSyntax(
+                        "Invalid packet type.\nMust be one of:\n\
+                     - type:PAT (Program Association Table)\n\
+                     - type:PMT (Program Map Table)\n\
+                     - type:PCR+ES (PCR and Elementary Stream)\n\
+                     - type:ES (Elementary Stream)\n\
+                     - type:PCR (Program Clock Reference)"
+                            .into(),
+                    )
+                }),
+
+            unknown => Err(ParseError::InvalidSyntax(format!(
+                "Unknown filter type: '{}'.\nAvailable filters:\n\
+                 - source: Source IP filter\n\
+                 - dest: Destination IP filter\n\
+                 - alias: Stream alias filter\n\
+                 - payload: Payload size filter\n\
+                 - p1-p7: PID position filter\n\
+                 - pid: PID number filter\n\
+                 - type: Packet type filter",
+                unknown
+            ))),
         }
-        Self::push_if_not_empty(&mut tokens, &mut current);
-        Self { tokens }
-    }
-
-    fn push_if_not_empty(tokens: &mut VecDeque<Token>, current: &mut String) {
-        if !current.is_empty() {
-            tokens.push_back(Token::Filter(current.clone()));
-            current.clear();
-        }
-    }
-
-    fn next_token(&mut self) -> Option<Token> {
-        self.tokens.pop_front()
-    }
-
-    fn peek_token(&self) -> Option<&Token> {
-        self.tokens.front()
-    }
-}
-
-pub fn parse_filter(filter: &str) -> Option<FilterType> {
-    let mut lexer = Lexer::new(filter);
-    parse_expression(&mut lexer, 0)
-}
-
-fn parse_expression(lexer: &mut Lexer, precedence: u8) -> Option<FilterType> {
-    let mut left = parse_primary(lexer)?;
-
-    while let Some(token) = lexer.peek_token() {
-        let current_precedence = get_operator_precedence(token);
-        if current_precedence < precedence {
-            break;
-        }
-
-        match token {
-            Token::And => {
-                lexer.next_token(); // consume AND
-                let right = parse_expression(lexer, current_precedence + 1)?;
-                left = FilterType::And(Box::new(left), Box::new(right));
-            }
-            Token::Or => {
-                lexer.next_token(); // consume OR
-                let right = parse_expression(lexer, current_precedence + 1)?;
-                left = FilterType::Or(Box::new(left), Box::new(right));
-            }
-            _ => break,
-        }
-    }
-
-    Some(left)
-}
-
-fn parse_primary(lexer: &mut Lexer) -> Option<FilterType> {
-    match lexer.next_token()? {
-        Token::OpenParen => {
-            let expr = parse_expression(lexer, 0)?;
-            if lexer.next_token() != Some(Token::CloseParen) {
-                return None;
-            }
-            Some(expr)
-        }
-        Token::Not => {
-            let expr = parse_primary(lexer)?;
-            Some(FilterType::Not(Box::new(expr)))
-        }
-        Token::Filter(prefix) => {
-            if lexer.next_token() != Some(Token::Colon) {
-                return None;
-            }
-            if let Some(Token::Filter(value)) = lexer.next_token() {
-                parse_filter_with_value(&prefix, &value)
-            } else {
-                None
-            }
-        }
-        _ => None,
-    }
-}
-
-fn get_operator_precedence(token: &Token) -> u8 {
-    match token {
-        Token::Or => 1,
-        Token::And => 2,
-        _ => 0,
-    }
-}
-
-fn parse_filter_with_value(prefix: &str, value: &str) -> Option<FilterType> {
-    match prefix.trim() {
-        "desc" => Some(FilterType::Description(value.to_string())),
-        "source" => Some(FilterType::Source(value.to_lowercase())),
-        "dest" => Some(FilterType::Destination(value.to_lowercase())),
-        "alias" => Some(FilterType::Alias(value.to_lowercase())),
-        "payload" => parse_payload_filter(value),
-        p if p.starts_with('p') && p.len() == 2 => {
-            let packet_index = p[1..].parse::<usize>().ok()?.saturating_sub(1);
-            Some(FilterType::PacketPid(packet_index, value.to_string()))
-        }
-        "pid" => value.parse().ok().map(FilterType::Pid),
-        "type" => PacketType::from_str(value).ok().map(FilterType::Type),
-        _ => None,
     }
 }
 
 fn parse_payload_filter(value: &str) -> Option<FilterType> {
-    if let Some(stripped) = value.strip_prefix('>') {
-        stripped.trim().parse().ok().map(PayloadFilter::GreaterThan)
+    let result = if let Some(stripped) = value.strip_prefix('>') {
+        stripped
+            .trim()
+            .parse()
+            .ok()
+            .map(ComparisonFilter::GreaterThan)
     } else if let Some(stripped) = value.strip_prefix(">=") {
         stripped
             .trim()
             .parse()
             .ok()
-            .map(PayloadFilter::GreaterOrEqualThan)
+            .map(ComparisonFilter::GreaterOrEqualThan)
     } else if let Some(stripped) = value.strip_prefix("<=") {
         stripped
             .trim()
             .parse()
             .ok()
-            .map(PayloadFilter::LessOrEqualThan)
+            .map(ComparisonFilter::LessOrEqualThan)
     } else if let Some(stripped) = value.strip_prefix('<') {
-        stripped.trim().parse().ok().map(PayloadFilter::LessThan)
+        stripped.trim().parse().ok().map(ComparisonFilter::LessThan)
     } else {
-        Some(PayloadFilter::Equals(value.to_string()))
-    }
-    .map(FilterType::Payload)
+        match value.parse::<usize>() {
+            Ok(_) => Some(ComparisonFilter::Equals(value.to_string())),
+            Err(_) => None,
+        }
+    };
+
+    result.map(FilterType::Payload)
 }
 
 fn calculate_payload_size(packet: &MpegTsPacketInfo) -> usize {
