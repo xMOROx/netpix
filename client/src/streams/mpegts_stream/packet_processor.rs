@@ -19,6 +19,25 @@ pub struct MpegtsPacketProcessor {
     aggregator: MpegtsAggregator,
 }
 
+#[derive(Debug)]
+struct SubstreamProcessingContext<'a> {
+    packet: &'a Packet,
+    alias: &'a str,
+    pat: &'a ProgramAssociationTable,
+    program_map_table: &'a ProgramMapTable,
+    program_map_pid: u16,
+    existing_packets: &'a [MpegTsPacketInfo],
+}
+
+#[derive(Debug)]
+struct FragmentProcessingContext<'a> {
+    substream: &'a mut MpegtsSubStream,
+    packet: &'a Packet,
+    fragment: &'a MpegtsFragment,
+    es_pid: u16,
+    pmt_pid: u16,
+}
+
 impl MpegtsPacketProcessor {
     pub fn new() -> Self {
         Self {
@@ -298,23 +317,4 @@ impl MpegtsPacketProcessor {
                 ));
         }
     }
-}
-
-#[derive(Debug)]
-struct SubstreamProcessingContext<'a> {
-    packet: &'a Packet,
-    alias: &'a str,
-    pat: &'a ProgramAssociationTable,
-    program_map_table: &'a ProgramMapTable,
-    program_map_pid: u16,
-    existing_packets: &'a [MpegTsPacketInfo],
-}
-
-#[derive(Debug)]
-struct FragmentProcessingContext<'a> {
-    substream: &'a mut MpegtsSubStream,
-    packet: &'a Packet,
-    fragment: &'a MpegtsFragment,
-    es_pid: u16,
-    pmt_pid: u16,
 }

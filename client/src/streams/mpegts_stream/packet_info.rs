@@ -27,6 +27,12 @@ pub struct MpegTsStreamInfo {
     pub statistics: Statistics,
 }
 
+#[derive(Debug)]
+pub struct StatisticsContext<'a> {
+    pub packet_info: &'a MpegTsPacketInfo,
+    pub mpegts_bytes: usize,
+}
+
 impl MpegTsPacketInfo {
     pub fn new(packet: &Packet, mpegts_packet: &MpegtsPacket) -> Self {
         Self {
@@ -159,10 +165,4 @@ impl MpegTsStreamInfo {
 
         self.statistics.increment_packet_rate();
     }
-}
-
-#[derive(Debug)]
-pub struct StatisticsContext<'a> {
-    pub packet_info: &'a MpegTsPacketInfo,
-    pub mpegts_bytes: usize,
 }
