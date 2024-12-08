@@ -19,6 +19,25 @@ pub struct MpegtsPacketProcessor {
     aggregator: MpegtsAggregator,
 }
 
+#[derive(Debug)]
+struct SubstreamProcessingContext<'a> {
+    packet: &'a Packet,
+    alias: &'a str,
+    pat: &'a ProgramAssociationTable,
+    program_map_table: &'a ProgramMapTable,
+    program_map_pid: u16,
+    existing_packets: &'a [MpegTsPacketInfo],
+}
+
+#[derive(Debug)]
+struct FragmentProcessingContext<'a> {
+    substream: &'a mut MpegtsSubStream,
+    packet: &'a Packet,
+    fragment: &'a MpegtsFragment,
+    es_pid: u16,
+    pmt_pid: u16,
+}
+
 impl MpegtsPacketProcessor {
     pub fn new() -> Self {
         Self {
@@ -39,9 +58,20 @@ impl MpegtsPacketProcessor {
 
     pub fn determine_type(&mut self, packet: &Packet, stream_info: &mut MpegTsStreamInfo) {
         if let SessionPacket::Mpegts(mpegts) = &packet.contents {
-            if let Some(pat) = self.process_pat(mpegts) {
-                stream_info.pat = Some(pat.clone());
-                self.process_pmt(mpegts, &pat, stream_info);
+            let maybe_new_pat = mpegts
+                .fragments
+                .iter()
+                .find_map(|fragment| self.process_pat_fragment(fragment));
+
+            if let Some(pat) = maybe_new_pat {
+                stream_info.pat = Some(pat);
+            }
+
+            if let Some(pat) = &stream_info.pat.clone() {
+                for fragment in &mpegts.fragments {
+                    self.process_pmt_fragment(fragment, pat);
+                }
+                self.update_complete_pmt_tables(pat, stream_info);
             }
         }
     }
@@ -78,60 +108,24 @@ impl MpegtsPacketProcessor {
         self.aggregator.get_pat()
     }
 
-    fn process_pat(&mut self, mpegts: &MpegtsPacket) -> Option<ProgramAssociationTable> {
-        for fragment in &mpegts.fragments {
-            if fragment.header.pid == PIDTable::ProgramAssociation {
-                if let Some(payload) = &fragment.payload {
-                    if let Some(pat_fragment) = FragmentaryProgramAssociationTable::unmarshall(
-                        &payload.data,
-                        fragment.header.payload_unit_start_indicator,
-                    ) {
-                        self.aggregator
-                            .pat_buffer
-                            .set_last_section_number(pat_fragment.header.last_section_number);
-                        self.aggregator.add_pat(pat_fragment);
-                        return self.aggregator.get_pat();
-                    }
-                }
-            }
-        }
-        None
-    }
-
-    fn process_pmt(
-        &mut self,
-        mpegts: &MpegtsPacket,
-        pat: &ProgramAssociationTable,
-        stream_info: &mut MpegTsStreamInfo,
-    ) {
-        for fragment in &mpegts.fragments {
-            self.process_pmt_fragment(fragment, pat);
-        }
-
-        if self.aggregator.is_pat_complete() {
-            self.update_pmt_tables(pat, stream_info);
-        }
-    }
-
     fn process_pmt_fragment(&mut self, fragment: &MpegtsFragment, pat: &ProgramAssociationTable) {
-        for program in &pat.programs {
-            if let Some(program_map_pid) = program.program_map_pid {
-                if Into::<u16>::into(fragment.header.pid) == program_map_pid {
-                    if let Some(payload) = &fragment.payload {
-                        if let Some(pmt_fragment) = FragmentaryProgramMapTable::unmarshall(
-                            &payload.data,
-                            fragment.header.payload_unit_start_indicator,
-                        ) {
-                            self.aggregator
-                                .add_pmt(fragment.header.pid.into(), pmt_fragment);
-                        }
-                    }
-                }
+        let pid: u16 = fragment.header.pid.into();
+
+        if !pat.programs.iter().any(|p| p.program_map_pid == Some(pid)) {
+            return;
+        }
+
+        if let Some(payload) = &fragment.payload {
+            if let Some(pmt_fragment) = FragmentaryProgramMapTable::unmarshall(
+                &payload.data,
+                fragment.header.payload_unit_start_indicator,
+            ) {
+                self.aggregator.add_pmt(pid, pmt_fragment);
             }
         }
     }
 
-    fn update_pmt_tables(
+    fn update_complete_pmt_tables(
         &mut self,
         pat: &ProgramAssociationTable,
         stream_info: &mut MpegTsStreamInfo,
@@ -298,23 +292,4 @@ impl MpegtsPacketProcessor {
                 ));
         }
     }
-}
-
-#[derive(Debug)]
-struct SubstreamProcessingContext<'a> {
-    packet: &'a Packet,
-    alias: &'a str,
-    pat: &'a ProgramAssociationTable,
-    program_map_table: &'a ProgramMapTable,
-    program_map_pid: u16,
-    existing_packets: &'a [MpegTsPacketInfo],
-}
-
-#[derive(Debug)]
-struct FragmentProcessingContext<'a> {
-    substream: &'a mut MpegtsSubStream,
-    packet: &'a Packet,
-    fragment: &'a MpegtsFragment,
-    es_pid: u16,
-    pmt_pid: u16,
 }

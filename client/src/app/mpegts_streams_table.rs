@@ -5,6 +5,7 @@ use crate::streams::RefStreams;
 use eframe::emath::Vec2;
 use egui_extras::{Column, TableBody, TableBuilder};
 use egui_plot::{Line, Plot, PlotPoints};
+use netpix_common::mpegts::psi::pmt::stream_types::{stream_type_into_unique_letter, StreamType};
 use std::collections::HashMap;
 use crate::filter_system::FilterExpression;
 
@@ -71,6 +72,34 @@ impl MpegTsStreamsTable {
             .map(|filter_type| filter_type.matches(&ctx))
             .unwrap_or(true) // Show all streams if filter parsing fails
     }
+    fn show_stream_type_info_modal(&mut self, ctx: &egui::Context) {
+        let modal_id = egui::Id::new("stream_type_info_modal");
+
+        let streams = self.streams.borrow();
+        let mut unique_stream_types: Vec<StreamType> = streams
+            .mpeg_ts_streams
+            .values()
+            .flat_map(|stream| stream.substreams.values())
+            .map(|substream| substream.stream_type)
+            .collect::<std::collections::HashSet<_>>()
+            .into_iter()
+            .collect();
+
+        unique_stream_types.sort();
+
+        egui::Window::new("Stream Type Information")
+            .id(modal_id)
+            .anchor(egui::Align2::CENTER_CENTER, [0.0, 0.0])
+            .resizable(false)
+            .show(ctx, |ui| {
+                ui.vertical(|ui| {
+                    for stream_type in unique_stream_types {
+                        let letter = stream_type_into_unique_letter(&stream_type);
+                        ui.label(format!("{} - {}", letter, stream_type));
+                    }
+                });
+            });
+    }
 
     fn build_table(&mut self, ui: &mut egui::Ui) {
         let header_labels = [
@@ -106,6 +135,27 @@ impl MpegTsStreamsTable {
                 "Plot representing bitrate for all of the stream's fragments",
             ),
         ];
+
+        let streams = self.streams.borrow();
+        let has_stream_types = streams
+            .mpeg_ts_streams
+            .values()
+            .flat_map(|stream| stream.substreams.values())
+            .next()
+            .is_some();
+        drop(streams); // release borrow
+
+        ui.horizontal(|ui| {
+            ui.with_layout(egui::Layout::left_to_right(egui::Align::Center), |ui| {
+                let button = egui::Button::new("ℹ Stream Types");
+                if ui.add_enabled(has_stream_types, button).clicked() {
+                    ui.memory_mut(|mem| {
+                        mem.toggle_popup(egui::Id::new("stream_type_info_modal"));
+                    });
+                }
+            });
+        });
+
         TableBuilder::new(ui)
             .striped(true)
             .resizable(true)
@@ -130,6 +180,10 @@ impl MpegTsStreamsTable {
             .body(|body| {
                 self.build_table_body(body);
             });
+
+        if ui.memory(|mem| mem.is_popup_open(egui::Id::new("stream_type_info_modal"))) {
+            self.show_stream_type_info_modal(ui.ctx());
+        }
     }
 
     fn build_table_body(&mut self, body: TableBody) {
@@ -153,9 +207,11 @@ impl MpegTsStreamsTable {
             let stream = substreams.get_mut(key).unwrap();
 
             row.col(|ui| {
-                let text_edit =
-                    egui::TextEdit::singleline(&mut stream.aliases.stream_alias).frame(false);
-                ui.add(text_edit);
+                ui.horizontal(|ui| {
+                    let text_edit =
+                        egui::TextEdit::singleline(&mut stream.aliases.stream_alias).frame(false);
+                    ui.add(text_edit);
+                });
             });
 
             row.col(|ui| {
