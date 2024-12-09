@@ -34,17 +34,10 @@ impl MpegTsInformationTable {
             self.build_table(ui);
         });
 
-        let modal_descriptor = self.open_modal.descriptor.clone();
-        if let Some(descriptor) = modal_descriptor {
-            self.show_descriptor_modal(ctx, &descriptor);
-        }
-    }
-
-    fn show_descriptor_modal(&mut self, ctx: &egui::Context, descriptor: &Descriptors) {
-        let mut open = true;
-        descriptor_ui::show_descriptor_modal(ctx, descriptor, &mut open);
-        if !open {
-            self.open_modal.descriptor = None;
+        if self.open_modal.is_open {
+            if let Some(descriptor) = &self.open_modal.descriptor.clone() {
+                descriptor_ui::show_descriptor_modal(ctx, descriptor, &mut self.open_modal);
+            }
         }
     }
 

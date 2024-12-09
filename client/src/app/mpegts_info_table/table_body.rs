@@ -156,10 +156,29 @@ pub fn build_table_body(
                                                     if let Some(button_text) =
                                                         get_descriptor_button_info(descriptor)
                                                     {
-                                                        if ui.small_button(button_text).clicked() {
-                                                            open_modal.descriptor =
-                                                                Some(descriptor.clone());
-                                                            open_modal.is_open = true;
+                                                        let mut button =
+                                                            egui::Button::new(button_text);
+                                                        if open_modal.active_descriptor.as_ref()
+                                                            == Some(descriptor)
+                                                        {
+                                                            button = button.fill(
+                                                                ui.visuals().selection.bg_fill,
+                                                            );
+                                                        }
+                                                        if ui.add(button).clicked() {
+                                                            if open_modal.active_descriptor.as_ref()
+                                                                == Some(descriptor)
+                                                            {
+                                                                open_modal.descriptor = None;
+                                                                open_modal.active_descriptor = None;
+                                                                open_modal.is_open = false;
+                                                            } else {
+                                                                open_modal.descriptor =
+                                                                    Some(descriptor.clone());
+                                                                open_modal.active_descriptor =
+                                                                    Some(descriptor.clone());
+                                                                open_modal.is_open = true;
+                                                            }
                                                         }
                                                     }
                                                 }

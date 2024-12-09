@@ -1,6 +1,5 @@
+use crate::app::mpegts_info_table::types::OpenModal;
 use egui;
-use netpix_common::mpegts::descriptors::*;
-use std::collections::BTreeMap;
 use netpix_common::mpegts::descriptors::audio_stream::AudioStreamDescriptor;
 use netpix_common::mpegts::descriptors::avc_video_descriptor::AvcVideoDescriptor;
 use netpix_common::mpegts::descriptors::ca_descriptor::CaDescriptor;
@@ -17,6 +16,8 @@ use netpix_common::mpegts::descriptors::system_clock_descriptor::SystemClockDesc
 use netpix_common::mpegts::descriptors::target_background_grid_descriptor::TargetBackgroundGridDescriptor;
 use netpix_common::mpegts::descriptors::video_stream::VideoStreamDescriptor;
 use netpix_common::mpegts::descriptors::video_window_descriptor::VideoWindowDescriptor;
+use netpix_common::mpegts::descriptors::*;
+use std::collections::BTreeMap;
 
 pub trait DescriptorDisplay {
     fn display_name(&self) -> &'static str;
@@ -264,7 +265,7 @@ impl DescriptorDisplay for VideoWindowDescriptor {
     }
 }
 
-pub fn show_descriptor_modal(ctx: &egui::Context, descriptor: &Descriptors, open: &mut bool) {
+pub fn show_descriptor_modal(ctx: &egui::Context, descriptor: &Descriptors, modal: &mut OpenModal) {
     egui::Window::new("Descriptor Details")
         .collapsible(false)
         .resizable(false)
@@ -313,11 +314,7 @@ pub fn show_descriptor_modal(ctx: &egui::Context, descriptor: &Descriptors, open
                     build_descriptor_ui(ui, desc.display_name(), desc.get_display_fields())
                 }
                 Descriptors::VideoStreamDescriptor(desc) => {
-                    build_descriptor_ui(
-                        ui,
-                        desc.display_name(),
-                        desc.get_display_fields()
-                    )
+                    build_descriptor_ui(ui, desc.display_name(), desc.get_display_fields())
                 }
                 Descriptors::VideoWindowDescriptor(desc) => {
                     build_descriptor_ui(ui, desc.display_name(), desc.get_display_fields())
@@ -330,9 +327,16 @@ pub fn show_descriptor_modal(ctx: &egui::Context, descriptor: &Descriptors, open
 
             ui.add_space(8.0);
             if ui.button("Close").clicked() {
-                *open = false;
+                modal.is_open = false;
+                modal.descriptor = None;
+                modal.active_descriptor = None;
             }
         });
+
+    if !modal.is_open {
+        modal.descriptor = None;
+        modal.active_descriptor = None;
+    }
 }
 
 pub fn build_label(ui: &mut egui::Ui, bold: impl Into<String>, normal: impl Into<String>) {
