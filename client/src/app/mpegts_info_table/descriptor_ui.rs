@@ -1,247 +1,267 @@
 use egui;
-use netpix_common::mpegts::descriptors::{
-    audio_stream::AudioStreamDescriptor, avc_video_descriptor::AvcVideoDescriptor,
-    copyright_descriptor::CopyrightDescriptor,
-    iso_639_language_descriptor::Iso639LanguageDescriptor,
-    maximum_bitrate_descriptor::MaximumBitrateDescriptor,
-    multiplex_buffer_utilization_descriptor::MultiplexBufferUtilizationDescriptor,
-    system_clock_descriptor::SystemClockDescriptor, video_stream::VideoStreamDescriptor,
-    video_window_descriptor::VideoWindowDescriptor, Descriptors,
-};
+use netpix_common::mpegts::descriptors::*;
+use std::collections::BTreeMap;
+use netpix_common::mpegts::descriptors::audio_stream::AudioStreamDescriptor;
+use netpix_common::mpegts::descriptors::avc_video_descriptor::AvcVideoDescriptor;
 use netpix_common::mpegts::descriptors::ca_descriptor::CaDescriptor;
+use netpix_common::mpegts::descriptors::copyright_descriptor::CopyrightDescriptor;
 use netpix_common::mpegts::descriptors::data_stream_alignment_descriptor::DataStreamAlignmentDescriptor;
 use netpix_common::mpegts::descriptors::hierarchy::HierarchyDescriptor;
+use netpix_common::mpegts::descriptors::iso_639_language_descriptor::Iso639LanguageDescriptor;
+use netpix_common::mpegts::descriptors::maximum_bitrate_descriptor::MaximumBitrateDescriptor;
+use netpix_common::mpegts::descriptors::multiplex_buffer_utilization_descriptor::MultiplexBufferUtilizationDescriptor;
 use netpix_common::mpegts::descriptors::private_data_indicator_descriptor::PrivateDataIndicatorDescriptor;
 use netpix_common::mpegts::descriptors::registration_descriptor::RegistrationDescriptor;
 use netpix_common::mpegts::descriptors::std_descriptor::StdDescriptor;
+use netpix_common::mpegts::descriptors::system_clock_descriptor::SystemClockDescriptor;
 use netpix_common::mpegts::descriptors::target_background_grid_descriptor::TargetBackgroundGridDescriptor;
+use netpix_common::mpegts::descriptors::video_stream::VideoStreamDescriptor;
+use netpix_common::mpegts::descriptors::video_window_descriptor::VideoWindowDescriptor;
 
-pub fn build_label(ui: &mut egui::Ui, bold: impl Into<String>, normal: impl Into<String>) {
-    let label = egui::RichText::new(bold.into()).strong();
-    ui.horizontal(|ui| {
-        ui.label(label);
-        ui.label(normal.into());
-    });
+pub trait DescriptorDisplay {
+    fn display_name(&self) -> &'static str;
+    fn get_display_fields(&self) -> Vec<(&'static str, String)>;
 }
 
-pub fn build_avc_video_descriptor(ui: &mut egui::Ui, desc: &AvcVideoDescriptor) {
+fn build_descriptor_ui(ui: &mut egui::Ui, name: &str, fields: Vec<(&str, String)>) {
     ui.vertical(|ui| {
-        build_label(ui, "AVC Video:", "");
-        ui.indent("avc_indent", |ui| {
-            build_label(ui, "Profile:", desc.profile_idc.to_string());
-            build_label(ui, "Level:", desc.level_idc.to_string());
-            build_label(ui, "Still Present:", desc.avc_still_present.to_string());
-        });
-    });
-}
-
-pub fn build_copyright_descriptor(ui: &mut egui::Ui, desc: &CopyrightDescriptor) {
-    ui.vertical(|ui| {
-        build_label(ui, "Copyright:", "");
-        ui.indent("copyright_indent", |ui| {
-            build_label(
-                ui,
-                "Identifier:",
-                format!("{:#x}", desc.copyright_identifier),
-            );
-            if !desc.additional_copyright_info.is_empty() {
-                build_label(
-                    ui,
-                    "Additional Info:",
-                    format!("{:?}", desc.additional_copyright_info),
-                );
+        build_label(ui, name, "");
+        ui.indent("descriptor_indent", |ui| {
+            for (label, value) in fields {
+                build_label(ui, label, value);
             }
         });
     });
 }
 
-pub fn build_iso639_language_descriptor(ui: &mut egui::Ui, desc: &Iso639LanguageDescriptor) {
-    ui.vertical(|ui| {
-        build_label(ui, "Language:", "");
-        ui.indent("lang_indent", |ui| {
-            for section in &desc.section {
-                build_label(
-                    ui,
-                    &section.language_code,
-                    format!("({})", section.audio_type),
-                );
-            }
-        });
-    });
+impl DescriptorDisplay for AvcVideoDescriptor {
+    fn display_name(&self) -> &'static str {
+        "AVC Video"
+    }
+    fn get_display_fields(&self) -> Vec<(&'static str, String)> {
+        vec![
+            ("Profile", self.profile_idc.to_string()),
+            ("Level", self.level_idc.to_string()),
+            ("Still Present", self.avc_still_present.to_string()),
+        ]
+    }
 }
 
-pub fn build_video_stream_descriptor(ui: &mut egui::Ui, desc: &VideoStreamDescriptor) {
-    ui.vertical(|ui| {
-        build_label(ui, "Video Stream:", "");
-        ui.indent("video_indent", |ui| {
-            build_label(ui, "Frame Rate:", desc.frame_rate_code.to_string());
-            if let Some(profile) = desc.profile_and_level_indication {
-                build_label(ui, "Profile Level:", profile.to_string());
-            }
-            if let Some(chroma) = desc.chroma_format {
-                build_label(ui, "Chroma Format:", chroma.to_string());
-            }
-        });
-    });
+impl DescriptorDisplay for AudioStreamDescriptor {
+    fn display_name(&self) -> &'static str {
+        "Audio Stream"
+    }
+    fn get_display_fields(&self) -> Vec<(&'static str, String)> {
+        vec![
+            ("Layer", self.layer.to_string()),
+            (
+                "Variable Rate",
+                self.variable_rate_audio_indicator.to_string(),
+            ),
+        ]
+    }
 }
 
-pub fn build_audio_stream_descriptor(ui: &mut egui::Ui, desc: &AudioStreamDescriptor) {
-    ui.vertical(|ui| {
-        build_label(ui, "Audio Stream:", "");
-        ui.indent("audio_indent", |ui| {
-            build_label(ui, "Layer:", desc.layer.to_string());
-            build_label(
-                ui,
-                "Variable Rate:",
-                desc.variable_rate_audio_indicator.to_string(),
-            );
-        });
-    });
+impl DescriptorDisplay for CaDescriptor {
+    fn display_name(&self) -> &'static str {
+        "Conditional Access"
+    }
+    fn get_display_fields(&self) -> Vec<(&'static str, String)> {
+        vec![
+            ("System ID", self.ca_system_id.to_string()),
+            ("PID", self.ca_pid.to_string()),
+        ]
+    }
 }
 
-pub fn build_maximum_bitrate_descriptor(ui: &mut egui::Ui, desc: &MaximumBitrateDescriptor) {
-    ui.vertical(|ui| {
-        build_label(
-            ui,
-            "Maximum Bitrate:",
-            format!("{} kbps", desc.maximum_bitrate * 50),
-        );
-    });
+impl DescriptorDisplay for CopyrightDescriptor {
+    fn display_name(&self) -> &'static str {
+        "Copyright"
+    }
+    fn get_display_fields(&self) -> Vec<(&'static str, String)> {
+        let mut fields = vec![("Identifier", format!("{:#x}", self.copyright_identifier))];
+        if !self.additional_copyright_info.is_empty() {
+            fields.push((
+                "Additional Info",
+                format!("{:?}", self.additional_copyright_info),
+            ));
+        }
+        fields
+    }
 }
 
-pub fn build_multiplex_buffer_descriptor(
-    ui: &mut egui::Ui,
-    desc: &MultiplexBufferUtilizationDescriptor,
-) {
-    ui.vertical(|ui| {
-        build_label(ui, "Buffer Utilization:", "");
-        ui.indent("buffer_indent", |ui| {
-            if let Some(lower) = desc.ltw_offset_lower_bound {
-                build_label(ui, "Lower Bound:", lower.to_string());
-            }
-            if let Some(upper) = desc.ltw_offset_upper_bound {
-                build_label(ui, "Upper Bound:", upper.to_string());
-            }
-        });
-    });
+impl DescriptorDisplay for DataStreamAlignmentDescriptor {
+    fn display_name(&self) -> &'static str {
+        "Stream Alignment"
+    }
+    fn get_display_fields(&self) -> Vec<(&'static str, String)> {
+        vec![("Type", self.alignment_type.to_string())]
+    }
 }
 
-pub fn build_system_clock_descriptor(ui: &mut egui::Ui, desc: &SystemClockDescriptor) {
-    ui.vertical(|ui| {
-        build_label(ui, "System Clock:", "");
-        ui.indent("clock_indent", |ui| {
-            build_label(
-                ui,
-                "External Clock:",
-                desc.external_clock_reference_indicator.to_string(),
-            );
-            build_label(
-                ui,
-                "Accuracy:",
+impl DescriptorDisplay for HierarchyDescriptor {
+    fn display_name(&self) -> &'static str {
+        "Hierarchy"
+    }
+    fn get_display_fields(&self) -> Vec<(&'static str, String)> {
+        vec![
+            ("Type", self.hierarchy_type.to_string()),
+            ("Layer Index", self.hierarchy_layer_index.to_string()),
+            ("Channel", self.hierarchy_channel.to_string()),
+            (
+                "View Scalability",
+                (!self.no_view_scalability_flag).to_string(),
+            ),
+            (
+                "Temporal Scalability",
+                (!self.no_temporal_scalability_flag).to_string(),
+            ),
+            (
+                "Spatial Scalability",
+                (!self.no_spatial_scalability_flag).to_string(),
+            ),
+            (
+                "Quality Scalability",
+                (!self.no_quality_scalability_flag).to_string(),
+            ),
+        ]
+    }
+}
+
+impl DescriptorDisplay for Iso639LanguageDescriptor {
+    fn display_name(&self) -> &'static str {
+        "Language"
+    }
+    fn get_display_fields(&self) -> Vec<(&'static str, String)> {
+        self.section
+            .iter()
+            .map(|section| {
+                (
+                    "Language Code",
+                    format!("{} ({})", section.language_code, section.audio_type),
+                )
+            })
+            .collect()
+    }
+}
+
+impl DescriptorDisplay for MaximumBitrateDescriptor {
+    fn display_name(&self) -> &'static str {
+        "Maximum Bitrate"
+    }
+    fn get_display_fields(&self) -> Vec<(&'static str, String)> {
+        vec![("Rate", format!("{} kbps", self.maximum_bitrate * 50))]
+    }
+}
+
+impl DescriptorDisplay for MultiplexBufferUtilizationDescriptor {
+    fn display_name(&self) -> &'static str {
+        "Buffer Utilization"
+    }
+    fn get_display_fields(&self) -> Vec<(&'static str, String)> {
+        let mut fields = vec![("Bound Valid", self.bound_valid_flag.to_string())];
+        if let Some(lower) = self.ltw_offset_lower_bound {
+            fields.push(("Lower Bound", lower.to_string()));
+        }
+        if let Some(upper) = self.ltw_offset_upper_bound {
+            fields.push(("Upper Bound", upper.to_string()));
+        }
+        fields
+    }
+}
+
+impl DescriptorDisplay for PrivateDataIndicatorDescriptor {
+    fn display_name(&self) -> &'static str {
+        "Private Data Indicator"
+    }
+    fn get_display_fields(&self) -> Vec<(&'static str, String)> {
+        vec![("Value", self.private_data_indicator.to_string())]
+    }
+}
+
+impl DescriptorDisplay for RegistrationDescriptor {
+    fn display_name(&self) -> &'static str {
+        "Registration"
+    }
+    fn get_display_fields(&self) -> Vec<(&'static str, String)> {
+        vec![("Format ID", format!("{:#010X}", self.format_identifier))]
+    }
+}
+
+impl DescriptorDisplay for StdDescriptor {
+    fn display_name(&self) -> &'static str {
+        "System Target Decoder"
+    }
+    fn get_display_fields(&self) -> Vec<(&'static str, String)> {
+        vec![("Leak Valid", self.leak_valid_flag.to_string())]
+    }
+}
+
+impl DescriptorDisplay for SystemClockDescriptor {
+    fn display_name(&self) -> &'static str {
+        "System Clock"
+    }
+    fn get_display_fields(&self) -> Vec<(&'static str, String)> {
+        vec![
+            (
+                "External Clock",
+                self.external_clock_reference_indicator.to_string(),
+            ),
+            (
+                "Accuracy",
                 format!(
                     "{}/{}",
-                    desc.clock_accuracy_integer, desc.clock_accuracy_exponent
+                    self.clock_accuracy_integer, self.clock_accuracy_exponent
                 ),
-            );
-        });
-    });
+            ),
+        ]
+    }
 }
 
-pub fn build_video_window_descriptor(ui: &mut egui::Ui, desc: &VideoWindowDescriptor) {
-    ui.vertical(|ui| {
-        build_label(ui, "Video Window:", "");
-        ui.indent("window_indent", |ui| {
-            build_label(
-                ui,
-                "Offset:",
-                format!("({}, {})", desc.horizontal_offset, desc.vertical_offset),
-            );
-            build_label(ui, "Priority:", desc.window_priority.to_string());
-        });
-    });
+impl DescriptorDisplay for TargetBackgroundGridDescriptor {
+    fn display_name(&self) -> &'static str {
+        "Background Grid"
+    }
+    fn get_display_fields(&self) -> Vec<(&'static str, String)> {
+        vec![
+            (
+                "Grid Size",
+                format!("{}x{}", self.horizontal_size, self.vertical_size),
+            ),
+            ("Aspect Ratio", self.aspect_ratio_information.to_string()),
+        ]
+    }
 }
 
-pub fn build_ca_descriptor(ui: &mut egui::Ui, desc: &CaDescriptor) {
-    ui.vertical(|ui| {
-        build_label(ui, "Conditional Access:", "");
-        ui.indent("ca_indent", |ui| {
-            build_label(ui, "System ID:", desc.ca_system_id.to_string());
-            build_label(ui, "PID:", desc.ca_pid.to_string());
-        });
-    });
+impl DescriptorDisplay for VideoStreamDescriptor {
+    fn display_name(&self) -> &'static str {
+        "Video Stream"
+    }
+    fn get_display_fields(&self) -> Vec<(&'static str, String)> {
+        let mut fields = vec![("Frame Rate", self.frame_rate_code.to_string())];
+        if let Some(profile) = self.profile_and_level_indication {
+            fields.push(("Profile Level", profile.to_string()));
+        }
+        if let Some(chroma) = self.chroma_format {
+            fields.push(("Chroma Format", chroma.to_string()));
+        }
+        fields
+    }
 }
 
-pub fn build_data_stream_alignment_descriptor(
-    ui: &mut egui::Ui,
-    desc: &DataStreamAlignmentDescriptor,
-) {
-    ui.vertical(|ui| {
-        build_label(ui, "Stream Alignment:", desc.alignment_type.to_string());
-    });
-}
-
-pub fn build_hierarchy_descriptor(ui: &mut egui::Ui, desc: &HierarchyDescriptor) {
-    ui.vertical(|ui| {
-        build_label(ui, "Hierarchy:", "");
-        ui.indent("hierarchy_indent", |ui| {
-            build_label(ui, "Type:", desc.hierarchy_type.to_string());
-            build_label(ui, "Layer Index:", desc.hierarchy_layer_index.to_string());
-            build_label(ui, "Channel:", desc.hierarchy_channel.to_string());
-        });
-    });
-}
-
-pub fn build_private_data_indicator_descriptor(
-    ui: &mut egui::Ui,
-    desc: &PrivateDataIndicatorDescriptor,
-) {
-    ui.vertical(|ui| {
-        build_label(
-            ui,
-            "Private Data Indicator:",
-            desc.private_data_indicator.to_string(),
-        );
-    });
-}
-
-pub fn build_registration_descriptor(ui: &mut egui::Ui, desc: &RegistrationDescriptor) {
-    ui.vertical(|ui| {
-        build_label(
-            ui,
-            "Format Identifier:",
-            format!("{:#010X}", desc.format_identifier),
-        );
-    });
-}
-
-pub fn build_std_descriptor(ui: &mut egui::Ui, desc: &StdDescriptor) {
-    ui.vertical(|ui| {
-        build_label(ui, "Leak Valid:", desc.leak_valid_flag.to_string());
-    });
-}
-
-pub fn build_target_background_grid_descriptor(
-    ui: &mut egui::Ui,
-    desc: &TargetBackgroundGridDescriptor,
-) {
-    ui.vertical(|ui| {
-        build_label(
-            ui,
-            "Grid Size:",
-            format!("{}x{}", desc.horizontal_size, desc.vertical_size),
-        );
-        build_label(
-            ui,
-            "Aspect Ratio:",
-            desc.aspect_ratio_information.to_string(),
-        );
-    });
-}
-
-pub fn build_user_private_descriptor(ui: &mut egui::Ui, tag: u8) {
-    ui.vertical(|ui| {
-        build_label(ui, "User Private Tag:", format!("{:#04X}", tag));
-    });
+impl DescriptorDisplay for VideoWindowDescriptor {
+    fn display_name(&self) -> &'static str {
+        "Video Window"
+    }
+    fn get_display_fields(&self) -> Vec<(&'static str, String)> {
+        vec![
+            (
+                "Offset",
+                format!("({}, {})", self.horizontal_offset, self.vertical_offset),
+            ),
+            ("Priority", self.window_priority.to_string()),
+        ]
+    }
 }
 
 pub fn show_descriptor_modal(ctx: &egui::Context, descriptor: &Descriptors, open: &mut bool) {
@@ -250,37 +270,61 @@ pub fn show_descriptor_modal(ctx: &egui::Context, descriptor: &Descriptors, open
         .resizable(false)
         .show(ctx, |ui| {
             match descriptor {
-                Descriptors::AvcVideoDescriptor(desc) => build_avc_video_descriptor(ui, desc),
-                Descriptors::CopyrightDescriptor(desc) => build_copyright_descriptor(ui, desc),
-                Descriptors::Iso639LanguageDescriptor(desc) => {
-                    build_iso639_language_descriptor(ui, desc)
+                Descriptors::AvcVideoDescriptor(desc) => {
+                    build_descriptor_ui(ui, desc.display_name(), desc.get_display_fields())
                 }
-                Descriptors::VideoStreamDescriptor(desc) => build_video_stream_descriptor(ui, desc),
-                Descriptors::AudioStreamDescriptor(desc) => build_audio_stream_descriptor(ui, desc),
+                Descriptors::AudioStreamDescriptor(desc) => {
+                    build_descriptor_ui(ui, desc.display_name(), desc.get_display_fields())
+                }
+                Descriptors::CaDescriptor(desc) => {
+                    build_descriptor_ui(ui, desc.display_name(), desc.get_display_fields())
+                }
+                Descriptors::CopyrightDescriptor(desc) => {
+                    build_descriptor_ui(ui, desc.display_name(), desc.get_display_fields())
+                }
+                Descriptors::DataStreamAlignmentDescriptor(desc) => {
+                    build_descriptor_ui(ui, desc.display_name(), desc.get_display_fields())
+                }
+                Descriptors::HierarchyDescriptor(desc) => {
+                    build_descriptor_ui(ui, desc.display_name(), desc.get_display_fields())
+                }
+                Descriptors::Iso639LanguageDescriptor(desc) => {
+                    build_descriptor_ui(ui, desc.display_name(), desc.get_display_fields())
+                }
                 Descriptors::MaximumBitrateDescriptor(desc) => {
-                    build_maximum_bitrate_descriptor(ui, desc)
+                    build_descriptor_ui(ui, desc.display_name(), desc.get_display_fields())
                 }
                 Descriptors::MultiplexBufferUtilizationDescriptor(desc) => {
-                    build_multiplex_buffer_descriptor(ui, desc)
+                    build_descriptor_ui(ui, desc.display_name(), desc.get_display_fields())
                 }
-                Descriptors::SystemClockDescriptor(desc) => build_system_clock_descriptor(ui, desc),
-                Descriptors::VideoWindowDescriptor(desc) => build_video_window_descriptor(ui, desc),
-                Descriptors::CaDescriptor(desc) => build_ca_descriptor(ui, desc),
-                Descriptors::DataStreamAlignmentDescriptor(desc) => {
-                    build_data_stream_alignment_descriptor(ui, desc)
-                }
-                Descriptors::HierarchyDescriptor(desc) => build_hierarchy_descriptor(ui, desc),
                 Descriptors::PrivateDataIndicatorDescriptor(desc) => {
-                    build_private_data_indicator_descriptor(ui, desc)
+                    build_descriptor_ui(ui, desc.display_name(), desc.get_display_fields())
                 }
                 Descriptors::RegistrationDescriptor(desc) => {
-                    build_registration_descriptor(ui, desc)
+                    build_descriptor_ui(ui, desc.display_name(), desc.get_display_fields())
                 }
-                Descriptors::StdDescriptor(desc) => build_std_descriptor(ui, desc),
+                Descriptors::StdDescriptor(desc) => {
+                    build_descriptor_ui(ui, desc.display_name(), desc.get_display_fields())
+                }
+                Descriptors::SystemClockDescriptor(desc) => {
+                    build_descriptor_ui(ui, desc.display_name(), desc.get_display_fields())
+                }
                 Descriptors::TargetBackgroundGridDescriptor(desc) => {
-                    build_target_background_grid_descriptor(ui, desc)
+                    build_descriptor_ui(ui, desc.display_name(), desc.get_display_fields())
                 }
-                Descriptors::UserPrivate(tag) => build_user_private_descriptor(ui, *tag),
+                Descriptors::VideoStreamDescriptor(desc) => {
+                    build_descriptor_ui(
+                        ui,
+                        desc.display_name(),
+                        desc.get_display_fields()
+                    )
+                }
+                Descriptors::VideoWindowDescriptor(desc) => {
+                    build_descriptor_ui(ui, desc.display_name(), desc.get_display_fields())
+                }
+                Descriptors::UserPrivate(tag) => {
+                    build_descriptor_ui(ui, "User Private", vec![("Tag", format!("{:#04X}", tag))])
+                }
                 Descriptors::Unknown => return,
             }
 
@@ -289,4 +333,12 @@ pub fn show_descriptor_modal(ctx: &egui::Context, descriptor: &Descriptors, open
                 *open = false;
             }
         });
+}
+
+pub fn build_label(ui: &mut egui::Ui, bold: impl Into<String>, normal: impl Into<String>) {
+    let label = egui::RichText::new(bold.into()).strong();
+    ui.horizontal(|ui| {
+        ui.label(label);
+        ui.label(normal.into());
+    });
 }

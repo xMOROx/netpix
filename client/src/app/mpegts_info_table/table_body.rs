@@ -29,6 +29,51 @@ fn format_stream_header(pid: u16, _stream_type: String) -> egui::RichText {
     egui::RichText::new(format!("Stream {}:", pid)).strong()
 }
 
+fn get_descriptor_button_info(descriptor: &Descriptors) -> Option<(&'static str, &'static str)> {
+    match descriptor {
+        Descriptors::AvcVideoDescriptor(_) => {
+            Some(("AVC Video", "Show AVC video descriptor details"))
+        }
+        Descriptors::CopyrightDescriptor(_) => Some(("Copyright", "Show copyright information")),
+        Descriptors::Iso639LanguageDescriptor(_) => Some(("Language", "Show language information")),
+        Descriptors::VideoStreamDescriptor(_) => {
+            Some(("Video Stream", "Show video stream details"))
+        }
+        Descriptors::AudioStreamDescriptor(_) => {
+            Some(("Audio Stream", "Show audio stream details"))
+        }
+        Descriptors::MaximumBitrateDescriptor(_) => {
+            Some(("Max Bitrate", "Show maximum bitrate details"))
+        }
+        Descriptors::MultiplexBufferUtilizationDescriptor(_) => {
+            Some(("Buffer Util", "Show buffer utilization details"))
+        }
+        Descriptors::SystemClockDescriptor(_) => {
+            Some(("System Clock", "Show system clock details"))
+        }
+        Descriptors::VideoWindowDescriptor(_) => {
+            Some(("Video Window", "Show video window details"))
+        }
+        Descriptors::CaDescriptor(_) => Some(("CA", "Show Conditional Access information")),
+        Descriptors::DataStreamAlignmentDescriptor(_) => {
+            Some(("Alignment", "Show stream alignment details"))
+        }
+        Descriptors::HierarchyDescriptor(_) => Some(("Hierarchy", "Show hierarchy details")),
+        Descriptors::PrivateDataIndicatorDescriptor(_) => {
+            Some(("Private Data", "Show private data indicator"))
+        }
+        Descriptors::RegistrationDescriptor(_) => {
+            Some(("Registration", "Show format registration details"))
+        }
+        Descriptors::StdDescriptor(_) => Some(("STD", "Show System Target Decoder details")),
+        Descriptors::TargetBackgroundGridDescriptor(_) => {
+            Some(("Grid", "Show background grid details"))
+        }
+        Descriptors::UserPrivate(_) => Some(("User Private", "Show user private data")),
+        Descriptors::Unknown => None,
+    }
+}
+
 pub fn build_table_body(
     body: TableBody,
     mpegts_rows: &BTreeMap<RowKey, MpegTsInfo>,
@@ -92,69 +137,18 @@ pub fn build_table_body(
                                     ui.horizontal(|ui| {
                                         ui.label(egui::RichText::new("Descriptors:").strong());
                                         for descriptor in &stream_info.descriptors {
-                                            let (button_text, tooltip) = match descriptor {
-                                                Descriptors::AvcVideoDescriptor(_) => (
-                                                    "AVC Video",
-                                                    "Show AVC video descriptor details",
-                                                ),
-                                                Descriptors::CopyrightDescriptor(_) => {
-                                                    ("Copyright", "Show copyright information")
-                                                }
-                                                Descriptors::Iso639LanguageDescriptor(_) => {
-                                                    ("Language", "Show language information")
-                                                }
-                                                Descriptors::VideoStreamDescriptor(_) => {
-                                                    ("Video Stream", "Show video stream details")
-                                                }
-                                                Descriptors::AudioStreamDescriptor(_) => {
-                                                    ("Audio Stream", "Show audio stream details")
-                                                }
-                                                Descriptors::MaximumBitrateDescriptor(_) => {
-                                                    ("Max Bitrate", "Show maximum bitrate details")
-                                                }
-                                                Descriptors::MultiplexBufferUtilizationDescriptor(_) => {
-                                                    ("Buffer Util", "Show buffer utilization details")
-                                                }
-                                                Descriptors::SystemClockDescriptor(_) => {
-                                                    ("System Clock", "Show system clock details")
-                                                }
-                                                Descriptors::VideoWindowDescriptor(_) => {
-                                                    ("Video Window", "Show video window details")
-                                                }
-                                                Descriptors::CaDescriptor(_) => {
-                                                    ("CA", "Show Conditional Access information")
-                                                }
-                                                Descriptors::DataStreamAlignmentDescriptor(_) => {
-                                                    ("Alignment", "Show stream alignment details")
-                                                }
-                                                Descriptors::HierarchyDescriptor(_) => {
-                                                    ("Hierarchy", "Show hierarchy details")
-                                                }
-                                                Descriptors::PrivateDataIndicatorDescriptor(_) => {
-                                                    ("Private Data", "Show private data indicator")
-                                                }
-                                                Descriptors::RegistrationDescriptor(_) => {
-                                                    ("Registration", "Show format registration details")
-                                                }
-                                                Descriptors::StdDescriptor(_) => {
-                                                    ("STD", "Show System Target Decoder details")
-                                                }
-                                                Descriptors::TargetBackgroundGridDescriptor(_) => {
-                                                    ("Grid", "Show background grid details")
-                                                }
-                                                Descriptors::UserPrivate(_) => {
-                                                    ("User Private", "Show user private data")
-                                                }
-                                                Descriptors::Unknown => continue,
-                                            };
-
-                                            let button = egui::Button::new(button_text);
-                                            if ui
-                                                .add(button.small())
-                                                .on_hover_text(tooltip)
-                                                .clicked()
+                                            if let Some((button_text, tooltip)) =
+                                                get_descriptor_button_info(descriptor)
                                             {
-                                                open_modal.descriptor = Some(descriptor.clone());
+                                                let button = egui::Button::new(button_text);
+                                                if ui
+                                                    .add(button.small())
+                                                    .on_hover_text(tooltip)
+                                                    .clicked()
+                                                {
+                                                    open_modal.descriptor =
+                                                        Some(descriptor.clone());
+                                                }
                                             }
                                         }
                                     });
