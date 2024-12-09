@@ -41,7 +41,7 @@ pub fn build_table_body(
             let height = match &info.pat {
                 Some(pat) => pat.programs.len() as f32 * LINE_HEIGHT,
                 None => match &info.pmt {
-                    Some(pmt) => (pmt.elementary_streams_info.len() + 1) as f32 * LINE_HEIGHT,
+                    Some(pmt) => (pmt.elementary_streams_info.len() * 2 - 1) as f32 * LINE_HEIGHT,
                     None => 0.0,
                 },
             };
@@ -136,7 +136,6 @@ pub fn build_table_body(
                                     });
                                 }
                             });
-                            ui.add(egui::Separator::default().spacing(8.0));
                         }
                     });
                 } else if let Some(pat) = &info.pat {
@@ -148,7 +147,6 @@ pub fn build_table_body(
                                     ui.label(pid_info);
                                 });
                             });
-                            ui.add(egui::Separator::default().spacing(8.0));
                         }
                     });
                 }

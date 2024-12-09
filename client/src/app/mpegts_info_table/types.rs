@@ -4,7 +4,7 @@ use netpix_common::mpegts::psi::pat::ProgramAssociationTable;
 use netpix_common::mpegts::psi::pmt::ProgramMapTable;
 use std::cmp::Ordering;
 
-pub const LINE_HEIGHT: f32 = 20.0;
+pub const LINE_HEIGHT: f32 = 32.0;
 
 pub struct MpegTsInfo {
     pub pat: Option<ProgramAssociationTable>,
@@ -24,9 +24,9 @@ pub struct RowKey {
 
 impl PartialOrd for RowKey {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-        if !self.alias.eq(&other.alias) {
-            return self.alias.partial_cmp(&other.alias);
+        if self.alias.cmp(&other.alias) == Ordering::Equal {
+            return self.pid.partial_cmp(&other.pid);
         }
-        self.pid.partial_cmp(&other.pid)
+        self.alias.partial_cmp(&other.alias)
     }
 }
