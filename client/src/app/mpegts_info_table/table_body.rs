@@ -106,6 +106,21 @@ pub fn build_table_body(
                                                 Descriptors::VideoStreamDescriptor(_) => {
                                                     ("Video Stream", "Show video stream details")
                                                 }
+                                                Descriptors::AudioStreamDescriptor(_) => {
+                                                    ("Audio Stream", "Show audio stream details")
+                                                }
+                                                Descriptors::MaximumBitrateDescriptor(_) => {
+                                                    ("Max Bitrate", "Show maximum bitrate details")
+                                                }
+                                                Descriptors::MultiplexBufferUtilizationDescriptor(_) => {
+                                                    ("Buffer Util", "Show buffer utilization details")
+                                                }
+                                                Descriptors::SystemClockDescriptor(_) => {
+                                                    ("System Clock", "Show system clock details")
+                                                }
+                                                Descriptors::VideoWindowDescriptor(_) => {
+                                                    ("Video Window", "Show video window details")
+                                                }
                                                 _ => continue,
                                             };
 

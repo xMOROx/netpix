@@ -1,8 +1,12 @@
 use egui;
 use netpix_common::mpegts::descriptors::{
-    avc_video_descriptor::AvcVideoDescriptor, copyright_descriptor::CopyrightDescriptor,
+    audio_stream::AudioStreamDescriptor, avc_video_descriptor::AvcVideoDescriptor,
+    copyright_descriptor::CopyrightDescriptor,
     iso_639_language_descriptor::Iso639LanguageDescriptor,
-    video_stream::VideoStreamDescriptor, Descriptors,
+    maximum_bitrate_descriptor::MaximumBitrateDescriptor,
+    multiplex_buffer_utilization_descriptor::MultiplexBufferUtilizationDescriptor,
+    system_clock_descriptor::SystemClockDescriptor, video_stream::VideoStreamDescriptor,
+    video_window_descriptor::VideoWindowDescriptor, Descriptors,
 };
 
 pub fn build_label(ui: &mut egui::Ui, bold: impl Into<String>, normal: impl Into<String>) {
@@ -74,6 +78,82 @@ pub fn build_video_stream_descriptor(ui: &mut egui::Ui, desc: &VideoStreamDescri
     });
 }
 
+pub fn build_audio_stream_descriptor(ui: &mut egui::Ui, desc: &AudioStreamDescriptor) {
+    ui.vertical(|ui| {
+        build_label(ui, "Audio Stream:", "");
+        ui.indent("audio_indent", |ui| {
+            build_label(ui, "Layer:", desc.layer.to_string());
+            build_label(
+                ui,
+                "Variable Rate:",
+                desc.variable_rate_audio_indicator.to_string(),
+            );
+        });
+    });
+}
+
+pub fn build_maximum_bitrate_descriptor(ui: &mut egui::Ui, desc: &MaximumBitrateDescriptor) {
+    ui.vertical(|ui| {
+        build_label(
+            ui,
+            "Maximum Bitrate:",
+            format!("{} kbps", desc.maximum_bitrate * 50),
+        );
+    });
+}
+
+pub fn build_multiplex_buffer_descriptor(
+    ui: &mut egui::Ui,
+    desc: &MultiplexBufferUtilizationDescriptor,
+) {
+    ui.vertical(|ui| {
+        build_label(ui, "Buffer Utilization:", "");
+        ui.indent("buffer_indent", |ui| {
+            if let Some(lower) = desc.ltw_offset_lower_bound {
+                build_label(ui, "Lower Bound:", lower.to_string());
+            }
+            if let Some(upper) = desc.ltw_offset_upper_bound {
+                build_label(ui, "Upper Bound:", upper.to_string());
+            }
+        });
+    });
+}
+
+pub fn build_system_clock_descriptor(ui: &mut egui::Ui, desc: &SystemClockDescriptor) {
+    ui.vertical(|ui| {
+        build_label(ui, "System Clock:", "");
+        ui.indent("clock_indent", |ui| {
+            build_label(
+                ui,
+                "External Clock:",
+                desc.external_clock_reference_indicator.to_string(),
+            );
+            build_label(
+                ui,
+                "Accuracy:",
+                format!(
+                    "{}/{}",
+                    desc.clock_accuracy_integer, desc.clock_accuracy_exponent
+                ),
+            );
+        });
+    });
+}
+
+pub fn build_video_window_descriptor(ui: &mut egui::Ui, desc: &VideoWindowDescriptor) {
+    ui.vertical(|ui| {
+        build_label(ui, "Video Window:", "");
+        ui.indent("window_indent", |ui| {
+            build_label(
+                ui,
+                "Offset:",
+                format!("({}, {})", desc.horizontal_offset, desc.vertical_offset),
+            );
+            build_label(ui, "Priority:", desc.window_priority.to_string());
+        });
+    });
+}
+
 pub fn show_descriptor_modal(ctx: &egui::Context, descriptor: &Descriptors, open: &mut bool) {
     egui::Window::new("Descriptor Details")
         .collapsible(false)
@@ -86,6 +166,15 @@ pub fn show_descriptor_modal(ctx: &egui::Context, descriptor: &Descriptors, open
                     build_iso639_language_descriptor(ui, desc)
                 }
                 Descriptors::VideoStreamDescriptor(desc) => build_video_stream_descriptor(ui, desc),
+                Descriptors::AudioStreamDescriptor(desc) => build_audio_stream_descriptor(ui, desc),
+                Descriptors::MaximumBitrateDescriptor(desc) => {
+                    build_maximum_bitrate_descriptor(ui, desc)
+                }
+                Descriptors::MultiplexBufferUtilizationDescriptor(desc) => {
+                    build_multiplex_buffer_descriptor(ui, desc)
+                }
+                Descriptors::SystemClockDescriptor(desc) => build_system_clock_descriptor(ui, desc),
+                Descriptors::VideoWindowDescriptor(desc) => build_video_window_descriptor(ui, desc),
                 _ => return,
             }
 

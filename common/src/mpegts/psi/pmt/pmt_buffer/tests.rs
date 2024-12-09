@@ -59,17 +59,17 @@ fn test_pmt_buffer_with_one_fragment() {
                 },
                 maximum_bitrate: 0,
             }),
-            // Descriptors::MultiplexBufferUtilizationDescriptor(
-            //     MultiplexBufferUtilizationDescriptor {
-            //         header: DescriptorHeader {
-            //             descriptor_tag: MultiplexBufferUtilizationDescriptorTag,
-            //             descriptor_length: 4,
-            //         },
-            //         bound_valid_flag: true,
-            //         ltw_offset_lower_bound: Some(180),
-            //         ltw_offset_upper_bound: Some(360),
-            //     },
-            // ),
+            Descriptors::MultiplexBufferUtilizationDescriptor(
+                MultiplexBufferUtilizationDescriptor {
+                    header: DescriptorHeader {
+                        descriptor_tag: MultiplexBufferUtilizationDescriptorTag,
+                        descriptor_length: 4,
+                    },
+                    bound_valid_flag: true,
+                    ltw_offset_lower_bound: Some(180),
+                    ltw_offset_upper_bound: Some(360),
+                },
+            ),
         ],
         elementary_streams_info: vec![
             ElementaryStreamInfo {
@@ -99,13 +99,13 @@ fn test_pmt_buffer_with_one_fragment() {
                         chroma_format: None,
                         frame_rate_extension_flag: None,
                     }),
-                    // Descriptors::DataStreamAlignmentDescriptor(DataStreamAlignmentDescriptor {
-                    //     header: DescriptorHeader {
-                    //         descriptor_tag: DataStreamAlignmentDescriptorTag,
-                    //         descriptor_length: 1,
-                    //     },
-                    //     alignment_type: SliceOrVideoAccessUnit,
-                    // }),
+                    Descriptors::DataStreamAlignmentDescriptor(DataStreamAlignmentDescriptor {
+                        header: DescriptorHeader {
+                            descriptor_tag: DataStreamAlignmentDescriptorTag,
+                            descriptor_length: 1,
+                        },
+                        alignment_type: SliceOrVideoAccessUnit,
+                    }),
                     Descriptors::AvcVideoDescriptor(avc_video_descriptor::AvcVideoDescriptor {
                         header: DescriptorHeader {
                             descriptor_tag: AvcVideoDescriptorTag,
@@ -216,14 +216,14 @@ fn test_pmt_buffer_with_one_fragment() {
                             audio_type: VisualImpairedCommentary,
                         }],
                     }),
-                    // Descriptors::RegistrationDescriptor(RegistrationDescriptor {
-                    //     header: DescriptorHeader {
-                    //         descriptor_tag: RegistrationDescriptorTag,
-                    //         descriptor_length: 4,
-                    //     },
-                    //     format_identifier: 1161904947,
-                    //     additional_identification_info: vec![],
-                    // }),
+                    Descriptors::RegistrationDescriptor(RegistrationDescriptor {
+                        header: DescriptorHeader {
+                            descriptor_tag: RegistrationDescriptorTag,
+                            descriptor_length: 4,
+                        },
+                        format_identifier: 1161904947,
+                        additional_identification_info: vec![],
+                    }),
                     Descriptors::UserPrivate(122),
                 ],
             },
