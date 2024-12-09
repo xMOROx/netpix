@@ -13,9 +13,9 @@ pub struct MpegTsInfo {
 
 #[derive(Default)]
 pub struct OpenModal {
-    pub descriptor: Option<Descriptors>,
+    pub descriptor: Option<(usize, Descriptors)>, // Add index to track unique descriptors
     pub is_open: bool,
-    pub active_descriptor: Option<Descriptors>,
+    pub active_descriptor: Option<(usize, Descriptors)>,
 }
 
 #[derive(Hash, Eq, PartialEq, Ord, Clone)]

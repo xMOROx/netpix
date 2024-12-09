@@ -265,12 +265,16 @@ impl DescriptorDisplay for VideoWindowDescriptor {
     }
 }
 
-pub fn show_descriptor_modal(ctx: &egui::Context, descriptor: &Descriptors, modal: &mut OpenModal) {
+pub fn show_descriptor_modal(
+    ctx: &egui::Context,
+    descriptor: &(usize, Descriptors),
+    modal: &mut OpenModal,
+) {
     egui::Window::new("Descriptor Details")
         .collapsible(false)
         .resizable(false)
         .show(ctx, |ui| {
-            match descriptor {
+            match &descriptor.1 {
                 Descriptors::AvcVideoDescriptor(desc) => {
                     build_descriptor_ui(ui, desc.display_name(), desc.get_display_fields())
                 }

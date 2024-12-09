@@ -152,31 +152,39 @@ pub fn build_table_body(
                                                     egui::RichText::new("Descriptors:").strong(),
                                                 );
                                                 ui.spacing_mut().item_spacing.x = 2.0;
-                                                for descriptor in &stream_info.descriptors {
+                                                for (idx, descriptor) in
+                                                    stream_info.descriptors.iter().enumerate()
+                                                {
                                                     if let Some(button_text) =
                                                         get_descriptor_button_info(descriptor)
                                                     {
                                                         let mut button =
                                                             egui::Button::new(button_text);
-                                                        if open_modal.active_descriptor.as_ref()
-                                                            == Some(descriptor)
+                                                        if open_modal
+                                                            .active_descriptor
+                                                            .as_ref()
+                                                            .map(|(i, d)| (*i, d))
+                                                            == Some((idx, descriptor))
                                                         {
                                                             button = button.fill(
                                                                 ui.visuals().selection.bg_fill,
                                                             );
                                                         }
                                                         if ui.add(button).clicked() {
-                                                            if open_modal.active_descriptor.as_ref()
-                                                                == Some(descriptor)
+                                                            if open_modal
+                                                                .active_descriptor
+                                                                .as_ref()
+                                                                .map(|(i, _)| *i)
+                                                                == Some(idx)
                                                             {
                                                                 open_modal.descriptor = None;
                                                                 open_modal.active_descriptor = None;
                                                                 open_modal.is_open = false;
                                                             } else {
                                                                 open_modal.descriptor =
-                                                                    Some(descriptor.clone());
+                                                                    Some((idx, descriptor.clone()));
                                                                 open_modal.active_descriptor =
-                                                                    Some(descriptor.clone());
+                                                                    Some((idx, descriptor.clone()));
                                                                 open_modal.is_open = true;
                                                             }
                                                         }

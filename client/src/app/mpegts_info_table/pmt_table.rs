@@ -34,7 +34,7 @@ fn build_pmt_table_body(body: TableBody, pmt: &ProgramMapTable, open_modal: &mut
         row.col(|ui| {
             if !stream_info.descriptors.is_empty() {
                 ui.horizontal(|ui| {
-                    for descriptor in &stream_info.descriptors {
+                    for (idx, descriptor) in stream_info.descriptors.iter().enumerate() {
                         let (button_text, tooltip) = match descriptor {
                             Descriptors::AvcVideoDescriptor(_) => {
                                 ("AVC Video", "Show AVC video descriptor details")
@@ -51,9 +51,23 @@ fn build_pmt_table_body(body: TableBody, pmt: &ProgramMapTable, open_modal: &mut
                             _ => continue,
                         };
 
-                        let button = egui::Button::new(button_text);
+                        let mut button = egui::Button::new(button_text);
+                        if open_modal.active_descriptor.as_ref().map(|(i, d)| (*i, d))
+                            == Some((idx, descriptor))
+                        {
+                            button = button.fill(ui.visuals().selection.bg_fill);
+                        }
+
                         if ui.add(button.small()).on_hover_text(tooltip).clicked() {
-                            open_modal.descriptor = Some(descriptor.clone());
+                            if open_modal.active_descriptor.as_ref().map(|(i, _)| *i) == Some(idx) {
+                                open_modal.descriptor = None;
+                                open_modal.active_descriptor = None;
+                                open_modal.is_open = false;
+                            } else {
+                                open_modal.descriptor = Some((idx, descriptor.clone()));
+                                open_modal.active_descriptor = Some((idx, descriptor.clone()));
+                                open_modal.is_open = true;
+                            }
                         }
                     }
                 });
