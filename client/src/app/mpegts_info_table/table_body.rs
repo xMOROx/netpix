@@ -121,7 +121,31 @@ pub fn build_table_body(
                                                 Descriptors::VideoWindowDescriptor(_) => {
                                                     ("Video Window", "Show video window details")
                                                 }
-                                                _ => continue,
+                                                Descriptors::CaDescriptor(_) => {
+                                                    ("CA", "Show Conditional Access information")
+                                                }
+                                                Descriptors::DataStreamAlignmentDescriptor(_) => {
+                                                    ("Alignment", "Show stream alignment details")
+                                                }
+                                                Descriptors::HierarchyDescriptor(_) => {
+                                                    ("Hierarchy", "Show hierarchy details")
+                                                }
+                                                Descriptors::PrivateDataIndicatorDescriptor(_) => {
+                                                    ("Private Data", "Show private data indicator")
+                                                }
+                                                Descriptors::RegistrationDescriptor(_) => {
+                                                    ("Registration", "Show format registration details")
+                                                }
+                                                Descriptors::StdDescriptor(_) => {
+                                                    ("STD", "Show System Target Decoder details")
+                                                }
+                                                Descriptors::TargetBackgroundGridDescriptor(_) => {
+                                                    ("Grid", "Show background grid details")
+                                                }
+                                                Descriptors::UserPrivate(_) => {
+                                                    ("User Private", "Show user private data")
+                                                }
+                                                Descriptors::Unknown => continue,
                                             };
 
                                             let button = egui::Button::new(button_text);

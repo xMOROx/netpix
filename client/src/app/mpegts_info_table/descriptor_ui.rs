@@ -8,6 +8,13 @@ use netpix_common::mpegts::descriptors::{
     system_clock_descriptor::SystemClockDescriptor, video_stream::VideoStreamDescriptor,
     video_window_descriptor::VideoWindowDescriptor, Descriptors,
 };
+use netpix_common::mpegts::descriptors::ca_descriptor::CaDescriptor;
+use netpix_common::mpegts::descriptors::data_stream_alignment_descriptor::DataStreamAlignmentDescriptor;
+use netpix_common::mpegts::descriptors::hierarchy::HierarchyDescriptor;
+use netpix_common::mpegts::descriptors::private_data_indicator_descriptor::PrivateDataIndicatorDescriptor;
+use netpix_common::mpegts::descriptors::registration_descriptor::RegistrationDescriptor;
+use netpix_common::mpegts::descriptors::std_descriptor::StdDescriptor;
+use netpix_common::mpegts::descriptors::target_background_grid_descriptor::TargetBackgroundGridDescriptor;
 
 pub fn build_label(ui: &mut egui::Ui, bold: impl Into<String>, normal: impl Into<String>) {
     let label = egui::RichText::new(bold.into()).strong();
@@ -154,6 +161,89 @@ pub fn build_video_window_descriptor(ui: &mut egui::Ui, desc: &VideoWindowDescri
     });
 }
 
+pub fn build_ca_descriptor(ui: &mut egui::Ui, desc: &CaDescriptor) {
+    ui.vertical(|ui| {
+        build_label(ui, "Conditional Access:", "");
+        ui.indent("ca_indent", |ui| {
+            build_label(ui, "System ID:", desc.ca_system_id.to_string());
+            build_label(ui, "PID:", desc.ca_pid.to_string());
+        });
+    });
+}
+
+pub fn build_data_stream_alignment_descriptor(
+    ui: &mut egui::Ui,
+    desc: &DataStreamAlignmentDescriptor,
+) {
+    ui.vertical(|ui| {
+        build_label(ui, "Stream Alignment:", desc.alignment_type.to_string());
+    });
+}
+
+pub fn build_hierarchy_descriptor(ui: &mut egui::Ui, desc: &HierarchyDescriptor) {
+    ui.vertical(|ui| {
+        build_label(ui, "Hierarchy:", "");
+        ui.indent("hierarchy_indent", |ui| {
+            build_label(ui, "Type:", desc.hierarchy_type.to_string());
+            build_label(ui, "Layer Index:", desc.hierarchy_layer_index.to_string());
+            build_label(ui, "Channel:", desc.hierarchy_channel.to_string());
+        });
+    });
+}
+
+pub fn build_private_data_indicator_descriptor(
+    ui: &mut egui::Ui,
+    desc: &PrivateDataIndicatorDescriptor,
+) {
+    ui.vertical(|ui| {
+        build_label(
+            ui,
+            "Private Data Indicator:",
+            desc.private_data_indicator.to_string(),
+        );
+    });
+}
+
+pub fn build_registration_descriptor(ui: &mut egui::Ui, desc: &RegistrationDescriptor) {
+    ui.vertical(|ui| {
+        build_label(
+            ui,
+            "Format Identifier:",
+            format!("{:#010X}", desc.format_identifier),
+        );
+    });
+}
+
+pub fn build_std_descriptor(ui: &mut egui::Ui, desc: &StdDescriptor) {
+    ui.vertical(|ui| {
+        build_label(ui, "Leak Valid:", desc.leak_valid_flag.to_string());
+    });
+}
+
+pub fn build_target_background_grid_descriptor(
+    ui: &mut egui::Ui,
+    desc: &TargetBackgroundGridDescriptor,
+) {
+    ui.vertical(|ui| {
+        build_label(
+            ui,
+            "Grid Size:",
+            format!("{}x{}", desc.horizontal_size, desc.vertical_size),
+        );
+        build_label(
+            ui,
+            "Aspect Ratio:",
+            desc.aspect_ratio_information.to_string(),
+        );
+    });
+}
+
+pub fn build_user_private_descriptor(ui: &mut egui::Ui, tag: u8) {
+    ui.vertical(|ui| {
+        build_label(ui, "User Private Tag:", format!("{:#04X}", tag));
+    });
+}
+
 pub fn show_descriptor_modal(ctx: &egui::Context, descriptor: &Descriptors, open: &mut bool) {
     egui::Window::new("Descriptor Details")
         .collapsible(false)
@@ -175,7 +265,23 @@ pub fn show_descriptor_modal(ctx: &egui::Context, descriptor: &Descriptors, open
                 }
                 Descriptors::SystemClockDescriptor(desc) => build_system_clock_descriptor(ui, desc),
                 Descriptors::VideoWindowDescriptor(desc) => build_video_window_descriptor(ui, desc),
-                _ => return,
+                Descriptors::CaDescriptor(desc) => build_ca_descriptor(ui, desc),
+                Descriptors::DataStreamAlignmentDescriptor(desc) => {
+                    build_data_stream_alignment_descriptor(ui, desc)
+                }
+                Descriptors::HierarchyDescriptor(desc) => build_hierarchy_descriptor(ui, desc),
+                Descriptors::PrivateDataIndicatorDescriptor(desc) => {
+                    build_private_data_indicator_descriptor(ui, desc)
+                }
+                Descriptors::RegistrationDescriptor(desc) => {
+                    build_registration_descriptor(ui, desc)
+                }
+                Descriptors::StdDescriptor(desc) => build_std_descriptor(ui, desc),
+                Descriptors::TargetBackgroundGridDescriptor(desc) => {
+                    build_target_background_grid_descriptor(ui, desc)
+                }
+                Descriptors::UserPrivate(tag) => build_user_private_descriptor(ui, *tag),
+                Descriptors::Unknown => return,
             }
 
             ui.add_space(8.0);
