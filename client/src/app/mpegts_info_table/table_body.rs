@@ -29,47 +29,25 @@ fn format_stream_header(pid: u16, _stream_type: String) -> egui::RichText {
     egui::RichText::new(format!("Stream {}:", pid)).strong()
 }
 
-fn get_descriptor_button_info(descriptor: &Descriptors) -> Option<(&'static str, &'static str)> {
+fn get_descriptor_button_info(descriptor: &Descriptors) -> Option<&'static str> {
     match descriptor {
-        Descriptors::AvcVideoDescriptor(_) => {
-            Some(("AVC Video", "Show AVC video descriptor details"))
-        }
-        Descriptors::CopyrightDescriptor(_) => Some(("Copyright", "Show copyright information")),
-        Descriptors::Iso639LanguageDescriptor(_) => Some(("Language", "Show language information")),
-        Descriptors::VideoStreamDescriptor(_) => {
-            Some(("Video Stream", "Show video stream details"))
-        }
-        Descriptors::AudioStreamDescriptor(_) => {
-            Some(("Audio Stream", "Show audio stream details"))
-        }
-        Descriptors::MaximumBitrateDescriptor(_) => {
-            Some(("Max Bitrate", "Show maximum bitrate details"))
-        }
-        Descriptors::MultiplexBufferUtilizationDescriptor(_) => {
-            Some(("Buffer Util", "Show buffer utilization details"))
-        }
-        Descriptors::SystemClockDescriptor(_) => {
-            Some(("System Clock", "Show system clock details"))
-        }
-        Descriptors::VideoWindowDescriptor(_) => {
-            Some(("Video Window", "Show video window details"))
-        }
-        Descriptors::CaDescriptor(_) => Some(("CA", "Show Conditional Access information")),
-        Descriptors::DataStreamAlignmentDescriptor(_) => {
-            Some(("Alignment", "Show stream alignment details"))
-        }
-        Descriptors::HierarchyDescriptor(_) => Some(("Hierarchy", "Show hierarchy details")),
-        Descriptors::PrivateDataIndicatorDescriptor(_) => {
-            Some(("Private Data", "Show private data indicator"))
-        }
-        Descriptors::RegistrationDescriptor(_) => {
-            Some(("Registration", "Show format registration details"))
-        }
-        Descriptors::StdDescriptor(_) => Some(("STD", "Show System Target Decoder details")),
-        Descriptors::TargetBackgroundGridDescriptor(_) => {
-            Some(("Grid", "Show background grid details"))
-        }
-        Descriptors::UserPrivate(_) => Some(("User Private", "Show user private data")),
+        Descriptors::AvcVideoDescriptor(_) => Some("AVC Video"),
+        Descriptors::CopyrightDescriptor(_) => Some("Copyright"),
+        Descriptors::Iso639LanguageDescriptor(_) => Some("Language"),
+        Descriptors::VideoStreamDescriptor(_) => Some("Video Stream"),
+        Descriptors::AudioStreamDescriptor(_) => Some("Audio Stream"),
+        Descriptors::MaximumBitrateDescriptor(_) => Some("Max Bitrate"),
+        Descriptors::MultiplexBufferUtilizationDescriptor(_) => Some("Buffer Util"),
+        Descriptors::SystemClockDescriptor(_) => Some("System Clock"),
+        Descriptors::VideoWindowDescriptor(_) => Some("Video Window"),
+        Descriptors::CaDescriptor(_) => Some("CA"),
+        Descriptors::DataStreamAlignmentDescriptor(_) => Some("Alignment"),
+        Descriptors::HierarchyDescriptor(_) => Some("Hierarchy"),
+        Descriptors::PrivateDataIndicatorDescriptor(_) => Some("Private Data"),
+        Descriptors::RegistrationDescriptor(_) => Some("Registration"),
+        Descriptors::StdDescriptor(_) => Some("STD"),
+        Descriptors::TargetBackgroundGridDescriptor(_) => Some("Grid"),
+        Descriptors::UserPrivate(_) => Some("User Private"),
         Descriptors::Unknown => None,
     }
 }
@@ -137,17 +115,13 @@ pub fn build_table_body(
                                     ui.horizontal(|ui| {
                                         ui.label(egui::RichText::new("Descriptors:").strong());
                                         for descriptor in &stream_info.descriptors {
-                                            if let Some((button_text, tooltip)) =
+                                            if let Some(button_text) =
                                                 get_descriptor_button_info(descriptor)
                                             {
-                                                let button = egui::Button::new(button_text);
-                                                if ui
-                                                    .add(button.small())
-                                                    .on_hover_text(tooltip)
-                                                    .clicked()
-                                                {
+                                                if ui.button(button_text).clicked() {
                                                     open_modal.descriptor =
                                                         Some(descriptor.clone());
+                                                    open_modal.is_open = true;
                                                 }
                                             }
                                         }

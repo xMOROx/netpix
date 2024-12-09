@@ -14,6 +14,7 @@ pub struct MpegTsInfo {
 #[derive(Default)]
 pub struct OpenModal {
     pub descriptor: Option<Descriptors>,
+    pub is_open: bool,
 }
 
 #[derive(Hash, Eq, PartialEq, Ord, Clone)]
