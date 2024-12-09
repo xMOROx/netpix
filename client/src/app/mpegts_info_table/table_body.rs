@@ -1,3 +1,4 @@
+use super::constants::*;
 use super::types::{MpegTsInfo, OpenModal, RowKey, LINE_HEIGHT};
 use egui_extras::TableBody;
 use netpix_common::mpegts::descriptors::Descriptors;
@@ -5,11 +6,6 @@ use netpix_common::mpegts::header::PIDTable;
 use netpix_common::mpegts::psi::pat::ProgramAssociationTable;
 use netpix_common::mpegts::psi::pmt::ProgramMapTable;
 use std::collections::BTreeMap;
-
-const ESTIMATED_GROUP_WIDTH: f32 = 260.0;
-const VERTICAL_PADDING: f32 = 36.0;
-const GROUP_HEIGHT: f32 = 60.0;
-const ROW_SPACING: f32 = 16.0;
 
 fn format_pat_header(program_number: u16) -> egui::RichText {
     egui::RichText::new(format!("Program #{}", program_number)).strong()

@@ -1,7 +1,7 @@
 mod descriptor_ui;
-mod pmt_table;
 mod table;
 mod table_body;
 mod types;
+mod constants;
 
 pub use table::MpegTsInformationTable;

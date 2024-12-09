@@ -1,4 +1,3 @@
-use super::pmt_table::build_pmt_table;
 use super::table_body::build_table_body;
 use super::types::{MpegTsInfo, OpenModal, RowKey, LINE_HEIGHT};
 use crate::app::is_mpegts_stream_visible;
