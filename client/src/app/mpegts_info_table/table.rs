@@ -89,8 +89,10 @@ impl MpegTsInformationTable {
             .striped(true)
             .resizable(true)
             .stick_to_bottom(true)
-            .columns(Column::remainder().at_least(100.0).at_most(200.0), 3)
-            .column(Column::remainder().at_least(1000.0))
+            .column(Column::remainder().at_least(100.0).at_most(100.0))
+            .column(Column::remainder().at_least(150.0).at_most(150.0))
+            .column(Column::remainder().at_least(100.0).at_most(100.0))
+            .column(Column::remainder().at_least(800.0).clip(true))
             .header(30.0, |mut header| {
                 header_labels.iter().for_each(|(label, desc)| {
                     header.col(|ui| {

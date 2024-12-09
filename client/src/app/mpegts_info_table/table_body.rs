@@ -3,7 +3,13 @@ use egui_extras::TableBody;
 use netpix_common::mpegts::descriptors::Descriptors;
 use netpix_common::mpegts::header::PIDTable;
 use netpix_common::mpegts::psi::pat::ProgramAssociationTable;
+use netpix_common::mpegts::psi::pmt::ProgramMapTable;
 use std::collections::BTreeMap;
+
+const ESTIMATED_GROUP_WIDTH: f32 = 260.0;
+const VERTICAL_PADDING: f32 = 36.0;
+const GROUP_HEIGHT: f32 = 60.0;
+const ROW_SPACING: f32 = 16.0;
 
 fn format_pat_header(program_number: u16) -> egui::RichText {
     egui::RichText::new(format!("Program #{}", program_number)).strong()
@@ -52,6 +58,14 @@ fn get_descriptor_button_info(descriptor: &Descriptors) -> Option<&'static str> 
     }
 }
 
+fn calculate_pmt_row_height(pmt: &ProgramMapTable, available_width: f32) -> f32 {
+    let groups_per_row = (available_width / (ESTIMATED_GROUP_WIDTH + 4.0))
+        .floor()
+        .max(1.0);
+    let rows = (pmt.elementary_streams_info.len() as f32 / groups_per_row).ceil();
+    rows * GROUP_HEIGHT + (rows - 1.0).max(0.0) * ROW_SPACING + VERTICAL_PADDING
+}
+
 pub fn build_table_body(
     body: TableBody,
     mpegts_rows: &BTreeMap<RowKey, MpegTsInfo>,
@@ -64,7 +78,7 @@ pub fn build_table_body(
             let height = match &info.pat {
                 Some(pat) => pat.programs.len() as f32 * LINE_HEIGHT,
                 None => match &info.pmt {
-                    Some(pmt) => (pmt.elementary_streams_info.len() * 2 - 1) as f32 * LINE_HEIGHT,
+                    Some(pmt) => calculate_pmt_row_height(pmt, 1100.0),
                     None => 0.0,
                 },
             };
@@ -101,34 +115,63 @@ pub fn build_table_body(
             row.col(|ui| {
                 if let Some(pmt) = &info.pmt {
                     ui.vertical(|ui| {
-                        for stream_info in &pmt.elementary_streams_info {
-                            ui.group(|ui| {
-                                ui.horizontal(|ui| {
-                                    ui.label(format_stream_header(
-                                        stream_info.elementary_pid,
-                                        stream_info.stream_type.to_string(),
-                                    ));
-                                    ui.label(stream_info.stream_type.to_string());
-                                });
+                        ui.add_space(8.0);
+                        ui.horizontal_wrapped(|ui| {
+                            let available_width = ui.available_width();
+                            let max_groups_per_row =
+                                (available_width / (ESTIMATED_GROUP_WIDTH + 4.0))
+                                    .floor()
+                                    .max(1.0) as usize;
 
-                                if !stream_info.descriptors.is_empty() {
-                                    ui.horizontal(|ui| {
-                                        ui.label(egui::RichText::new("Descriptors:").strong());
-                                        for descriptor in &stream_info.descriptors {
-                                            if let Some(button_text) =
-                                                get_descriptor_button_info(descriptor)
-                                            {
-                                                if ui.button(button_text).clicked() {
-                                                    open_modal.descriptor =
-                                                        Some(descriptor.clone());
-                                                    open_modal.is_open = true;
+                            let mut current_group = 0;
+                            let mut is_first_row = true;
+                            for stream_info in &pmt.elementary_streams_info {
+                                if current_group >= max_groups_per_row {
+                                    current_group = 0;
+                                    ui.end_row();
+                                    if !is_first_row {
+                                        ui.add_space(16.0); // Add space between rows
+                                    }
+                                    is_first_row = false;
+                                }
+
+                                ui.group(|ui| {
+                                    ui.set_width(ESTIMATED_GROUP_WIDTH);
+                                    ui.vertical(|ui| {
+                                        ui.horizontal(|ui| {
+                                            ui.label(format_stream_header(
+                                                stream_info.elementary_pid,
+                                                stream_info.stream_type.to_string(),
+                                            ));
+                                            ui.label(stream_info.stream_type.to_string());
+                                        });
+
+                                        if !stream_info.descriptors.is_empty() {
+                                            ui.horizontal_wrapped(|ui| {
+                                                ui.label(
+                                                    egui::RichText::new("Descriptors:").strong(),
+                                                );
+                                                ui.spacing_mut().item_spacing.x = 2.0;
+                                                for descriptor in &stream_info.descriptors {
+                                                    if let Some(button_text) =
+                                                        get_descriptor_button_info(descriptor)
+                                                    {
+                                                        if ui.small_button(button_text).clicked() {
+                                                            open_modal.descriptor =
+                                                                Some(descriptor.clone());
+                                                            open_modal.is_open = true;
+                                                        }
+                                                    }
                                                 }
-                                            }
+                                            });
                                         }
                                     });
-                                }
-                            });
-                        }
+                                });
+                                ui.add_space(4.0);
+                                current_group += 1;
+                            }
+                        });
+                        ui.add_space(8.0);
                     });
                 } else if let Some(pat) = &info.pat {
                     ui.vertical(|ui| {
