@@ -49,6 +49,8 @@ fn get_descriptor_button_info(descriptor: &Descriptors) -> Option<&'static str> 
         Descriptors::RegistrationDescriptor(_) => Some("Registration"),
         Descriptors::StdDescriptor(_) => Some("STD"),
         Descriptors::TargetBackgroundGridDescriptor(_) => Some("Grid"),
+        Descriptors::SmoothingBufferDescriptor(_) => Some("Smoothing Buffer"),
+        Descriptors::IbpDescriptor(_) => Some("IBP"),
         Descriptors::UserPrivate(_) => Some("User Private"),
         Descriptors::Unknown => None,
     }

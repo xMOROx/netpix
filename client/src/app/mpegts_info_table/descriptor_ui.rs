@@ -1,21 +1,23 @@
 use crate::app::mpegts_info_table::types::OpenModal;
 use egui;
 use netpix_common::mpegts::descriptors::audio_stream::AudioStreamDescriptor;
-use netpix_common::mpegts::descriptors::avc_video_descriptor::AvcVideoDescriptor;
-use netpix_common::mpegts::descriptors::ca_descriptor::CaDescriptor;
-use netpix_common::mpegts::descriptors::copyright_descriptor::CopyrightDescriptor;
-use netpix_common::mpegts::descriptors::data_stream_alignment_descriptor::DataStreamAlignmentDescriptor;
+use netpix_common::mpegts::descriptors::avc_video::AvcVideoDescriptor;
+use netpix_common::mpegts::descriptors::conditional_access::CaDescriptor;
+use netpix_common::mpegts::descriptors::copyright::CopyrightDescriptor;
+use netpix_common::mpegts::descriptors::data_stream_alignment::DataStreamAlignmentDescriptor;
 use netpix_common::mpegts::descriptors::hierarchy::HierarchyDescriptor;
-use netpix_common::mpegts::descriptors::iso_639_language_descriptor::Iso639LanguageDescriptor;
-use netpix_common::mpegts::descriptors::maximum_bitrate_descriptor::MaximumBitrateDescriptor;
-use netpix_common::mpegts::descriptors::multiplex_buffer_utilization_descriptor::MultiplexBufferUtilizationDescriptor;
-use netpix_common::mpegts::descriptors::private_data_indicator_descriptor::PrivateDataIndicatorDescriptor;
-use netpix_common::mpegts::descriptors::registration_descriptor::RegistrationDescriptor;
+use netpix_common::mpegts::descriptors::ibp::IbpDescriptor;
+use netpix_common::mpegts::descriptors::iso_639_language::Iso639LanguageDescriptor;
+use netpix_common::mpegts::descriptors::maximum_bitrate::MaximumBitrateDescriptor;
+use netpix_common::mpegts::descriptors::multiplex_buffer_utilization::MultiplexBufferUtilizationDescriptor;
+use netpix_common::mpegts::descriptors::private_data_indicator::PrivateDataIndicatorDescriptor;
+use netpix_common::mpegts::descriptors::registration::RegistrationDescriptor;
+use netpix_common::mpegts::descriptors::smoothing_buffer::SmoothingBufferDescriptor;
 use netpix_common::mpegts::descriptors::std_descriptor::StdDescriptor;
-use netpix_common::mpegts::descriptors::system_clock_descriptor::SystemClockDescriptor;
-use netpix_common::mpegts::descriptors::target_background_grid_descriptor::TargetBackgroundGridDescriptor;
+use netpix_common::mpegts::descriptors::system_clock::SystemClockDescriptor;
+use netpix_common::mpegts::descriptors::target_background_grid::TargetBackgroundGridDescriptor;
 use netpix_common::mpegts::descriptors::video_stream::VideoStreamDescriptor;
-use netpix_common::mpegts::descriptors::video_window_descriptor::VideoWindowDescriptor;
+use netpix_common::mpegts::descriptors::video_window::VideoWindowDescriptor;
 use netpix_common::mpegts::descriptors::*;
 use std::collections::BTreeMap;
 
@@ -265,6 +267,31 @@ impl DescriptorDisplay for VideoWindowDescriptor {
     }
 }
 
+impl DescriptorDisplay for SmoothingBufferDescriptor {
+    fn display_name(&self) -> &'static str {
+        "Smoothing Buffer"
+    }
+    fn get_display_fields(&self) -> Vec<(&'static str, String)> {
+        vec![
+            ("Leak Rate", format!("{} bits/s", self.sb_leak_rate * 400)),
+            ("Buffer Size", self.sb_size.to_string()),
+        ]
+    }
+}
+
+impl DescriptorDisplay for IbpDescriptor {
+    fn display_name(&self) -> &'static str {
+        "IBP"
+    }
+    fn get_display_fields(&self) -> Vec<(&'static str, String)> {
+        vec![
+            ("Closed GOP", self.closed_gop.to_string()),
+            ("Identical GOP", self.identical_gop.to_string()),
+            ("Max GOP Length", self.max_gop_length.to_string()),
+        ]
+    }
+}
+
 pub fn show_descriptor_modal(
     ctx: &egui::Context,
     descriptor: &(usize, Descriptors),
@@ -321,6 +348,12 @@ pub fn show_descriptor_modal(
                     build_descriptor_ui(ui, desc.display_name(), desc.get_display_fields())
                 }
                 Descriptors::VideoWindowDescriptor(desc) => {
+                    build_descriptor_ui(ui, desc.display_name(), desc.get_display_fields())
+                }
+                Descriptors::SmoothingBufferDescriptor(desc) => {
+                    build_descriptor_ui(ui, desc.display_name(), desc.get_display_fields())
+                }
+                Descriptors::IbpDescriptor(desc) => {
                     build_descriptor_ui(ui, desc.display_name(), desc.get_display_fields())
                 }
                 Descriptors::UserPrivate(tag) => {

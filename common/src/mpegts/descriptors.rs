@@ -1,38 +1,42 @@
 pub mod audio_stream;
-pub mod avc_video_descriptor;
-pub mod ca_descriptor;
-pub mod copyright_descriptor;
-pub mod data_stream_alignment_descriptor;
+pub mod avc_video;
+pub mod conditional_access;
+pub mod copyright;
+pub mod data_stream_alignment;
 pub mod hierarchy;
-pub mod iso_639_language_descriptor;
+pub mod ibp;
+pub mod iso_639_language;
 pub mod macros;
-pub mod maximum_bitrate_descriptor;
-pub mod multiplex_buffer_utilization_descriptor;
-pub mod private_data_indicator_descriptor;
-pub mod registration_descriptor;
+pub mod maximum_bitrate;
+pub mod multiplex_buffer_utilization;
+pub mod private_data_indicator;
+pub mod registration;
+pub mod smoothing_buffer;
 pub mod std_descriptor;
-pub mod system_clock_descriptor;
+pub mod system_clock;
 pub mod tags;
-pub mod target_background_grid_descriptor;
+pub mod target_background_grid;
 pub mod video_stream;
-pub mod video_window_descriptor;
+pub mod video_window;
 
-use crate::mpegts::descriptors::avc_video_descriptor::AvcVideoDescriptor;
-use crate::mpegts::descriptors::ca_descriptor::CaDescriptor;
-use crate::mpegts::descriptors::copyright_descriptor::CopyrightDescriptor;
-use crate::mpegts::descriptors::data_stream_alignment_descriptor::DataStreamAlignmentDescriptor;
+use crate::mpegts::descriptors::avc_video::AvcVideoDescriptor;
+use crate::mpegts::descriptors::conditional_access::CaDescriptor;
+use crate::mpegts::descriptors::copyright::CopyrightDescriptor;
+use crate::mpegts::descriptors::data_stream_alignment::DataStreamAlignmentDescriptor;
 use crate::mpegts::descriptors::hierarchy::HierarchyDescriptor;
-use crate::mpegts::descriptors::iso_639_language_descriptor::Iso639LanguageDescriptor;
-use crate::mpegts::descriptors::maximum_bitrate_descriptor::MaximumBitrateDescriptor;
-use crate::mpegts::descriptors::multiplex_buffer_utilization_descriptor::MultiplexBufferUtilizationDescriptor;
-use crate::mpegts::descriptors::private_data_indicator_descriptor::PrivateDataIndicatorDescriptor;
-use crate::mpegts::descriptors::registration_descriptor::RegistrationDescriptor;
+use crate::mpegts::descriptors::ibp::IbpDescriptor;
+use crate::mpegts::descriptors::iso_639_language::Iso639LanguageDescriptor;
+use crate::mpegts::descriptors::maximum_bitrate::MaximumBitrateDescriptor;
+use crate::mpegts::descriptors::multiplex_buffer_utilization::MultiplexBufferUtilizationDescriptor;
+use crate::mpegts::descriptors::private_data_indicator::PrivateDataIndicatorDescriptor;
+use crate::mpegts::descriptors::registration::RegistrationDescriptor;
+use crate::mpegts::descriptors::smoothing_buffer::SmoothingBufferDescriptor;
 use crate::mpegts::descriptors::std_descriptor::StdDescriptor;
-use crate::mpegts::descriptors::system_clock_descriptor::SystemClockDescriptor;
+use crate::mpegts::descriptors::system_clock::SystemClockDescriptor;
 use crate::mpegts::descriptors::tags::DescriptorTag;
-use crate::mpegts::descriptors::target_background_grid_descriptor::TargetBackgroundGridDescriptor;
+use crate::mpegts::descriptors::target_background_grid::TargetBackgroundGridDescriptor;
 use crate::mpegts::descriptors::video_stream::VideoStreamDescriptor;
-use crate::mpegts::descriptors::video_window_descriptor::VideoWindowDescriptor;
+use crate::mpegts::descriptors::video_window::VideoWindowDescriptor;
 use crate::{
     declare_descriptor_variants, mpegts::descriptors::audio_stream::AudioStreamDescriptor,
 };
@@ -67,6 +71,8 @@ declare_descriptor_variants! {
     (DataStreamAlignmentDescriptor, DataStreamAlignmentDescriptor),
     (AvcVideoDescriptor, AvcVideoDescriptor),
     (Iso639LanguageDescriptor, Iso639LanguageDescriptor),
+    (SmoothingBufferDescriptor, SmoothingBufferDescriptor),
+    (IbpDescriptor, IbpDescriptor),
 }
 
 impl_descriptor_display! {
@@ -86,6 +92,8 @@ impl_descriptor_display! {
     (DataStreamAlignmentDescriptor),
     (AvcVideoDescriptor),
     (Iso639LanguageDescriptor),
+    (SmoothingBufferDescriptor),
+    (IbpDescriptor),
 }
 
 impl_descriptor_unmarshall_match! {
@@ -105,6 +113,8 @@ impl_descriptor_unmarshall_match! {
     (DataStreamAlignmentDescriptor, DataStreamAlignmentDescriptorTag, DataStreamAlignmentDescriptor),
     (AvcVideoDescriptor, AvcVideoDescriptorTag, AvcVideoDescriptor),
     (Iso639LanguageDescriptor, Iso639LanguageDescriptorTag, Iso639LanguageDescriptor),
+    (SmoothingBufferDescriptor, SmoothingBufferDescriptorTag, SmoothingBufferDescriptor),
+    (IbpDescriptor, IbpDescriptorTag, IbpDescriptor),
 }
 
 impl_descriptor_partial_eq! {
@@ -124,6 +134,8 @@ impl_descriptor_partial_eq! {
     (DataStreamAlignmentDescriptor),
     (AvcVideoDescriptor),
     (Iso639LanguageDescriptor),
+    (SmoothingBufferDescriptor),
+    (IbpDescriptor),
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, Ord, PartialOrd, Eq)]

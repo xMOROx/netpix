@@ -1,21 +1,20 @@
 use super::*;
 use crate::mpegts::descriptors::audio_stream::AudioStreamDescriptor;
-use crate::mpegts::descriptors::data_stream_alignment_descriptor::AlignmentType::SliceOrVideoAccessUnit;
-use crate::mpegts::descriptors::data_stream_alignment_descriptor::DataStreamAlignmentDescriptor;
-use crate::mpegts::descriptors::iso_639_language_descriptor::AudioType::{
+use crate::mpegts::descriptors::iso_639_language::AudioType::{
     Undefined, VisualImpairedCommentary,
 };
-use crate::mpegts::descriptors::iso_639_language_descriptor::{Iso639LanguageDescriptor, Section};
-use crate::mpegts::descriptors::maximum_bitrate_descriptor::MaximumBitrateDescriptor;
-use crate::mpegts::descriptors::multiplex_buffer_utilization_descriptor::MultiplexBufferUtilizationDescriptor;
-use crate::mpegts::descriptors::registration_descriptor::RegistrationDescriptor;
+use crate::mpegts::descriptors::iso_639_language::{Iso639LanguageDescriptor, Section};
+use crate::mpegts::descriptors::maximum_bitrate::MaximumBitrateDescriptor;
+use crate::mpegts::descriptors::multiplex_buffer_utilization::MultiplexBufferUtilizationDescriptor;
+use crate::mpegts::descriptors::registration::RegistrationDescriptor;
 use crate::mpegts::descriptors::tags::DescriptorTag::{
     AudioStreamDescriptorTag, AvcVideoDescriptorTag, DataStreamAlignmentDescriptorTag,
     Iso639LanguageDescriptorTag, MaximumBitrateDescriptorTag,
     MultiplexBufferUtilizationDescriptorTag, RegistrationDescriptorTag, VideoStreamDescriptorTag,
 };
 use crate::mpegts::descriptors::video_stream::VideoStreamDescriptor;
-use crate::mpegts::descriptors::{avc_video_descriptor, DescriptorHeader, Descriptors};
+use crate::mpegts::descriptors::{avc_video, DescriptorHeader, Descriptors};
+use crate::mpegts::descriptors::data_stream_alignment::{DataStreamAlignmentDescriptor, AlignmentType::SliceOrVideoAccessUnit};
 use crate::mpegts::psi::pmt::stream_types::StreamType::{
     Audio111723, PESPackets, PrivateSections, VideoH264,
 };
@@ -106,7 +105,7 @@ fn test_pmt_buffer_with_one_fragment() {
                         },
                         alignment_type: SliceOrVideoAccessUnit,
                     }),
-                    Descriptors::AvcVideoDescriptor(avc_video_descriptor::AvcVideoDescriptor {
+                    Descriptors::AvcVideoDescriptor(avc_video::AvcVideoDescriptor {
                         header: DescriptorHeader {
                             descriptor_tag: AvcVideoDescriptorTag,
                             descriptor_length: 4,
