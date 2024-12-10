@@ -9,27 +9,39 @@ use netpix_common::mpegts::descriptors::Descriptors;
 use netpix_common::mpegts::header::PIDTable;
 use netpix_common::MpegtsStreamKey;
 use std::collections::{BTreeMap, HashMap};
+use egui::Widget;
+use crate::app::utils::{FilterHelpContent, FilterInput};
 
 pub struct MpegTsInformationTable {
     streams: RefStreams,
-    ws_sender: WsSender,
     streams_visibility: HashMap<MpegtsStreamKey, bool>,
     open_modal: OpenModal,
+    filter_input: FilterInput,
 }
 
 impl MpegTsInformationTable {
-    pub fn new(streams: RefStreams, ws_sender: WsSender) -> Self {
+    pub fn new(streams: RefStreams) -> Self {
+        let help = FilterHelpContent::builder("MPEG-TS Packet Filters")
+            .filter("alias:<stream_alias>", "Filter by stream alias")
+            .filter("pid:<number>", "Filter by PID value")
+            .filter(
+                "type:<value>",
+                "Filter by packet type (PAT, PMT)",
+            )
+            .build();
         Self {
             streams,
-            ws_sender,
             streams_visibility: HashMap::default(),
             open_modal: OpenModal::default(),
+            filter_input: FilterInput::new(help),
         }
     }
 
     pub fn ui(&mut self, ctx: &egui::Context) {
+        if self.filter_input.show(ctx) {
+            self.check_filter();
+        }
         egui::CentralPanel::default().show(ctx, |ui| {
-            self.options_ui(ui);
             self.build_table(ui);
         });
 
@@ -38,6 +50,10 @@ impl MpegTsInformationTable {
                 descriptor_ui::show_descriptor_modal(ctx, descriptor, &mut self.open_modal);
             }
         }
+    }
+
+    fn check_filter(&mut self) {
+        
     }
 
     fn build_table(&mut self, ui: &mut egui::Ui) {
@@ -96,28 +112,5 @@ impl MpegTsInformationTable {
             .body(|body| {
                 build_table_body(body, &mpegts_rows, &mut self.open_modal);
             });
-    }
-
-    fn options_ui(&mut self, ui: &mut egui::Ui) {
-        let mut aliases = Vec::new();
-        let streams = &self.streams.borrow().mpeg_ts_streams;
-        let keys: Vec<_> = streams.keys().collect();
-
-        keys.iter().for_each(|&key| {
-            let alias = streams.get(key).unwrap().alias.to_string();
-            aliases.push((*key, alias));
-        });
-        aliases.sort_by(|(_, a), (_, b)| a.cmp(b));
-
-        ui.horizontal_wrapped(|ui| {
-            ui.label("Filter by: ");
-            aliases.iter().for_each(|(key, alias)| {
-                let selected = is_mpegts_stream_visible(&mut self.streams_visibility, *key);
-                ui.checkbox(selected, alias);
-            });
-        });
-        ui.vertical(|ui| {
-            ui.add_space(5.0);
-        });
     }
 }

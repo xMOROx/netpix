@@ -112,7 +112,7 @@ impl App {
 
         let mpegts_packets_table = MpegTsPacketsTable::new(streams.clone());
         let mpegts_streams_table = MpegTsStreamsTable::new(streams.clone());
-        let mpegts_info_table = MpegTsInformationTable::new(streams.clone(), ws_sender.clone());
+        let mpegts_info_table = MpegTsInformationTable::new(streams.clone());
         let mpegts_plot = MpegTsStreamPlot::new(streams.clone());
 
         let (tab, selected_source) = get_initial_state(cc);
