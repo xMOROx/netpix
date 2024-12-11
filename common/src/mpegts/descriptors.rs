@@ -1,6 +1,7 @@
 pub mod audio_stream;
 pub mod avc_video;
 pub mod conditional_access;
+pub mod content_labelling;
 pub mod copyright;
 pub mod data_stream_alignment;
 pub mod hierarchy;

@@ -81,6 +81,34 @@ impl<'a> BitReader<'a> {
         Some((b0 << 24) | (b1 << 16) | (b2 << 8) | b3)
     }
 
+    pub fn get_bits_u40(&self, byte_offset: usize, masks: Vec<u8>) -> Option<u64> {
+        if self.position + byte_offset + 4 >= self.data.len() {
+            return None;
+        }
+
+        let mut result = 0;
+        for i in 0..5 {
+            result |= (self.data[self.position + byte_offset + i] as u64 & masks[i] as u64)
+                << (8 * (4 - i));
+        }
+
+        Some(result)
+    }
+
+    pub fn get_bits_u64(&self, byte_offset: usize, masks: Vec<u8>) -> Option<u64> {
+        if self.position + byte_offset + 7 >= self.data.len() {
+            return None;
+        }
+
+        let mut result = 0;
+        for i in 0..8 {
+            result |= (self.data[self.position + byte_offset + i] as u64 & masks[i] as u64)
+                << (8 * (7 - i));
+        }
+
+        Some(result)
+    }
+
     pub fn get_bytes(&self, byte_offset: usize, length: usize) -> Option<Vec<u8>> {
         if self.position + byte_offset + length > self.data.len() {
             return None;
