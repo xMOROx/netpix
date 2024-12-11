@@ -886,7 +886,7 @@ dependencies = [
 
 [[package]]
 name = "netpix"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "clap",
  "etherparse",
@@ -904,7 +904,7 @@ dependencies = [
 
 [[package]]
 name = "netpix_common"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "bincode",
  "etherparse",
