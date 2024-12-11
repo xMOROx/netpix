@@ -19,6 +19,10 @@ impl<'a> BitReader<'a> {
             .map(|byte| (*byte & (1 << position)) != 0)
     }
 
+    pub fn get_byte(&self, byte_offset: usize) -> Option<u8> {
+        self.data.get(self.position + byte_offset).copied()
+    }
+
     pub fn get_bits(&self, byte_offset: usize, mask: u8, shift: u8) -> Option<u8> {
         self.data
             .get(self.position + byte_offset)

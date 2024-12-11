@@ -51,6 +51,8 @@ fn get_descriptor_button_info(descriptor: &Descriptors) -> Option<&'static str> 
         Descriptors::TargetBackgroundGridDescriptor(_) => Some("Grid"),
         Descriptors::SmoothingBufferDescriptor(_) => Some("Smoothing Buffer"),
         Descriptors::IbpDescriptor(_) => Some("IBP"),
+        Descriptors::Mpeg4VideoDescriptor(_) => Some("MPEG4 Video"),
+        Descriptors::Mpeg4AudioDescriptor(_) => Some("MPEG4 Audio"),
         Descriptors::UserPrivate(_) => Some("User Private"),
         Descriptors::Unknown => None,
     }

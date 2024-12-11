@@ -8,6 +8,8 @@ pub mod ibp;
 pub mod iso_639_language;
 pub mod macros;
 pub mod maximum_bitrate;
+pub mod mpeg4_audio;
+pub mod mpeg4_video;
 pub mod multiplex_buffer_utilization;
 pub mod private_data_indicator;
 pub mod registration;
@@ -27,6 +29,8 @@ use crate::mpegts::descriptors::hierarchy::HierarchyDescriptor;
 use crate::mpegts::descriptors::ibp::IbpDescriptor;
 use crate::mpegts::descriptors::iso_639_language::Iso639LanguageDescriptor;
 use crate::mpegts::descriptors::maximum_bitrate::MaximumBitrateDescriptor;
+use crate::mpegts::descriptors::mpeg4_audio::Mpeg4AudioDescriptor;
+use crate::mpegts::descriptors::mpeg4_video::Mpeg4VideoDescriptor;
 use crate::mpegts::descriptors::multiplex_buffer_utilization::MultiplexBufferUtilizationDescriptor;
 use crate::mpegts::descriptors::private_data_indicator::PrivateDataIndicatorDescriptor;
 use crate::mpegts::descriptors::registration::RegistrationDescriptor;
@@ -73,6 +77,8 @@ declare_descriptor_variants! {
     (Iso639LanguageDescriptor, Iso639LanguageDescriptor),
     (SmoothingBufferDescriptor, SmoothingBufferDescriptor),
     (IbpDescriptor, IbpDescriptor),
+    (Mpeg4VideoDescriptor, Mpeg4VideoDescriptor),
+    (Mpeg4AudioDescriptor, Mpeg4AudioDescriptor),
 }
 
 impl_descriptor_display! {
@@ -94,6 +100,8 @@ impl_descriptor_display! {
     (Iso639LanguageDescriptor),
     (SmoothingBufferDescriptor),
     (IbpDescriptor),
+    (Mpeg4VideoDescriptor),
+    (Mpeg4AudioDescriptor),
 }
 
 impl_descriptor_unmarshall_match! {
@@ -115,6 +123,8 @@ impl_descriptor_unmarshall_match! {
     (Iso639LanguageDescriptor, Iso639LanguageDescriptorTag, Iso639LanguageDescriptor),
     (SmoothingBufferDescriptor, SmoothingBufferDescriptorTag, SmoothingBufferDescriptor),
     (IbpDescriptor, IbpDescriptorTag, IbpDescriptor),
+    (Mpeg4VideoDescriptor, Mpeg4VideoDescriptorTag, Mpeg4VideoDescriptor),
+    (Mpeg4AudioDescriptor, Mpeg4AudioDescriptorTag, Mpeg4AudioDescriptor),
 }
 
 impl_descriptor_partial_eq! {
@@ -136,6 +146,8 @@ impl_descriptor_partial_eq! {
     (Iso639LanguageDescriptor),
     (SmoothingBufferDescriptor),
     (IbpDescriptor),
+    (Mpeg4VideoDescriptor),
+    (Mpeg4AudioDescriptor),
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, Ord, PartialOrd, Eq)]

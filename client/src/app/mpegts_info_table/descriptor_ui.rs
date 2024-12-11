@@ -9,6 +9,8 @@ use netpix_common::mpegts::descriptors::hierarchy::HierarchyDescriptor;
 use netpix_common::mpegts::descriptors::ibp::IbpDescriptor;
 use netpix_common::mpegts::descriptors::iso_639_language::Iso639LanguageDescriptor;
 use netpix_common::mpegts::descriptors::maximum_bitrate::MaximumBitrateDescriptor;
+use netpix_common::mpegts::descriptors::mpeg4_audio::Mpeg4AudioDescriptor;
+use netpix_common::mpegts::descriptors::mpeg4_video::Mpeg4VideoDescriptor;
 use netpix_common::mpegts::descriptors::multiplex_buffer_utilization::MultiplexBufferUtilizationDescriptor;
 use netpix_common::mpegts::descriptors::private_data_indicator::PrivateDataIndicatorDescriptor;
 use netpix_common::mpegts::descriptors::registration::RegistrationDescriptor;
@@ -292,6 +294,30 @@ impl DescriptorDisplay for IbpDescriptor {
     }
 }
 
+impl DescriptorDisplay for Mpeg4VideoDescriptor {
+    fn display_name(&self) -> &'static str {
+        "MPEG4 Video"
+    }
+    fn get_display_fields(&self) -> Vec<(&'static str, String)> {
+        vec![(
+            "Visual Profile and Level",
+            self.visual_profile_and_level.to_string(),
+        )]
+    }
+}
+
+impl DescriptorDisplay for Mpeg4AudioDescriptor {
+    fn display_name(&self) -> &'static str {
+        "MPEG4 Audio"
+    }
+    fn get_display_fields(&self) -> Vec<(&'static str, String)> {
+        vec![(
+            "Audio Profile and Level",
+            self.audio_profile_and_level.to_string(),
+        )]
+    }
+}
+
 pub fn show_descriptor_modal(
     ctx: &egui::Context,
     descriptor: &(usize, Descriptors),
@@ -354,6 +380,12 @@ pub fn show_descriptor_modal(
                     build_descriptor_ui(ui, desc.display_name(), desc.get_display_fields())
                 }
                 Descriptors::IbpDescriptor(desc) => {
+                    build_descriptor_ui(ui, desc.display_name(), desc.get_display_fields())
+                }
+                Descriptors::Mpeg4VideoDescriptor(desc) => {
+                    build_descriptor_ui(ui, desc.display_name(), desc.get_display_fields())
+                }
+                Descriptors::Mpeg4AudioDescriptor(desc) => {
                     build_descriptor_ui(ui, desc.display_name(), desc.get_display_fields())
                 }
                 Descriptors::UserPrivate(tag) => {
