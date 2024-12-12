@@ -1,7 +1,7 @@
 use crate::streams::{rtpStream::RtpStream, RefStreams};
-use egui_plot::{Line, Plot, PlotPoints};
 use egui::{TextEdit, Vec2};
 use egui_extras::{Column, TableBody, TableBuilder};
+use egui_plot::{Line, Plot, PlotPoints};
 use ewebsock::{WsMessage, WsSender};
 use netpix_common::{Request, RtpStreamKey};
 
@@ -48,7 +48,7 @@ impl RtpStreamsTable {
         egui::Window::new(format!("SDP - {:x}", ssrc))
             .open(&mut self.sdp_window_open)
             .default_width(800.0)
-            .default_height(800.0)
+            .default_height(500.0)
             .vscroll(true)
             .show(ctx, |ui| {
                 TextEdit::multiline(&mut self.sdp)
@@ -183,17 +183,17 @@ impl RtpStreamsTable {
                 let packet_rate = stream.get_mean_packet_rate();
                 ui.label(format!("{:.1} /s", packet_rate));
             });
-            let (_, resp) = row.col(|ui| {
-                build_jitter_plot(ui, stream);
-            });
-
-            resp.context_menu(|ui| {
-                if ui.button("Set SDP").clicked() {
-                    ui.close_menu();
-                    self.chosen_key = Some(*key);
-                    self.sdp = String::new();
-                    self.sdp_window_open = true;
-                }
+            row.col(|ui| {
+                build_jitter_plot(
+                    ui,
+                    stream,
+                    |stream_key| {
+                        self.chosen_key = Some(stream_key);
+                        self.sdp = String::new();
+                        self.sdp_window_open = true;
+                    },
+                    *key,
+                );
             });
         });
     }
@@ -211,7 +211,12 @@ impl RtpStreamsTable {
     }
 }
 
-fn build_jitter_plot(ui: &mut egui::Ui, stream: &RtpStream) {
+fn build_jitter_plot(
+    ui: &mut egui::Ui,
+    stream: &RtpStream,
+    on_set_sdp: impl FnOnce(RtpStreamKey),
+    key: RtpStreamKey,
+) {
     ui.vertical_centered_justified(|ui| {
         let points: PlotPoints = stream
             .rtp_packets
@@ -221,21 +226,30 @@ fn build_jitter_plot(ui: &mut egui::Ui, stream: &RtpStream) {
             .collect();
 
         let line = Line::new(points).name("jitter");
-        let key = format!(
+        let response = Plot::new(format!(
             "{}{}{}{}",
             stream.ssrc, stream.source_addr, stream.destination_addr, stream.protocol
-        );
-        Plot::new(key)
-            .show_background(false)
-            .show_axes([true, true])
-            .label_formatter(|_name, value| {
-                format!("packet id: {}\njitter = {:.3} ms", value.x, value.y)
-            })
-            .set_margin_fraction(Vec2::new(0.1, 0.1))
-            .allow_scroll(false)
-            .show(ui, |plot_ui| {
-                plot_ui.line(line);
-            });
+        ))
+        .show_background(false)
+        .show_axes([true, true])
+        .label_formatter(|_name, value| {
+            format!("packet id: {}\njitter = {:.3} ms", value.x, value.y)
+        })
+        .set_margin_fraction(Vec2::new(0.1, 0.1))
+        .allow_scroll(false)
+        .allow_drag(false)
+        .allow_zoom(false)
+        .show(ui, |plot_ui| {
+            plot_ui.line(line);
+        })
+        .response;
+
+        response.context_menu(|ui| {
+            if ui.button("Set SDP").clicked() {
+                on_set_sdp(key);
+                ui.close_menu();
+            }
+        });
         ui.add_space(7.0);
     });
 }
