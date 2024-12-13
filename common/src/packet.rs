@@ -170,14 +170,14 @@ impl Packet {
         let ip_payload = ipv4_packet.payload();
 
         if ip_payload.is_empty() {
-            return Some(Self::build_from_transport(
+            return Self::build_from_transport(
                 raw_packet,
                 id,
                 source_addr.into(),
                 destination_addr.into(),
                 TransportProtocol::Udp, // default to UDP for empty payload
                 ethernet_packet.payload(),
-            )?);
+            );
         }
 
         let transport_protocol = match ipv4_packet.get_next_level_protocol() {
@@ -207,14 +207,14 @@ impl Packet {
         let ip_payload = ipv6_packet.payload();
 
         if ip_payload.is_empty() {
-            return Some(Self::build_from_transport(
+            return Self::build_from_transport(
                 raw_packet,
                 id,
                 source_addr.into(),
                 destination_addr.into(),
                 TransportProtocol::Udp, // default to UDP for empty payload
                 ethernet_packet.payload(),
-            )?);
+            );
         }
 
         let transport_protocol = match ipv6_packet.get_next_header() {

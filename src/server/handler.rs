@@ -1,4 +1,4 @@
-use super::{client::Clients, Client};
+use super::client::Clients;
 use crate::sniffer::Sniffer;
 use flate2::write::GzEncoder;
 use flate2::Compression;
@@ -7,9 +7,7 @@ use futures_util::{
     SinkExt, StreamExt, TryFutureExt,
 };
 use log::{error, info, warn};
-use netpix_common::{
-    packet::SessionProtocol, Request, Response, RtpStreamKey, Sdp, Source, PACKET_MAX_AGE_SECS,
-};
+use netpix_common::{Request, Response, RtpStreamKey, Sdp, Source, PACKET_MAX_AGE_SECS};
 use ringbuf::{
     traits::{Consumer, Observer, RingBuffer},
     HeapRb,
@@ -19,8 +17,7 @@ use std::{collections::HashMap, io::Write, sync::Arc};
 use tokio::sync::{mpsc::UnboundedSender, RwLock};
 use warp::ws::{Message, WebSocket};
 
-pub const WS_PATH: &str = "ws";
-const PACKET_BUFFER_SIZE: usize = 32_768;
+use super::constants::*;
 
 pub type PacketRingBuffer = HeapRb<Response>;
 pub type Packets = Arc<RwLock<PacketRingBuffer>>;
@@ -96,17 +93,11 @@ async fn sniff(mut sniffer: Sniffer, packets: Packets, clients: Clients) {
                 };
                 let msg = Message::binary(encoded);
 
-                for (_, client) in clients.read().await.iter() {
-                    match client {
-                        Client {
-                            source: Some(source),
-                            sender,
-                        } if *source == sniffer.source => {
-                            sender.send(msg.clone()).unwrap_or_else(|e| {
-                                error!("Sniffer: error while sending packet: {}", e);
-                            });
+                for (_, client) in clients.write().await.iter_mut() {
+                    if let Some(src) = &client.source {
+                        if *src == sniffer.source {
+                            client.queue.push_back(msg.clone());
                         }
-                        _ => {}
                     }
                 }
 
@@ -149,65 +140,66 @@ async fn send_batch(packets: Vec<Response>, ws_tx: &UnboundedSender<Message>, cl
     });
 }
 
-async fn send_all_packets(
-    client_id: usize,
-    packets: &Packets,
-    ws_tx: &mut UnboundedSender<Message>,
-) {
+async fn send_all_packets(client_id: usize, packets: &Packets, clients: &Clients) {
     let packets_read = packets.read().await;
+    let mut wr_clients = clients.write().await;
+    let client = match wr_clients.get_mut(&client_id) {
+        Some(client) => client,
+        None => return, // The client might have disconnected
+    };
+
     for packet in packets_read.iter() {
         let Ok(encoded) = packet.encode() else {
-            error!("Failed to encode packet, client_id: {}", client_id);
+            error!("Failed to encode packet for client_id: {}", client_id);
             continue;
         };
         let msg = Message::binary(encoded);
-        ws_tx.send(msg).unwrap_or_else(|e| {
-            error!("WebSocket send error: {}, client_id: {}", e, client_id);
-        });
+
+        client.queue.push_back(msg);
     }
 }
 
-async fn reparse_packet(
-    client_id: usize,
-    packets: &Packets,
-    clients: &Clients,
-    id: usize,
-    cur_source: &Source,
-    packet_type: SessionProtocol,
-) {
-    let mut packets = packets.write().await;
-    let Some(response_packet) = packets.iter_mut().nth(id) else {
-        warn!(
-            "Received reparse request for non-existent packet {}, client_id: {}",
-            id, client_id
-        );
-        return;
-    };
+// async fn reparse_packet(
+//     client_id: usize,
+//     packets: &Packets,
+//     clients: &Clients,
+//     id: usize,
+//     cur_source: &Source,
+//     packet_type: SessionProtocol,
+// ) {
+// let mut packets = packets.write().await;
+// let Some(response_packet) = packets.iter_mut().nth(id) else {
+//     warn!(
+//         "Received reparse request for non-existent packet {}, client_id: {}",
+//         id, client_id
+//     );
+//     return;
+// };
 
-    let Response::Packet(packet) = response_packet else {
-        unreachable!("");
-    };
-    packet.parse_as(packet_type);
+// let Response::Packet(packet) = response_packet else {
+//     unreachable!("");
+// };
+// packet.parse_as(packet_type);
 
-    let Ok(encoded) = response_packet.encode() else {
-        error!("Failed to encode packet, client_id: {}", client_id);
-        return;
-    };
-    let msg = Message::binary(encoded);
-    for (_, client) in clients.read().await.iter() {
-        match client {
-            Client {
-                source: Some(source),
-                sender,
-            } if *source == *cur_source => {
-                sender.send(msg.clone()).unwrap_or_else(|e| {
-                    error!("Sniffer: error while sending packet: {}", e);
-                });
-            }
-            _ => {}
-        };
-    }
-}
+// let Ok(encoded) = response_packet.encode() else {
+//     error!("Failed to encode packet, client_id: {}", client_id);
+//     return;
+// };
+// let msg = Message::binary(encoded);
+// for (_, client) in clients.read().await.iter() {
+//     match client {
+//         Client {
+//             source: Some(source),
+//             sender,
+//         } if *source == *cur_source => {
+//             sender.send(msg.clone()).unwrap_or_else(|e| {
+//                 error!("Sniffer: error while sending packet: {}", e);
+//             });
+//         }
+//         _ => {}
+//     };
+// }
+// }
 
 async fn parse_sdp(
     client_id: usize,
@@ -217,10 +209,9 @@ async fn parse_sdp(
     raw_sdp: String,
 ) {
     let Some(sdp) = Sdp::build(raw_sdp) else {
-        log::warn!(
+        warn!(
             "Received invalid SDP for {:?}: {:?}",
-            cur_source,
-            stream_key
+            cur_source, stream_key
         );
         return;
     };
@@ -231,21 +222,18 @@ async fn parse_sdp(
     };
 
     let msg = Message::binary(encoded);
-    for (_, client) in clients.read().await.iter() {
-        match client {
-            Client {
-                source: Some(source),
-                sender,
-            } if *source == *cur_source => {
-                sender.send(msg.clone()).unwrap_or_else(|e| {
+
+    let clients_guard = clients.read().await;
+    for (_, client) in clients_guard.iter() {
+        if let Some(ref source) = client.source {
+            if *source == *cur_source {
+                if let Err(e) = client.sender.send(msg.clone()) {
                     error!("Sniffer: error while sending sdp: {}", e);
-                });
+                }
             }
-            _ => {}
-        };
+        }
     }
 }
-
 pub async fn handle_messages(
     client_id: usize,
     mut ws_rx: SplitStream<WebSocket>,
@@ -255,7 +243,6 @@ pub async fn handle_messages(
     let rd_clients = clients.read().await;
     let client = rd_clients.get(&client_id).unwrap();
     let mut source = client.source.clone();
-    let mut sender = client.sender.clone();
     drop(rd_clients);
 
     while let Some(result) = ws_rx.next().await {
@@ -266,56 +253,84 @@ pub async fn handle_messages(
                     continue;
                 }
 
-                let msg = msg.into_bytes();
-                let Ok(req) = Request::decode(&msg) else {
-                    error!("Failed to decode request message");
+                let msg_bytes = msg.into_bytes();
+                let Ok(req) = Request::decode(&msg_bytes) else {
+                    error!("Failed to decode request message, client_id: {}", client_id);
                     continue;
                 };
 
                 match req {
                     Request::FetchAll => {
                         if let Some(ref cur_source) = source {
-                            let packets = packets.get(cur_source).unwrap();
-                            send_all_packets(client_id, packets, &mut sender).await;
+                            if let Some(packets) = packets.get(cur_source) {
+                                send_all_packets(client_id, packets, clients).await;
+                            } else {
+                                warn!(
+                                    "No packets found for source: {:?}, client_id: {}",
+                                    cur_source, client_id
+                                );
+                            }
                         }
                     }
-                    Request::Reparse(id, packet_type) => {
-                        // TODO: maybe the message should include the source?
-                        // I see a potential for an RC
-                        if let Some(ref cur_source) = source {
-                            let packets = packets.get(cur_source).unwrap();
-                            reparse_packet(
-                                client_id,
-                                packets,
-                                clients,
-                                id,
-                                cur_source,
-                                packet_type,
-                            )
-                            .await;
-                        } else {
-                            error!("Received reparse request from client without selected source, client_id: {}", client_id);
-                        }
-                    }
+                    // Request::Reparse(id, packet_type) => {
+                    //     if let Some(ref cur_source) = source {
+                    //         if let Some(packets) = packets.get(cur_source) {
+                    //             reparse_packet(
+                    //                 client_id,
+                    //                 packets,
+                    //                 clients,
+                    //                 id,
+                    //                 cur_source,
+                    //                 packet_type,
+                    //             )
+                    //             .await;
+                    //         } else {
+                    //             warn!(
+                    //                 "No packets found for source: {:?}, client_id: {}",
+                    //                 cur_source, client_id
+                    //             );
+                    //         }
+                    //     } else {
+                    //         error!(
+                    //             "Received reparse request without a selected source, client_id: {}",
+                    //             client_id
+                    //         );
+                    //     }
+                    // }
                     Request::ChangeSource(new_source) => {
-                        let packets = packets.get(&new_source).unwrap();
-
-                        source = Some(new_source);
-                        let mut wr_clients = clients.write().await;
-                        let client = wr_clients.get_mut(&client_id).unwrap();
-                        client.source = source.clone();
-                        drop(wr_clients);
-
-                        send_all_packets(client_id, packets, &mut sender).await;
-                    }
-                    Request::ParseSdp(stream_key, sdp) => {
-                        if let Some(source) = &source {
-                            parse_sdp(client_id, clients, source, stream_key, sdp).await;
+                        if let Some(packets) = packets.get(&new_source) {
+                            {
+                                let mut wr_clients = clients.write().await;
+                                let client = wr_clients.get_mut(&client_id).unwrap();
+                                client.source = Some(new_source.clone());
+                            }
+                            source = Some(new_source);
+                            send_all_packets(client_id, packets, clients).await;
+                        } else {
+                            warn!(
+                                "Attempted to change to unknown source: {:?}, client_id: {}",
+                                new_source, client_id
+                            );
                         }
                     }
-                };
+
+                    Request::ParseSdp(stream_key, sdp) => {
+                        if let Some(cur_source) = &source {
+                            parse_sdp(client_id, clients, cur_source, stream_key, sdp).await;
+                        } else {
+                            warn!("Received ParseSdp request without a selected source, client_id: {}", client_id);
+                        }
+                    }
+
+                    _ => {
+                        warn!("Unhandled request: {:?}, client_id: {}", req, client_id);
+                    }
+                }
             }
-            Err(e) => error!("WebSocket error: {}, client_id: {}", e, client_id),
+            Err(e) => {
+                error!("WebSocket error: {}, client_id: {}", e, client_id);
+                break;
+            }
         }
     }
 }

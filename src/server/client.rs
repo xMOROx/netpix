@@ -5,6 +5,7 @@ use futures_util::{SinkExt, StreamExt, TryFutureExt};
 use log::{error, info};
 use netpix_common::Source;
 use std::collections::HashMap;
+use std::collections::VecDeque;
 use std::sync::{
     atomic::{AtomicUsize, Ordering},
     Arc,
@@ -20,6 +21,7 @@ static NEXT_CLIENT_ID: AtomicUsize = AtomicUsize::new(1);
 pub struct Client {
     pub sender: UnboundedSender<Message>,
     pub source: Option<Source>,
+    pub queue: VecDeque<Message>, // Messages waiting to be sent
 }
 
 impl Client {
@@ -27,6 +29,7 @@ impl Client {
         Self {
             sender,
             source: None,
+            queue: VecDeque::new(),
         }
     }
 }
