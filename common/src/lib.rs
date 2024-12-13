@@ -17,6 +17,8 @@ pub mod utils;
 
 pub use stream_keys::{MpegtsStreamKey, PacketAssociationTable, RtpStreamKey};
 
+pub const PACKET_MAX_AGE_SECS: u64 = 120; // 2 minutes
+
 #[derive(Serialize, Deserialize, Debug, Clone, Hash, Eq, PartialEq)]
 pub enum Source {
     File(String),

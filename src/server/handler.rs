@@ -7,19 +7,23 @@ use futures_util::{
     SinkExt, StreamExt, TryFutureExt,
 };
 use log::{error, info, warn};
-use netpix_common::{packet::SessionProtocol, Request, Response, RtpStreamKey, Sdp, Source};
-use std::{
-    collections::{HashMap, VecDeque},
-    io::Write,
-    sync::Arc,
+use netpix_common::{
+    packet::SessionProtocol, Request, Response, RtpStreamKey, Sdp, Source, PACKET_MAX_AGE_SECS,
 };
+use ringbuf::{
+    traits::{Consumer, Observer, RingBuffer},
+    HeapRb,
+};
+use std::time::SystemTime;
+use std::{collections::HashMap, io::Write, sync::Arc};
 use tokio::sync::{mpsc::UnboundedSender, RwLock};
 use warp::ws::{Message, WebSocket};
 
 pub const WS_PATH: &str = "ws";
-const BATCH_SIZE: usize = 100;
-const BATCH_DELAY_MS: u64 = 50;
-type Packets = Arc<RwLock<VecDeque<Response>>>;
+const PACKET_BUFFER_SIZE: usize = 32_768;
+
+pub type PacketRingBuffer = HeapRb<Response>;
+pub type Packets = Arc<RwLock<PacketRingBuffer>>;
 pub type PacketsMap = Arc<HashMap<Source, Packets>>;
 
 pub async fn setup_packet_handlers(
@@ -29,7 +33,7 @@ pub async fn setup_packet_handlers(
     let mut source_to_packets = HashMap::new();
 
     for (_file, sniffer) in sniffers {
-        let packets = Arc::new(RwLock::new(VecDeque::new()));
+        let packets = Arc::new(RwLock::new(HeapRb::new(PACKET_BUFFER_SIZE)));
         source_to_packets.insert(sniffer.source.clone(), packets.clone());
 
         let cloned_clients = clients.clone();
@@ -63,6 +67,22 @@ pub async fn send_pcap_filenames(
         .await;
 }
 
+async fn discharge_old_packets(packets: &mut PacketRingBuffer) {
+    let now = SystemTime::now();
+    while let Some(packet) = packets.try_peek() {
+        if let Response::Packet(p) = packet {
+            match now.duration_since(p.creation_time) {
+                Ok(age) if age.as_secs() <= PACKET_MAX_AGE_SECS => break,
+                _ => {
+                    packets.try_pop();
+                }
+            }
+        } else {
+            break;
+        }
+    }
+}
+
 async fn sniff(mut sniffer: Sniffer, packets: Packets, clients: Clients) {
     while let Some(result) = sniffer.next_packet().await {
         match result {
@@ -70,14 +90,12 @@ async fn sniff(mut sniffer: Sniffer, packets: Packets, clients: Clients) {
                 pack.guess_payload();
                 let response = Response::Packet(pack);
 
-                // Send single packet directly without batching for real-time delivery
                 let Ok(encoded) = response.encode() else {
                     error!("Sniffer: failed to encode packet");
                     continue;
                 };
                 let msg = Message::binary(encoded);
 
-                // Send to connected clients
                 for (_, client) in clients.read().await.iter() {
                     match client {
                         Client {
@@ -92,8 +110,14 @@ async fn sniff(mut sniffer: Sniffer, packets: Packets, clients: Clients) {
                     }
                 }
 
-                // Store in history
-                packets.write().await.push_back(response);
+                let mut packets = packets.write().await;
+
+                discharge_old_packets(&mut packets).await;
+
+                if packets.is_full() {
+                    warn!("Packet buffer full, discarding oldest packet");
+                }
+                packets.push_overwrite(response);
             }
             Err(err) => info!("Error when capturing a packet: {:?}", err),
         }
@@ -130,7 +154,6 @@ async fn send_all_packets(
     packets: &Packets,
     ws_tx: &mut UnboundedSender<Message>,
 ) {
-    // Send packets individually for now to maintain compatibility
     let packets_read = packets.read().await;
     for packet in packets_read.iter() {
         let Ok(encoded) = packet.encode() else {
@@ -153,7 +176,7 @@ async fn reparse_packet(
     packet_type: SessionProtocol,
 ) {
     let mut packets = packets.write().await;
-    let Some(response_packet) = packets.get_mut(id) else {
+    let Some(response_packet) = packets.iter_mut().nth(id) else {
         warn!(
             "Received reparse request for non-existent packet {}, client_id: {}",
             id, client_id

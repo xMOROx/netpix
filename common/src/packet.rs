@@ -1,10 +1,10 @@
 use super::{MpegtsPacket, RtcpPacket, RtpPacket};
 use serde::{Deserialize, Serialize};
 
-use std::fmt;
 use std::net::SocketAddr;
 use std::str::FromStr;
 use std::time::Duration;
+use std::{fmt, time::SystemTime};
 
 #[cfg(not(target_arch = "wasm32"))]
 use pnet_packet::{
@@ -93,6 +93,7 @@ pub struct Packet {
     pub transport_protocol: TransportProtocol,
     pub session_protocol: SessionProtocol,
     pub contents: SessionPacket,
+    pub creation_time: SystemTime,
 }
 
 #[cfg(not(target_arch = "wasm32"))]
@@ -154,6 +155,7 @@ impl Packet {
             transport_protocol,
             session_protocol: SessionProtocol::Unknown,
             contents: SessionPacket::Unknown,
+            creation_time: SystemTime::now(),
         })
     }
 
