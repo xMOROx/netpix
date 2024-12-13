@@ -226,6 +226,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "crc32fast"
+version = "1.4.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a97769d94ddab943e4510d138150169a2758b5ef3eb191a9ee688de3e23ef7b3"
+dependencies = [
+ "cfg-if",
+]
+
+[[package]]
 name = "crossbeam-utils"
 version = "0.8.20"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -315,6 +324,16 @@ checksum = "aa68f1b12764fab894d2755d2518754e71b4fd80ecfb822714a1206c2aab39bf"
 dependencies = [
  "cc",
  "libc",
+]
+
+[[package]]
+name = "flate2"
+version = "1.0.35"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c936bfdafb507ebbf50b8074c54fa31c5be9a1e7e5f467dd659697041407d07c"
+dependencies = [
+ "crc32fast",
+ "miniz_oxide",
 ]
 
 [[package]]
@@ -885,7 +904,9 @@ dependencies = [
 name = "netpix"
 version = "0.3.1"
 dependencies = [
+ "bincode",
  "clap",
+ "flate2",
  "futures-util",
  "log",
  "mime_guess",
@@ -903,6 +924,7 @@ name = "netpix_common"
 version = "0.3.1"
 dependencies = [
  "bincode",
+ "flate2",
  "log",
  "pcap",
  "pnet_packet",

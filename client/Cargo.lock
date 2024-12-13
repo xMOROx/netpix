@@ -1502,6 +1502,7 @@ name = "netpix_common"
 version = "0.3.1"
 dependencies = [
  "bincode",
+ "flate2",
  "log",
  "pcap",
  "pnet_packet",
