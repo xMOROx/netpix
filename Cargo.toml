@@ -13,6 +13,7 @@ include = ["/src/", "/dist/"]
 
 [dependencies]
 netpix_common = { path = "./common", version = "0.3.1" }
+netpix_macros = { path = "./macros", version = "0.1.0" }
 log = "0.4.22"
 pretty_env_logger = "0.5"
 tokio = { version = "1", features = ["full"] }
