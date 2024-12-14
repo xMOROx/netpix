@@ -50,13 +50,7 @@ use crate::filter_system::{
 use crate::streams::rtpStream::RtpInfo;
 use crate::{declare_filter_type, filter_system};
 use netpix_common::RtpPacket;
-
-pub struct FilterContext<'a> {
-    pub packet: &'a RtpPacket,
-    pub alias: &'a str,
-    pub source_addr: &'a str,
-    pub destination_addr: &'a str,
-}
+use crate::app::rtp_packets_table::RtpFilterContext;
 
 declare_filter_type! {
     pub enum FilterType {
@@ -83,7 +77,7 @@ pub fn parse_filter(filter: &str) -> Result<FilterType, ParseError> {
 }
 
 impl<'a> FilterExpression<'a> for FilterType {
-    type Context = FilterContext<'a>;
+    type Context = RtpFilterContext<'a>;
 
     fn matches(&self, ctx: &Self::Context) -> bool {
         match self {

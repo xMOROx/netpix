@@ -1,3 +1,4 @@
+use crate::define_column;
 use crate::app::common::*;
 use crate::declare_table;
 
@@ -9,7 +10,7 @@ use crate::app::utils::{FilterHelpContent, FilterInput};
 use crate::filter_system::FilterExpression;
 use crate::streams::RefStreams;
 use egui::Widget;
-use egui_extras::{Column, TableBody, TableBuilder};
+use egui_extras::{Column, TableBody, TableBuilder, TableRow};
 use netpix_common::mpegts::header::PIDTable;
 use std::collections::BTreeMap;
 
@@ -77,10 +78,8 @@ impl TableBase for MpegTsInformationTable {
         let result = parse_filter(&filter.to_lowercase());
         self.filter_input.set_error(result.err());
     }
-}
 
-impl MpegTsInformationTable {
-    fn build_header(&mut self, header: &mut egui_extras::TableRow) {
+    fn build_header(&mut self, header: &mut TableRow) {
         let labels = [
             ("Stream alias", "Stream alias"),
             ("Type", "Type of mpegts packet"),
@@ -135,6 +134,9 @@ impl MpegTsInformationTable {
 
         build_table_body(body, &mpegts_rows, &mut self.open_modal);
     }
+}
+
+impl MpegTsInformationTable {
 
     fn row_matches_filter(&self, key: &RowKey, info: &MpegTsInfo) -> bool {
         if self.filter_input.get_filter().is_empty() {

@@ -1,3 +1,4 @@
+use crate::define_column;
 use crate::app::common::{TableBase, TableConfig};
 use crate::app::utils::{FilterHelpContent, FilterInput};
 use crate::declare_table;
@@ -11,7 +12,7 @@ use crate::filter_system::FilterExpression;
 use crate::streams::mpegts_stream::substream::MpegtsSubStream;
 use crate::streams::stream_statistics::StreamStatistics;
 use egui::{Align2, Id, Window};
-use egui_extras::{Column, TableBody, TableBuilder};
+use egui_extras::{Column, TableBody, TableBuilder, TableRow};
 use netpix_common::mpegts::psi::pmt::stream_types::{stream_type_into_unique_letter, StreamType};
 use std::collections::HashMap;
 
@@ -92,74 +93,8 @@ impl TableBase for MpegTsStreamsTable {
         let result = parse_filter(&filter.to_lowercase());
         self.filter_input.set_error(result.err());
     }
-}
 
-impl MpegTsStreamsTable {
-    fn options_ui(&mut self, ui: &mut egui::Ui) {
-        let streams = &self.streams.borrow();
-        let has_stream_types = streams
-            .mpeg_ts_streams
-            .values()
-            .flat_map(|stream| stream.substreams.values())
-            .next()
-            .is_some();
-
-        ui.horizontal(|ui| {
-            ui.with_layout(egui::Layout::left_to_right(egui::Align::Center), |ui| {
-                let mut button = egui::Button::new("ℹ Stream Types");
-
-                // Change button appearance when modal is open
-                if self.modal_open {
-                    button = button.fill(ui.visuals().selection.bg_fill);
-                }
-
-                if ui.add_enabled(has_stream_types, button).clicked() {
-                    self.modal_open = !self.modal_open; // Toggle modal state
-                }
-            });
-        });
-    }
-
-    fn stream_matches_filter(&self, stream: &MpegtsSubStream) -> bool {
-        if self.filter_input.get_filter().is_empty() {
-            return true;
-        }
-
-        let filter = self.filter_input.get_filter().trim().to_lowercase();
-        let ctx = FilterContext { stream };
-
-        parse_filter(&filter)
-            .map(|filter_type| filter_type.matches(&ctx))
-            .unwrap_or(true) // Show all streams if filter parsing fails
-    }
-
-    fn show_stream_type_info_modal(&mut self, ctx: &egui::Context) {
-        let streams = self.streams.borrow();
-        let mut unique_stream_types: Vec<StreamType> = streams
-            .mpeg_ts_streams
-            .values()
-            .flat_map(|stream| stream.substreams.values())
-            .map(|substream| substream.stream_type)
-            .collect::<std::collections::HashSet<_>>()
-            .into_iter()
-            .collect();
-
-        unique_stream_types.sort();
-
-        Window::new("Stream Type Information")
-            .resizable(false)
-            .open(&mut self.modal_open)
-            .show(ctx, |ui| {
-                ui.vertical(|ui| {
-                    for stream_type in unique_stream_types {
-                        let letter = stream_type_into_unique_letter(&stream_type);
-                        ui.label(format!("{} - {}", letter, stream_type));
-                    }
-                });
-            });
-    }
-
-    fn build_header(&mut self, header: &mut egui_extras::TableRow) {
+    fn build_header(&mut self, header: &mut TableRow) {
         let headers = [
             (
                 "Stream alias",
@@ -272,4 +207,71 @@ impl MpegTsStreamsTable {
             });
         });
     }
+}
+
+impl MpegTsStreamsTable {
+    fn options_ui(&mut self, ui: &mut egui::Ui) {
+        let streams = &self.streams.borrow();
+        let has_stream_types = streams
+            .mpeg_ts_streams
+            .values()
+            .flat_map(|stream| stream.substreams.values())
+            .next()
+            .is_some();
+
+        ui.horizontal(|ui| {
+            ui.with_layout(egui::Layout::left_to_right(egui::Align::Center), |ui| {
+                let mut button = egui::Button::new("ℹ Stream Types");
+
+                // Change button appearance when modal is open
+                if self.modal_open {
+                    button = button.fill(ui.visuals().selection.bg_fill);
+                }
+
+                if ui.add_enabled(has_stream_types, button).clicked() {
+                    self.modal_open = !self.modal_open; // Toggle modal state
+                }
+            });
+        });
+    }
+
+    fn stream_matches_filter(&self, stream: &MpegtsSubStream) -> bool {
+        if self.filter_input.get_filter().is_empty() {
+            return true;
+        }
+
+        let filter = self.filter_input.get_filter().trim().to_lowercase();
+        let ctx = FilterContext { stream };
+
+        parse_filter(&filter)
+            .map(|filter_type| filter_type.matches(&ctx))
+            .unwrap_or(true) // Show all streams if filter parsing fails
+    }
+
+    fn show_stream_type_info_modal(&mut self, ctx: &egui::Context) {
+        let streams = self.streams.borrow();
+        let mut unique_stream_types: Vec<StreamType> = streams
+            .mpeg_ts_streams
+            .values()
+            .flat_map(|stream| stream.substreams.values())
+            .map(|substream| substream.stream_type)
+            .collect::<std::collections::HashSet<_>>()
+            .into_iter()
+            .collect();
+
+        unique_stream_types.sort();
+
+        Window::new("Stream Type Information")
+            .resizable(false)
+            .open(&mut self.modal_open)
+            .show(ctx, |ui| {
+                ui.vertical(|ui| {
+                    for stream_type in unique_stream_types {
+                        let letter = stream_type_into_unique_letter(&stream_type);
+                        ui.label(format!("{} - {}", letter, stream_type));
+                    }
+                });
+            });
+    }
+
 }

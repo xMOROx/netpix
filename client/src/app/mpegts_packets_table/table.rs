@@ -1,6 +1,7 @@
 use crate::app::common::{TableBase, TableConfig};
 use crate::app::utils::{FilterHelpContent, FilterInput};
 use crate::declare_table;
+use crate::define_column;
 use crate::streams::{RefStreams, Streams};
 use std::cell::Ref;
 
@@ -9,7 +10,7 @@ use super::display::format_packet_text;
 use super::filters::{parse_filter, FilterContext};
 use super::types::PacketInfo;
 use crate::filter_system::FilterExpression;
-use egui_extras::{Column, TableBody, TableBuilder};
+use egui_extras::{Column, TableBody, TableBuilder, TableRow};
 use netpix_common::mpegts::header::{AdaptationFieldControl, PIDTable};
 use std::collections::HashMap;
 use web_time::Duration;
@@ -91,29 +92,8 @@ impl TableBase for MpegTsPacketsTable {
         let result = parse_filter(&filter.to_lowercase());
         self.filter_input.set_error(result.err());
     }
-}
 
-impl MpegTsPacketsTable {
-    fn options_ui(&mut self, ui: &mut egui::Ui) {
-        let streams = &self.streams.borrow().mpeg_ts_streams;
-        let mut aliases = Vec::with_capacity(streams.len());
-
-        for (&key, stream) in streams.iter() {
-            aliases.push((key, stream.alias.to_string()));
-        }
-        aliases.sort_by(|(_, a), (_, b)| a.cmp(b));
-
-        ui.horizontal_wrapped(|ui| {
-            ui.label("Aliases: ");
-            for (_, alias) in &aliases {
-                ui.label(alias);
-            }
-        });
-
-        ui.add_space(self.config.space_after_filter);
-    }
-
-    fn build_header(&mut self, header: &mut egui_extras::TableRow) {
+    fn build_header(&mut self, header: &mut TableRow) {
         let headers = [
             "ID",
             "Alias",
@@ -252,6 +232,27 @@ impl MpegTsPacketsTable {
                 ui.label(payload_size.to_string());
             });
         });
+    }
+}
+
+impl MpegTsPacketsTable {
+    fn options_ui(&mut self, ui: &mut egui::Ui) {
+        let streams = &self.streams.borrow().mpeg_ts_streams;
+        let mut aliases = Vec::with_capacity(streams.len());
+
+        for (&key, stream) in streams.iter() {
+            aliases.push((key, stream.alias.to_string()));
+        }
+        aliases.sort_by(|(_, a), (_, b)| a.cmp(b));
+
+        ui.horizontal_wrapped(|ui| {
+            ui.label("Aliases: ");
+            for (_, alias) in &aliases {
+                ui.label(alias);
+            }
+        });
+
+        ui.add_space(self.config.space_after_filter);
     }
 
     fn format_pid_label(&self, pid: PIDTable, streams: &Ref<Streams>) -> String {

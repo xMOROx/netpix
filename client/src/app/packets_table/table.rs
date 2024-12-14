@@ -1,9 +1,10 @@
+use crate::define_column;
 use crate::app::common::{TableBase, TableConfig};
 use crate::app::utils::{FilterHelpContent, FilterInput};
 use crate::declare_table;
 use crate::filter_system::FilterExpression;
 use crate::streams::RefStreams;
-use egui_extras::Column;
+use egui_extras::{Column, TableRow};
 use egui_extras::TableBuilder;
 
 use super::filters::{parse_filter, FilterContext};
@@ -81,17 +82,8 @@ impl TableBase for PacketsTable {
         let result = parse_filter(&filter.to_lowercase());
         self.filter_input.set_error(result.err());
     }
-}
 
-impl PacketsTable {
-    pub fn new_with_sender(streams: RefStreams, ws_sender: WsSender) -> Self {
-        Self {
-            ws_sender: Some(ws_sender),
-            ..Self::new(streams)
-        }
-    }
-
-    fn build_header(&mut self, header: &mut egui_extras::TableRow) {
+    fn build_header(&mut self, header: &mut TableRow) {
         let headers = [
             "No.",
             "Time",
@@ -182,6 +174,15 @@ impl PacketsTable {
         requests
             .iter()
             .for_each(|req| self.send_parse_request(req.clone()));
+    }
+}
+
+impl PacketsTable {
+    pub fn new_with_sender(streams: RefStreams, ws_sender: WsSender) -> Self {
+        Self {
+            ws_sender: Some(ws_sender),
+            ..Self::new(streams)
+        }
     }
 
     fn packet_matches_filter(&self, packet: &Packet) -> bool {

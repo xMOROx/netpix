@@ -1,97 +1,42 @@
-use super::filters::{self, parse_filter, FilterContext, FilterType};
-use super::types::PacketInfo;
-use crate::app::common::{TableBase, TableConfig};
-use crate::app::utils::{FilterHelpContent, FilterInput};
-use crate::declare_table;
+use super::filters::{parse_filter, FilterType};
+use crate::app::common::*;
+use crate::app::rtp_packets_table::RtpFilterContext;
+use crate::app::utils::*;
+use crate::define_column;
 use crate::filter_system::FilterExpression;
-use crate::streams::rtpStream::RtpInfo;
 use crate::streams::RefStreams;
+use crate::{declare_table, declare_table_struct, impl_table_base};
 use eframe::epaint::Color32;
-use egui::RichText;
-use egui_extras::TableBuilder;
-use egui_extras::{Column, TableBody};
+use egui::{Context, RichText};
+use egui_extras::Column;
+use egui_extras::{TableBody, TableBuilder, TableRow};
 use netpix_common::packet::SessionPacket;
 use std::collections::HashMap;
 
-declare_table!(RtpPacketsTable, FilterType, {
-    height(30.0);
-    striped(true);
-    resizable(true);
-    stick_to_bottom(true);
-    columns(
-        column(None, 40.0, Some(50.0), false, true),
-        column(None, 80.0, Some(80.0), false, true),
-        column(None, 130.0, None, false, true),
-        column(None, 130.0, None, false, true),
-        column(None, 80.0, None, false, true),
-        column(None, 80.0, None, false, true),
-        column(None, 80.0, None, false, true),
-        column(None, 80.0, None, false, true),
-        column(None, 80.0, None, false, true),
-        column(None, 80.0, None, false, true),
-        column(None, 80.0, None, false, true),
-        column(None, 50.0, None, false, true),
-        column(None, 80.0, None, false, true),
-        column(None, 80.0, None, false, true),
-    )
-});
+declare_table_struct!(RtpPacketsTable);
 
-pub struct RtpPacketsTable {
-    streams: RefStreams,
-    filter_input: FilterInput,
-    config: TableConfig,
-}
-
-impl TableBase for RtpPacketsTable {
-    fn new(streams: RefStreams) -> Self {
-        let help = FilterHelpContent::builder("RTP Packet Filters")
-            .filter("source", "Filter by source IP address")
-            .filter("dest", "Filter by destination IP address")
-            .filter("alias", "Filter by stream alias")
-            .filter("padding", "Filter by padding presence (+: true, -: false)")
-            .filter("extension", "Filter by extension presence (+: true, -: false)")
-            .filter("marker", "Filter by marker presence (+: true, -: false)")
-            .filter("seq", "Filter by sequence number")
-            .filter("timestamp", "Filter by RTP timestamp")
-            .filter("payload", "Filter by payload size")
-            .example("source:10.0.0 AND payload:>1000")
-            .example("(dest:192.168 OR dest:10.0.0) AND NOT seq:0")
-            .example("padding:+ AND timestamp:>1000000")
-            .example("padding:+ AND extension:-")
-
-            .build();
-
-        Self {
-            streams,
-            filter_input: FilterInput::new(help),
-            config: TableConfig::default(),
-        }
-    }
-
-    fn ui(&mut self, ctx: &egui::Context) {
-        if self.filter_input.show(ctx) {
-            self.check_filter();
-        }
-
-        egui::CentralPanel::default().show(ctx, |ui| {
-            self.build_table(ui);
-        });
-    }
-
-    fn check_filter(&mut self) {
-        let filter = self.filter_input.get_filter();
-        if filter.is_empty() {
-            self.filter_input.set_error(None);
-            return;
-        }
-
-        let result = parse_filter(&filter.to_lowercase());
-        self.filter_input.set_error(result.err());
-    }
-}
-
-impl RtpPacketsTable {
-    fn build_header(&mut self, header: &mut egui_extras::TableRow) {
+impl_table_base!(
+    RtpPacketsTable,
+    FilterHelpContent::builder("RTP Packet Filters")
+        .filter("source", "Filter by source IP address")
+        .filter("dest", "Filter by destination IP address")
+        .filter("alias", "Filter by stream alias")
+        .filter("padding", "Filter by padding presence (+: true, -: false)")
+        .filter(
+            "extension",
+            "Filter by extension presence (+: true, -: false)"
+        )
+        .filter("marker", "Filter by marker presence (+: true, -: false)")
+        .filter("seq", "Filter by sequence number")
+        .filter("timestamp", "Filter by RTP timestamp")
+        .filter("payload", "Filter by payload size")
+        .example("source:10.0.0 AND payload:>1000")
+        .example("(dest:192.168 OR dest:10.0.0) AND NOT seq:0")
+        .example("padding:+ AND timestamp:>1000000")
+        .example("padding:+ AND extension:-")
+        .build()
+    ;
+    build_header: |self, header| {
         let headers = [
             ("No.", "Packet number (including skipped packets)"),
             ("Time", "Packet arrival timestamp"),
@@ -115,8 +60,8 @@ impl RtpPacketsTable {
             });
         }
     }
-
-    fn build_table_body(&mut self, body: TableBody) {
+    ;
+    build_table_body: |self, body| {
         let streams = &self.streams.borrow();
         let mut rtp_packets: Vec<_> = streams
             .packets
@@ -124,7 +69,6 @@ impl RtpPacketsTable {
             .filter(|packet| matches!(packet.contents, SessionPacket::Rtp(_)))
             .collect();
 
-        // Apply filtering if filter is set
         rtp_packets.retain(|packet| {
             let SessionPacket::Rtp(ref rtp_packet) = packet.contents else {
                 return false;
@@ -142,7 +86,7 @@ impl RtpPacketsTable {
                 .get(&key)
                 .map(|stream| stream.alias.to_string());
 
-            let ctx = FilterContext {
+            let ctx = RtpFilterContext {
                 packet: rtp_packet,
                 source_addr: &packet.source_addr.to_string(),
                 destination_addr: &packet.destination_addr.to_string(),
@@ -255,16 +199,40 @@ impl RtpPacketsTable {
             });
         });
     }
+);
 
-    fn packet_matches_filter(&self, ctx: &FilterContext) -> bool {
+declare_table!(RtpPacketsTable, FilterType, {
+    height(30.0);
+    striped(true);
+    resizable(true);
+    stick_to_bottom(true);
+    columns(
+        column(None, 40.0, Some(50.0), false, true),
+        column(None, 80.0, Some(80.0), false, true),
+        column(None, 130.0, None, false, true),
+        column(None, 130.0, None, false, true),
+        column(None, 80.0, None, false, true),
+        column(None, 80.0, None, false, true),
+        column(None, 80.0, None, false, true),
+        column(None, 80.0, None, false, true),
+        column(None, 80.0, None, false, true),
+        column(None, 80.0, None, false, true),
+        column(None, 80.0, None, false, true),
+        column(None, 50.0, None, false, true),
+        column(None, 80.0, None, false, true),
+        column(None, 80.0, None, false, true),
+    )
+});
+
+impl RtpPacketsTable {
+    fn packet_matches_filter(&self, ctx: &RtpFilterContext) -> bool {
         if self.filter_input.get_filter().is_empty() {
             return true;
         }
 
         let filter = self.filter_input.get_filter().trim();
-
-        parse_filter(&filter)
-            .map(|filter_type| filter_type.matches(&ctx))
+        parse_filter(filter)
+            .map(|filter_type| filter_type.matches(ctx))
             .unwrap_or(true)
     }
 }
