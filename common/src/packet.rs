@@ -1,18 +1,20 @@
 use super::{MpegtsPacket, RtcpPacket, RtpPacket};
 use serde::{Deserialize, Serialize};
 
-use std::fmt;
 use std::net::SocketAddr;
 use std::str::FromStr;
 use std::time::Duration;
+use std::{fmt, time::SystemTime};
 
 #[cfg(not(target_arch = "wasm32"))]
-use etherparse::{
-    EtherPayloadSlice, IpPayloadSlice, Ipv4Header, Ipv6Header,
-    NetHeaders::{self, Ipv4, Ipv6},
-    PacketHeaders, PayloadSlice, TcpHeader,
-    TransportHeader::{self, Tcp, Udp},
-    UdpHeader,
+use pnet_packet::{
+    ethernet::{EtherTypes, EthernetPacket},
+    ip::IpNextHeaderProtocols,
+    ipv4::Ipv4Packet,
+    ipv6::Ipv6Packet,
+    tcp::TcpPacket,
+    udp::UdpPacket,
+    Packet as _,
 };
 
 #[derive(Serialize, Deserialize, PartialEq, Debug, Copy, Clone)]
@@ -91,46 +93,144 @@ pub struct Packet {
     pub transport_protocol: TransportProtocol,
     pub session_protocol: SessionProtocol,
     pub contents: SessionPacket,
+    pub creation_time: SystemTime,
 }
 
 #[cfg(not(target_arch = "wasm32"))]
 impl Packet {
     pub fn build(raw_packet: &pcap::Packet, id: usize) -> Option<Self> {
-        let Ok(packet) = PacketHeaders::from_ethernet_slice(raw_packet) else {
-            return None;
-        };
-        let PacketHeaders {
-            net: Some(ip),
-            transport: Some(transport),
-            ..
-        } = packet
-        else {
-            return None;
+        let ethernet_packet = EthernetPacket::new(raw_packet)?;
+
+        match ethernet_packet.get_ethertype() {
+            EtherTypes::Ipv4 => Self::build_from_ip4(raw_packet, id, &ethernet_packet),
+            EtherTypes::Ipv6 => Self::build_from_ip6(raw_packet, id, &ethernet_packet),
+            _ => None,
+        }
+    }
+
+    fn build_from_transport(
+        raw_packet: &pcap::Packet,
+        id: usize,
+        source_addr: std::net::IpAddr,
+        destination_addr: std::net::IpAddr,
+        transport_protocol: TransportProtocol,
+        payload: &[u8],
+    ) -> Option<Self> {
+        let (source_addr, destination_addr, payload) = match transport_protocol {
+            TransportProtocol::Tcp => {
+                let tcp_packet = TcpPacket::new(payload)?;
+                let source_port = tcp_packet.get_source();
+                let destination_port = tcp_packet.get_destination();
+                let source_addr = SocketAddr::new(source_addr, source_port);
+                let destination_addr = SocketAddr::new(destination_addr, destination_port);
+                let tcp_payload = tcp_packet.payload();
+                if tcp_payload.is_empty() {
+                    (source_addr, destination_addr, payload.to_vec())
+                } else {
+                    (source_addr, destination_addr, tcp_payload.to_vec())
+                }
+            }
+            TransportProtocol::Udp => {
+                let udp_packet = UdpPacket::new(payload)?;
+                let source_port = udp_packet.get_source();
+                let destination_port = udp_packet.get_destination();
+                let source_addr = SocketAddr::new(source_addr, source_port);
+                let destination_addr = SocketAddr::new(destination_addr, destination_port);
+                let udp_payload = udp_packet.payload();
+                if udp_payload.is_empty() {
+                    (source_addr, destination_addr, payload.to_vec())
+                } else {
+                    (source_addr, destination_addr, udp_payload.to_vec())
+                }
+            }
         };
 
-        let transport_protocol = get_transport_protocol(&transport)?;
-        let (source_addr, destination_addr) = convert_addr(&ip, &transport)?;
-        let duration = get_duration(raw_packet);
-        let payload = match packet.payload {
-            PayloadSlice::Ether(EtherPayloadSlice { payload, .. })
-            | PayloadSlice::Ip(IpPayloadSlice { payload, .. })
-            | PayloadSlice::Udp(payload)
-            | PayloadSlice::Tcp(payload)
-            | PayloadSlice::Icmpv4(payload)
-            | PayloadSlice::Icmpv6(payload) => payload.to_vec(),
-        };
         Some(Self {
             payload: Some(payload),
             id,
-            // length of packet (excluding Ethernet header)
             length: raw_packet.header.len - 14,
-            timestamp: duration,
+            timestamp: get_duration(raw_packet),
             source_addr,
             destination_addr,
             transport_protocol,
             session_protocol: SessionProtocol::Unknown,
             contents: SessionPacket::Unknown,
+            creation_time: SystemTime::now(),
         })
+    }
+
+    fn build_from_ip4(
+        raw_packet: &pcap::Packet,
+        id: usize,
+        ethernet_packet: &EthernetPacket,
+    ) -> Option<Self> {
+        let ipv4_packet = Ipv4Packet::new(ethernet_packet.payload())?;
+        let source_addr = ipv4_packet.get_source();
+        let destination_addr = ipv4_packet.get_destination();
+        let ip_payload = ipv4_packet.payload();
+
+        if ip_payload.is_empty() {
+            return Self::build_from_transport(
+                raw_packet,
+                id,
+                source_addr.into(),
+                destination_addr.into(),
+                TransportProtocol::Udp, // default to UDP for empty payload
+                ethernet_packet.payload(),
+            );
+        }
+
+        let transport_protocol = match ipv4_packet.get_next_level_protocol() {
+            IpNextHeaderProtocols::Tcp => TransportProtocol::Tcp,
+            IpNextHeaderProtocols::Udp => TransportProtocol::Udp,
+            _ => return None,
+        };
+
+        Self::build_from_transport(
+            raw_packet,
+            id,
+            source_addr.into(),
+            destination_addr.into(),
+            transport_protocol,
+            ip_payload,
+        )
+    }
+
+    fn build_from_ip6(
+        raw_packet: &pcap::Packet,
+        id: usize,
+        ethernet_packet: &EthernetPacket,
+    ) -> Option<Self> {
+        let ipv6_packet = Ipv6Packet::new(ethernet_packet.payload())?;
+        let source_addr = ipv6_packet.get_source();
+        let destination_addr = ipv6_packet.get_destination();
+        let ip_payload = ipv6_packet.payload();
+
+        if ip_payload.is_empty() {
+            return Self::build_from_transport(
+                raw_packet,
+                id,
+                source_addr.into(),
+                destination_addr.into(),
+                TransportProtocol::Udp, // default to UDP for empty payload
+                ethernet_packet.payload(),
+            );
+        }
+
+        let transport_protocol = match ipv6_packet.get_next_header() {
+            IpNextHeaderProtocols::Tcp => TransportProtocol::Tcp,
+            IpNextHeaderProtocols::Udp => TransportProtocol::Udp,
+            _ => return None,
+        };
+
+        Self::build_from_transport(
+            raw_packet,
+            id,
+            source_addr.into(),
+            destination_addr.into(),
+            transport_protocol,
+            ip_payload,
+        )
     }
 
     pub fn guess_payload(&mut self) {
@@ -231,17 +331,6 @@ fn is_rtcp(packets: &[RtcpPacket]) -> bool {
 }
 
 #[cfg(not(target_arch = "wasm32"))]
-fn get_transport_protocol(transport: &TransportHeader) -> Option<TransportProtocol> {
-    let protocol = match transport {
-        Udp(_) => TransportProtocol::Udp,
-        Tcp(_) => TransportProtocol::Tcp,
-        _ => return None,
-    };
-
-    Some(protocol)
-}
-
-#[cfg(not(target_arch = "wasm32"))]
 fn get_duration(raw_packet: &pcap::Packet) -> Duration {
     use std::ops::Add;
 
@@ -253,92 +342,4 @@ fn get_duration(raw_packet: &pcap::Packet) -> Duration {
     let micros_duration = Duration::from_micros(micrs);
 
     sec_duration.add(micros_duration)
-}
-
-#[cfg(not(target_arch = "wasm32"))]
-fn convert_addr(
-    ip_header: &NetHeaders,
-    transport: &TransportHeader,
-) -> Option<(SocketAddr, SocketAddr)> {
-    use std::net::{
-        IpAddr::{V4, V6},
-        Ipv4Addr, Ipv6Addr,
-    };
-
-    let (source_port, dest_port) = match *transport {
-        Udp(UdpHeader {
-            source_port,
-            destination_port,
-            ..
-        })
-        | Tcp(TcpHeader {
-            source_port,
-            destination_port,
-            ..
-        }) => (source_port, destination_port),
-        _ => return None,
-    };
-
-    let (source_ip_addr, dest_ip_addr) = match *ip_header {
-        Ipv4(
-            Ipv4Header {
-                source: [s0, s1, s2, s3],
-                destination: [d0, d1, d2, d3],
-                ..
-            },
-            _,
-        ) => {
-            let source = V4(Ipv4Addr::new(s0, s1, s2, s3));
-            let destination = V4(Ipv4Addr::new(d0, d1, d2, d3));
-            (source, destination)
-        }
-        Ipv6(
-            Ipv6Header {
-                source,
-                destination,
-                ..
-            },
-            _,
-        ) => {
-            let s = to_u16(&source);
-            let d = to_u16(&destination);
-
-            let source = V6(Ipv6Addr::new(
-                s[0], s[1], s[2], s[3], s[4], s[5], s[6], s[7],
-            ));
-            let destination = V6(Ipv6Addr::new(
-                d[0], d[1], d[2], d[3], d[4], d[5], d[6], d[7],
-            ));
-            (source, destination)
-        }
-    };
-    let source = SocketAddr::new(source_ip_addr, source_port);
-    let destination = SocketAddr::new(dest_ip_addr, dest_port);
-    Some((source, destination))
-}
-
-#[cfg(not(target_arch = "wasm32"))]
-fn to_u16(buf: &[u8; 16]) -> Vec<u16> {
-    buf.iter()
-        .step_by(2)
-        .zip(buf.iter().skip(1).step_by(2))
-        .map(|(a, b)| ((*a as u16) << 8) | *b as u16)
-        .collect::<Vec<_>>()
-}
-
-#[cfg(test)]
-#[cfg(not(target_arch = "wasm32"))]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn to_u16_works() {
-        let init_buf: [u8; 16] = [
-            0x15, 0x23, 0x00, 0x11, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0x88, 0x01,
-        ];
-        let new_buf = to_u16(&init_buf);
-        let valid: [u16; 8] = [0x1523, 0x11, 0, 0, 0, 0, 0, 0x8801];
-
-        assert_eq!(new_buf, valid);
-    }
 }

@@ -1,0 +1,17 @@
+[package]
+name = "netpix_macros"
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+description = "Crate with macro utilities for netpix"
+homepage = "https://github.com/xMOROx/netpix"
+repository = "https://github.com/xMOROx/netpix"
+readme = false
+
+[lib]
+proc-macro = true
+
+[dependencies]
+quote = "1.0"
+syn = { version = "1.0", features = ["full"] }
+proc-macro2 = "1.0"

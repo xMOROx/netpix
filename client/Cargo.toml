@@ -1,10 +1,10 @@
 [package]
 name = "netpix_client"
-version = "0.3.0"
+version = "0.3.1"
 edition = "2021"
 
 [dependencies]
-netpix_common = { path = "../common", version = "0.3.0" }
+netpix_common = { path = "../common", version = "0.3.1" }
 egui = "0.29"
 egui_extras = "0.29"
 eframe = { version = "0.29", default-features = false, features = [
