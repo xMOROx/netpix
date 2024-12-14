@@ -1,0 +1,6 @@
+[type.txt]
+extend-glob = ["*.txt"]
+check-file = false
+[type.pcap]
+extend-glob = ["*.pcap", "*.pcapng"]
+check-file = false
