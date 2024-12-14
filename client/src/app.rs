@@ -296,6 +296,7 @@ impl App {
                 continue;
             };
 
+            // Handle single message at a time
             let Ok(response) = Response::decode(&msg) else {
                 error!("Failed to decode response message");
                 continue;
@@ -303,8 +304,8 @@ impl App {
 
             match response {
                 Response::Packet(packet) => {
-                    // this also adds the packet to self.packets
-                    self.streams.borrow_mut().add_packet(packet);
+                    let mut streams = self.streams.borrow_mut();
+                    streams.add_packet(packet);
                 }
                 Response::Sources(sources) => {
                     if let Some(ref source) = self.selected_source {
