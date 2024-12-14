@@ -18,11 +18,12 @@ declare_table!(MpegTsInformationTable, FilterType, {
     striped(true);
     resizable(true);
     stick_to_bottom(true);
-    ;;
-    reminder_column(100.0, 100.0, true),
-    reminder_column(150.0, 150.0, true),
-    reminder_column(100.0, 100.0, true);
-    reminder_column_with_min(800.0, true)
+    columns(
+        column(Some(100.0), 100.0, None, false, true),
+        column(Some(150.0), 150.0, None, false, true),
+        column(Some(100.0), 100.0, None, false, true),
+        column(None, 800.0, None, true, true),
+    )
 });
 
 pub struct MpegTsInformationTable {

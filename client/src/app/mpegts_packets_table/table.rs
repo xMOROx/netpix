@@ -19,19 +19,21 @@ declare_table!(MpegTsPacketsTable, FilterType, {
     striped(true);
     resizable(true);
     stick_to_bottom(true);
-    column_with_width(40.0, 40.0, 50.0, false),
-    column_with_width(40.0, 40.0, 50.0, false),
-    column_with_width(80.0, 80.0, 80.0, false);
-    column_without_max(140.0, 140.0, false),
-    column_without_max(140.0, 140.0, false);
-    reminder_column(160.0, 160.0, true),
-    reminder_column(160.0, 160.0, true),
-    reminder_column(160.0, 160.0, true),
-    reminder_column(160.0, 160.0, true),
-    reminder_column(160.0, 160.0, true),
-    reminder_column(160.0, 160.0, true),
-    reminder_column(160.0, 160.0, true);
-    reminder_column_with_min(80.0, true)
+    columns(
+        column(Some(40.0), 40.0, Some(50.0), false, true),
+        column(Some(40.0), 40.0, Some(50.0), false, true),
+        column(Some(80.0), 80.0, Some(80.0), false, true),
+        column(Some(140.0), 140.0, None, false, true),
+        column(Some(140.0), 140.0, None, false, true),
+        column(None, 160.0, Some(160.0), false, true),
+        column(None, 160.0, Some(160.0), false, true),
+        column(None, 160.0, Some(160.0), false, true),
+        column(None, 160.0, Some(160.0), false, true),
+        column(None, 160.0, Some(160.0), false, true),
+        column(None, 160.0, Some(160.0), false, true),
+        column(None, 160.0, Some(160.0), false, true),
+        column(None, 80.0, None, false, true),
+    )
 });
 
 pub struct MpegTsPacketsTable {
@@ -303,10 +305,10 @@ impl MpegTsPacketsTable {
 
         let ctx = FilterContext {
             packet: info.packet,
-            pmt_pids: &*stream
+            pmt_pids: &stream
                 .map(|s| s.stream_info.pmt.keys().copied().collect::<Vec<_>>())
-                .unwrap_or(vec![]),
-            es_pids: &*stream
+                .unwrap_or_default(),
+            es_pids: &stream
                 .map(|s| {
                     s.stream_info
                         .pmt
@@ -318,8 +320,8 @@ impl MpegTsPacketsTable {
                         })
                         .collect::<Vec<_>>()
                 })
-                .unwrap_or(vec![]),
-            pcr_pids: &*stream
+                .unwrap_or_default(),
+            pcr_pids: &stream
                 .map(|s| {
                     s.stream_info
                         .pmt
@@ -327,7 +329,7 @@ impl MpegTsPacketsTable {
                         .map(|pmt| PIDTable::from(pmt.fields.pcr_pid))
                         .collect::<Vec<_>>()
                 })
-                .unwrap_or(vec![]),
+                .unwrap_or_default(),
             stream_alias: stream.map(|s| s.alias.clone()),
         };
 
