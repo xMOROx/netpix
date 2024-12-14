@@ -103,7 +103,7 @@ impl App {
             ewebsock::connect_with_wakeup(uri, wakeup).expect("Unable to connect to WebSocket");
 
         let streams = RefStreams::default();
-        let packets_table = PacketsTable::new(streams.clone(), ws_sender.clone());
+        let packets_table = PacketsTable::new_with_sender(streams.clone(), ws_sender.clone());
         let rtp_packets_table = RtpPacketsTable::new(streams.clone());
         let rtcp_packets_table = RtcpPacketsTable::new(streams.clone());
         let rtp_streams_table = RtpStreamsTable::new(streams.clone(), ws_sender.clone());
