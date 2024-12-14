@@ -147,7 +147,6 @@ impl App {
             .show(ctx, |ui| {
                 ui.set_style(style);
                 ui.vertical_centered(|ui| {
-                    // I'm struggling to add a margin...
                     ui.add_space(6.0);
 
                     let button = side_button("▶");

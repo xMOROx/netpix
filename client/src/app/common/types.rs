@@ -1,3 +1,5 @@
+use std::fmt::Display;
+
 pub struct TableConfig {
     pub row_height: f32,
     pub header_height: f32,
@@ -22,4 +24,13 @@ impl Default for TableConfig {
             space_after_filter: 5.0,
         }
     }
+}
+
+#[macro_export]
+macro_rules! define_filter_context {
+    ($name:ident, $($field:ident: $type:ty),*) => {
+        pub struct $name<'a> {
+            $(pub $field: &'a $type),*
+        }
+    };
 }

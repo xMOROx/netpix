@@ -7,6 +7,34 @@ pub trait TableBase {
     fn new(streams: RefStreams) -> Self;
     fn ui(&mut self, ctx: &Context);
     fn check_filter(&mut self);
+    fn build_header(&mut self, header: &mut egui_extras::TableRow);
+    fn build_table_body(&mut self, body: egui_extras::TableBody);
+}
+
+#[macro_export]
+macro_rules! define_column {
+    ($width:expr, $min:expr, $max:expr, $clipped:expr, $resizable:expr) => {
+        match ($width, $max) {
+            (Some(w), Some(max)) => Column::initial(w)
+                .at_least($min)
+                .at_most(max)
+                .clip($clipped)
+                .resizable($resizable),
+            (Some(w), None) => Column::initial(w)
+                .at_least($min)
+                .clip($clipped)
+                .resizable($resizable),
+            (None, Some(max)) => Column::remainder()
+                .at_least($min)
+                .at_most(max)
+                .clip($clipped)
+                .resizable($resizable),
+            (None, None) => Column::remainder()
+                .at_least($min)
+                .clip($clipped)
+                .resizable($resizable),
+        }
+    };
 }
 
 #[macro_export]
@@ -34,12 +62,7 @@ macro_rules! declare_table {
 
                 $(
                     builder = builder.column(
-                        match ($width, $max) {
-                            (Some(w), Some(max)) => Column::initial(w).at_least($min).at_most(max).clip($clipped).resizable($column_resizable),
-                            (Some(w), None) => Column::initial(w).at_least($min).clip($clipped).resizable($column_resizable),
-                            (None, Some(max)) => Column::remainder().at_least($min).at_most(max).clip($clipped).resizable($column_resizable),
-                            (None, None) => Column::remainder().at_least($min).clip($clipped).resizable($column_resizable),
-                        }
+                        define_column!($width, $min, $max, $clipped, $column_resizable)
                     );
                 )*
 
