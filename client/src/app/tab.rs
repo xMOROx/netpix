@@ -24,7 +24,6 @@ pub enum MpegTsSection {
     Packets,
     Streams,
     Information,
-    Plot,
 }
 
 impl Tab {
@@ -93,7 +92,6 @@ impl fmt::Display for MpegTsSection {
             Self::Packets => "📺 MPEG-TS Packets",
             Self::Streams => "🎥 MPEG-TS Streams",
             Self::Information => "ℹ️ MPEG-TS Info",
-            Self::Plot => "📊 MPEG-TS Plot",
         };
 
         write!(f, "{}", ret)
@@ -112,7 +110,7 @@ impl Section for RtpSection {
 
 impl Section for MpegTsSection {
     fn iter() -> impl Iterator<Item = Self> {
-        [Self::Packets, Self::Streams, Self::Information, Self::Plot].into_iter()
+        [Self::Packets, Self::Streams, Self::Information].into_iter()
     }
 
     fn display_name(&self) -> String {
