@@ -20,40 +20,30 @@ macro_rules! declare_table {
         ;
         $(stick_to_bottom($stick_to_bottom:expr))?
         ;
-        $(column_with_width($width_1:expr, $min_1:expr, $max_1:expr, $clipped_1:expr)),*
-        ;
-        $(column_without_max($width_2:expr, $min_2:expr, $clipped_2:expr)),*
-        ;
-        $(reminder_column($min_3:expr, $max_3:expr, $clipped_3:expr)),*
-        ;
-        $(reminder_column_with_min($min_4:expr, $clipped_4:expr)),*
+        columns(
+            $( column($width:expr, $min:expr, $max:expr, $clipped:expr, $column_resizable:expr) ),* $(,)?
+        )
         $(,)?
     }) => {
         impl $table {
             fn build_table(&mut self, ui: &mut egui::Ui) {
-                TableBuilder::new(ui)
+                let mut builder = TableBuilder::new(ui)
                     .striped($(($striped))?)
                     .resizable($(($resizable))?)
-                    .stick_to_bottom($(($stick_to_bottom))?)
-                    $(
-                        .column(Column::initial($width_1)
-                            .at_least($min_1).
-                            at_most($max_1)
-                            .clip($clipped_1)
-                        )
-                    )*
-                    $(
-                        .column(Column::initial($width_2)
-                            .at_least($min_2)
-                            .clip($clipped_2)
-                        )
-                    )*
-                    $(
-                        .column(Column::remainder().at_least($min_3).at_most($max_3).clip($clipped_3))
-                    )*
-                    $(
-                        .column(Column::remainder().at_least($min_4).clip($clipped_4))
-                    )*
+                    .stick_to_bottom($(($stick_to_bottom))?);
+
+                $(
+                    builder = builder.column(
+                        match ($width, $max) {
+                            (Some(w), Some(max)) => Column::initial(w).at_least($min).at_most(max).clip($clipped).resizable($column_resizable),
+                            (Some(w), None) => Column::initial(w).at_least($min).clip($clipped).resizable($column_resizable),
+                            (None, Some(max)) => Column::remainder().at_least($min).at_most(max).clip($clipped).resizable($column_resizable),
+                            (None, None) => Column::remainder().at_least($min).clip($clipped).resizable($column_resizable),
+                        }
+                    );
+                )*
+
+                builder
                     .header($(($height))?, |mut header| {
                         self.build_header(&mut header);
                     })
