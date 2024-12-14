@@ -1,3 +1,4 @@
+use crate::app::common::table::TableBase;
 use eframe::egui;
 use egui::{ComboBox, Label, TextWrapMode, Ui, Widget};
 use ewebsock::{WsEvent, WsMessage, WsReceiver, WsSender};
@@ -36,6 +37,8 @@ mod mpegts_streams_table;
 mod utils;
 
 mod tab;
+
+mod common;
 
 const SOURCE_KEY: &str = "source";
 const TAB_KEY: &str = "tab";
