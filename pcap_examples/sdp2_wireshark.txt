@@ -1,0 +1,38 @@
+Frame 240412: 999 bytes on wire (7992 bits), 999 bytes captured (7992 bits) on interface \Device\NPF_{437FE688-BCED-4AF0-AB9D-64997CE18A84}, id 0
+Ethernet II, Src: LumensDigita_01:f3:b1 (dc:e2:ac:01:f3:b1), Dst: MicroStarINT_ed:66:c3 (00:d8:61:ed:66:c3)
+Internet Protocol Version 4, Src: 172.17.128.54, Dst: 172.17.128.216
+Transmission Control Protocol, Src Port: 8556, Dst Port: 39295, Seq: 153, Ack: 277, Len: 945
+Real Time Streaming Protocol
+    Response: RTSP/1.0 200 OK\r\n
+    CSeq: 3\r\n
+    Date: Sat, Dec 14 2024 11:48:48 GMT\r\n
+    Content-Base: rtsp://172.17.128.54:8556/h264/\r\n
+    Content-type: application/sdp
+    Content-length: 781
+    \r\n
+    Session Description Protocol
+        Session Description Protocol Version (v): 0
+        Owner/Creator, Session Id (o): - 2169657229604 1 IN IP4 172.17.128.54
+        Session Name (s): RTSP/RTP stream VIL202
+        Session Information (i): h264
+        Time Description, active time (t): 0 0
+        Session Attribute (a): tool:LIVE555 Streaming Media v2017.04.10
+        Session Attribute (a): type:broadcast
+        Session Attribute (a): control:*
+        Session Attribute (a): source-filter: incl IN IP4 * 172.17.128.54
+        Session Attribute (a): rtcp-unicast: reflection
+        Session Attribute (a): range:npt=0-
+        Session Attribute (a): x-qt-text-nam:RTSP/RTP stream VIL202
+        Session Attribute (a): x-qt-text-inf:h264
+        Media Description, name and address (m): video 6012 RTP/AVP 96
+        Connection Information (c): IN IP4 232.207.19.40/255
+        Bandwidth Information (b): AS:20000
+        Media Attribute (a): rtpmap:96 H264/90000
+        Media Attribute (a): fmtp:96 packetization-mode=1;profile-level-id=64002A;sprop-parameter-sets=J2QAKqwXKgLQ9psgAAB9AAAdTBwAAfQAB9AXvdZQ,KP4WLAA=
+        Media Attribute (a): control:track1
+        Media Description, name and address (m): audio 6014 RTP/AVP 96
+        Connection Information (c): IN IP4 232.207.19.40/255
+        Bandwidth Information (b): AS:1536
+        Media Attribute (a): rtpmap:96 MPEG4-GENERIC/48000/2
+        Media Attribute (a): fmtp:96 streamtype=5;profile-level-id=1;mode=AAC-hbr;sizelength=13;indexlength=3;indexdeltalength=3;config=1190
+        Media Attribute (a): control:track2
