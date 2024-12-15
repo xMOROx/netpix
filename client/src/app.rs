@@ -13,7 +13,6 @@ use std::sync::Arc;
 
 use mpegts_info_table::MpegTsInformationTable;
 use mpegts_packets_table::MpegTsPacketsTable;
-use mpegts_stream_plot::MpegTsStreamPlot;
 use mpegts_streams_table::MpegTsStreamsTable;
 
 use tab::Tab;
@@ -30,7 +29,6 @@ mod rtp_streams_table;
 
 mod mpegts_info_table;
 mod mpegts_packets_table;
-mod mpegts_stream_plot;
 mod mpegts_streams_table;
 
 mod utils;
@@ -61,7 +59,6 @@ pub struct App {
     mpegts_packets_table: MpegTsPacketsTable,
     mpegts_streams_table: MpegTsStreamsTable,
     mpegts_info_table: MpegTsInformationTable,
-    mpegts_plot: MpegTsStreamPlot,
 }
 
 impl eframe::App for App {
@@ -86,7 +83,6 @@ impl eframe::App for App {
                 MpegTsSection::Packets => self.mpegts_packets_table.ui(ctx),
                 MpegTsSection::Streams => self.mpegts_streams_table.ui(ctx),
                 MpegTsSection::Information => self.mpegts_info_table.ui(ctx),
-                MpegTsSection::Plot => self.mpegts_plot.ui(ctx),
             },
         };
     }
@@ -113,7 +109,6 @@ impl App {
         let mpegts_packets_table = MpegTsPacketsTable::new(streams.clone());
         let mpegts_streams_table = MpegTsStreamsTable::new(streams.clone());
         let mpegts_info_table = MpegTsInformationTable::new(streams.clone());
-        let mpegts_plot = MpegTsStreamPlot::new(streams.clone());
 
         let (tab, selected_source) = get_initial_state(cc);
 
@@ -133,7 +128,6 @@ impl App {
             mpegts_packets_table,
             mpegts_streams_table,
             mpegts_info_table,
-            mpegts_plot,
         }
     }
 
