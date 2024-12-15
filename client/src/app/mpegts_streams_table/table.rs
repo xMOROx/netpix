@@ -1,50 +1,24 @@
-use crate::define_column;
-use crate::app::common::{TableBase, TableConfig};
-use crate::app::utils::{FilterHelpContent, FilterInput};
-use crate::declare_table;
-use crate::streams::RefStreams;
-
 use super::display::build_bitrate_plot;
 use super::filters::{parse_filter, FilterContext};
 use super::types::StreamInfo;
+use crate::app::common::{TableBase, TableConfig};
 use crate::app::mpegts_streams_table::filters;
+use crate::app::utils::{FilterHelpContent, FilterInput};
+use crate::define_column;
 use crate::filter_system::FilterExpression;
 use crate::streams::mpegts_stream::substream::MpegtsSubStream;
 use crate::streams::stream_statistics::StreamStatistics;
+use crate::streams::RefStreams;
+use crate::{declare_table, declare_table_struct, impl_table_base};
 use egui::{Align2, Id, Window};
 use egui_extras::{Column, TableBody, TableBuilder, TableRow};
 use netpix_common::mpegts::psi::pmt::stream_types::{stream_type_into_unique_letter, StreamType};
 use std::collections::HashMap;
 
-declare_table!(MpegTsStreamsTable, FilterType, {
-    height(30.0);
-    striped(true);
-    resizable(true);
-    stick_to_bottom(true);
-    columns(
-        column(Some(80.0), 80.0, Some(80.0), false, true),
-        column(Some(80.0), 80.0, Some(80.0), false, true),
-        column(Some(140.0), 140.0, Some(155.0), false, true),
-        column(Some(140.0), 140.0, Some(155.0), false, true),
-        column(Some(97.0), 97.0, Some(112.0), false, true),
-        column(Some(75.0), 75.0, Some(90.0), false, true),
-        column(Some(80.0), 80.0, Some(95.0), false, true),
-        column(Some(75.0), 75.0, Some(90.0), false, true),
-        column(Some(130.0), 130.0, Some(145.0), false, true),
-        column(None, 130.0, None, false, false),
-    )
-});
-
-pub struct MpegTsStreamsTable {
-    streams: RefStreams,
-    filter_input: FilterInput,
-    config: TableConfig,
-    modal_open: bool, // Add this field
-}
-
-impl TableBase for MpegTsStreamsTable {
-    fn new(streams: RefStreams) -> Self {
-        let help = FilterHelpContent::builder("MPEG-TS Streams Filters")
+impl_table_base!(
+    MpegTsStreamsTable;
+    modal_open:bool;
+    FilterHelpContent::builder("MPEG-TS Streams Filters")
             .filter("alias:<value>", "Filter by stream alias")
             .filter("program:<number>", "Filter by program number")
             .filter("source:<ip>", "Filter by source IP address")
@@ -57,17 +31,9 @@ impl TableBase for MpegTsStreamsTable {
             .example("source:192.168 OR dest:10.0")
             .example("fragments:>100 AND duration:<10")
             .example("(program:1 AND bitrate:>500) OR fragmentrate:>30")
-            .build();
-
-        Self {
-            streams,
-            filter_input: FilterInput::new(help),
-            config: TableConfig::new(100.0, 30.0, 5.0),
-            modal_open: false, // Initialize modal state
-        }
-    }
-
-    fn ui(&mut self, ctx: &egui::Context) {
+            .build()
+    ;
+    ui: |self, ctx| {
         if self.filter_input.show(ctx) {
             self.check_filter();
         }
@@ -81,20 +47,10 @@ impl TableBase for MpegTsStreamsTable {
                 self.show_stream_type_info_modal(ctx);
             }
         });
+
     }
-
-    fn check_filter(&mut self) {
-        let filter = self.filter_input.get_filter();
-        if filter.is_empty() {
-            self.filter_input.set_error(None);
-            return;
-        }
-
-        let result = parse_filter(&filter.to_lowercase());
-        self.filter_input.set_error(result.err());
-    }
-
-    fn build_header(&mut self, header: &mut TableRow) {
+    ;
+    build_header: |self, header| {
         let headers = [
             (
                 "Stream alias",
@@ -134,9 +90,10 @@ impl TableBase for MpegTsStreamsTable {
                 ui.heading(label.to_string()).on_hover_text(desc);
             });
         }
-    }
 
-    fn build_table_body(&mut self, body: TableBody) {
+    }
+    ;
+    build_table_body: |self, body| {
         let filter_valid = self.filter_input.get_error().is_none();
         let mut streams = self.streams.borrow_mut();
         let mut keys: Vec<_> = vec![];
@@ -206,7 +163,34 @@ impl TableBase for MpegTsStreamsTable {
                 build_bitrate_plot(ui, stream);
             });
         });
+
     }
+);
+
+declare_table!(MpegTsStreamsTable, FilterType, {
+    height(30.0);
+    striped(true);
+    resizable(true);
+    stick_to_bottom(true);
+    columns(
+        column(Some(80.0), 80.0, Some(80.0), false, true),
+        column(Some(80.0), 80.0, Some(80.0), false, true),
+        column(Some(140.0), 140.0, Some(155.0), false, true),
+        column(Some(140.0), 140.0, Some(155.0), false, true),
+        column(Some(97.0), 97.0, Some(112.0), false, true),
+        column(Some(75.0), 75.0, Some(90.0), false, true),
+        column(Some(80.0), 80.0, Some(95.0), false, true),
+        column(Some(75.0), 75.0, Some(90.0), false, true),
+        column(Some(130.0), 130.0, Some(145.0), false, true),
+        column(None, 130.0, None, false, false),
+    )
+});
+
+pub struct MpegTsStreamsTable {
+    streams: RefStreams,
+    filter_input: FilterInput,
+    config: TableConfig,
+    modal_open: bool, // Add this field
 }
 
 impl MpegTsStreamsTable {
@@ -273,5 +257,4 @@ impl MpegTsStreamsTable {
                 });
             });
     }
-
 }
