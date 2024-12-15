@@ -1,41 +1,22 @@
-use crate::define_column;
-use crate::app::common::*;
-use crate::declare_table;
-
 use super::descriptor::*;
 use super::filters::*;
 use super::types::*;
+use crate::app::common::*;
 use crate::app::mpegts_info_table::table_body::build_table_body;
 use crate::app::utils::{FilterHelpContent, FilterInput};
+use crate::define_column;
 use crate::filter_system::FilterExpression;
 use crate::streams::RefStreams;
+use crate::{declare_table, declare_table_struct, impl_table_base};
 use egui::Widget;
 use egui_extras::{Column, TableBody, TableBuilder, TableRow};
 use netpix_common::mpegts::header::PIDTable;
 use std::collections::BTreeMap;
 
-declare_table!(MpegTsInformationTable, FilterType, {
-    height(30.0);
-    striped(true);
-    resizable(true);
-    stick_to_bottom(true);
-    columns(
-        column(Some(100.0), 100.0, None, false, true),
-        column(Some(150.0), 150.0, None, false, true),
-        column(Some(100.0), 100.0, None, false, true),
-        column(None, 800.0, None, true, true),
-    )
-});
-
-pub struct MpegTsInformationTable {
-    streams: RefStreams,
-    open_modal: OpenModal,
-    filter_input: FilterInput,
-}
-
-impl TableBase for MpegTsInformationTable {
-    fn new(streams: RefStreams) -> Self {
-        let help = FilterHelpContent::builder("MPEG-TS Packet Filters")
+impl_table_base!(
+    MpegTsInformationTable;
+    open_modal: OpenModal;
+    FilterHelpContent::builder("MPEG-TS Packet Filters")
             .filter("alias:<stream_alias>", "Filter by stream alias")
             .filter("pid:<number>", "Filter by PID value")
             .filter("type:<value>", "Filter by packet type (PAT, PMT)")
@@ -43,16 +24,9 @@ impl TableBase for MpegTsInformationTable {
             .example("pid:256 OR pid:257")
             .example("NOT type:PMT")
             .example("(type:PAT OR type:PMT) AND alias:stream2")
-            .build();
-
-        Self {
-            streams,
-            open_modal: OpenModal::default(),
-            filter_input: FilterInput::new(help),
-        }
-    }
-
-    fn ui(&mut self, ctx: &egui::Context) {
+            .build()
+    ;
+    ui: |self, ctx| {
         if self.filter_input.show(ctx) {
             self.check_filter();
         }
@@ -67,19 +41,8 @@ impl TableBase for MpegTsInformationTable {
             }
         }
     }
-
-    fn check_filter(&mut self) {
-        let filter = self.filter_input.get_filter();
-        if filter.is_empty() {
-            self.filter_input.set_error(None);
-            return;
-        }
-
-        let result = parse_filter(&filter.to_lowercase());
-        self.filter_input.set_error(result.err());
-    }
-
-    fn build_header(&mut self, header: &mut TableRow) {
+    ;
+    build_header: |self, header| {
         let labels = [
             ("Stream alias", "Stream alias"),
             ("Type", "Type of mpegts packet"),
@@ -94,8 +57,8 @@ impl TableBase for MpegTsInformationTable {
             });
         });
     }
-
-    fn build_table_body(&mut self, body: TableBody) {
+    ;
+    build_table_body: |self, body| {
         let streams = &self.streams.borrow();
         let mut mpegts_rows: BTreeMap<RowKey, MpegTsInfo> = BTreeMap::default();
         let filter_valid = self.filter_input.get_error().is_none();
@@ -133,11 +96,31 @@ impl TableBase for MpegTsInformationTable {
         });
 
         build_table_body(body, &mpegts_rows, &mut self.open_modal);
+
     }
+);
+
+declare_table!(MpegTsInformationTable, FilterType, {
+    height(30.0);
+    striped(true);
+    resizable(true);
+    stick_to_bottom(true);
+    columns(
+        column(Some(100.0), 100.0, None, false, true),
+        column(Some(150.0), 150.0, None, false, true),
+        column(Some(100.0), 100.0, None, false, true),
+        column(None, 800.0, None, true, true),
+    )
+});
+
+pub struct MpegTsInformationTable {
+    streams: RefStreams,
+    open_modal: OpenModal,
+    config: TableConfig,
+    filter_input: FilterInput,
 }
 
 impl MpegTsInformationTable {
-
     fn row_matches_filter(&self, key: &RowKey, info: &MpegTsInfo) -> bool {
         if self.filter_input.get_filter().is_empty() {
             return true;
