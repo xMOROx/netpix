@@ -106,7 +106,7 @@ impl App {
         let packets_table = PacketsTable::new_with_sender(streams.clone(), ws_sender.clone());
         let rtp_packets_table = RtpPacketsTable::new(streams.clone());
         let rtcp_packets_table = RtcpPacketsTable::new(streams.clone());
-        let rtp_streams_table = RtpStreamsTable::new(streams.clone(), ws_sender.clone());
+        let rtp_streams_table = RtpStreamsTable::new_with_sender(streams.clone(), ws_sender.clone());
         let rtp_streams_plot = RtpStreamsPlot::new(streams.clone());
 
         let mpegts_packets_table = MpegTsPacketsTable::new(streams.clone());

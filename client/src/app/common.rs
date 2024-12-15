@@ -1,11 +1,9 @@
 pub(crate) mod table;
 pub(crate) mod types;
-mod utils;
 
 use egui_extras::{TableBody, TableRow};
 pub use table::*;
 pub use types::*;
-pub use utils::*;
 
 #[macro_export]
 macro_rules! declare_table_struct {

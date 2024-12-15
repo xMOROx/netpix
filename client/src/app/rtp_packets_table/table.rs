@@ -62,16 +62,26 @@ impl_table_base!(
     }
     ;
     build_table_body: |self, body| {
-        let streams = &self.streams.borrow();
-        let mut rtp_packets: Vec<_> = streams
+        let streams = self.streams.borrow();
+        let rtp_packets: Vec<_> = streams
             .packets
             .values()
             .filter(|packet| matches!(packet.contents, SessionPacket::Rtp(_)))
             .collect();
 
-        rtp_packets.retain(|packet| {
+        let mut ssrc_to_display_name = HashMap::new();
+        streams.rtp_streams.iter().for_each(|(key, stream)| {
+            ssrc_to_display_name.insert(*key, stream.alias.to_string());
+        });
+
+        let first_ts = rtp_packets.first().map(|p| p.timestamp).unwrap_or_default();
+
+        body.rows(self.config.row_height, rtp_packets.len(), |mut row| {
+            let row_ix = row.index();
+            let packet = rtp_packets.get(row_ix).unwrap();
+
             let SessionPacket::Rtp(ref rtp_packet) = packet.contents else {
-                return false;
+                return;
             };
 
             let key = (
@@ -93,34 +103,9 @@ impl_table_base!(
                 alias: &stream_alias.unwrap_or_default(),
             };
 
-            self.packet_matches_filter(&ctx)
-        });
-
-        if rtp_packets.is_empty() {
-            return;
-        }
-
-        let mut ssrc_to_display_name = HashMap::new();
-        streams.rtp_streams.iter().for_each(|(key, stream)| {
-            ssrc_to_display_name.insert(*key, stream.alias.to_string());
-        });
-
-        let first_ts = rtp_packets.first().unwrap().timestamp;
-
-        body.rows(self.config.row_height, rtp_packets.len(), |mut row| {
-            let row_ix = row.index();
-            let packet = rtp_packets.get(row_ix).unwrap();
-
-            let SessionPacket::Rtp(ref rtp_packet) = packet.contents else {
-                unreachable!();
-            };
-
-            let key = (
-                packet.source_addr,
-                packet.destination_addr,
-                packet.transport_protocol,
-                rtp_packet.ssrc,
-            );
+            if !self.packet_matches_filter(&ctx) {
+                return;
+            }
 
             // ID column
             row.col(|ui| {
