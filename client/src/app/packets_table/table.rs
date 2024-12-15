@@ -1,68 +1,42 @@
-use crate::define_column;
-use crate::app::common::{TableBase, TableConfig};
-use crate::app::utils::{FilterHelpContent, FilterInput};
-use crate::declare_table;
-use crate::filter_system::FilterExpression;
-use crate::streams::RefStreams;
-use egui_extras::{Column, TableRow};
-use egui_extras::TableBuilder;
-
 use super::filters::{parse_filter, FilterContext};
 use super::types::PacketInfo;
+use crate::app::common::{TableBase, TableConfig};
+use crate::app::utils::{FilterHelpContent, FilterInput};
+use crate::define_column;
+use crate::filter_system::FilterExpression;
+use crate::streams::RefStreams;
+use crate::{declare_table, declare_table_struct, impl_table_base};
 use egui_extras::TableBody;
+use egui_extras::TableBuilder;
+use egui_extras::{Column, TableRow};
 use ewebsock::{WsMessage, WsSender};
 use netpix_common::packet::{Packet, SessionProtocol};
 use netpix_common::Request;
 
-declare_table!(PacketsTable, FilterType, {
-    height(30.0);
-    striped(true);
-    resizable(true);
-    stick_to_bottom(true);
-    columns(
-        column(None, 40.0, None, false, true),
-        column(None, 130.0, None, false, true),
-        column(None, 100.0, None, false, true),
-        column(None, 100.0, None, false, true),
-        column(None, 80.0, None, false, true),
-        column(None, 80.0, None, false, true),
-        column(None, 100.0, None, false, true),
-    )
-});
+declare_table_struct!(
+    PacketsTable,
+    ws_sender: Option<WsSender>
+);
 
-pub struct PacketsTable {
-    streams: RefStreams,
-    filter_input: FilterInput,
-    ws_sender: Option<WsSender>,
-    config: TableConfig,
-}
-
-impl TableBase for PacketsTable {
-    fn new(streams: RefStreams) -> Self {
-        let help = FilterHelpContent::builder("Network Packet Filters")
-            .filter("source:<ip>", "Filter by source IP address")
-            .filter("dest:<ip>", "Filter by destination IP address")
-            .filter(
-                "proto:<protocol> or protocol:<protocol>",
-                "Filter by protocol (TCP, UDP, RTP, RTCP, MPEG-TS)",
-            )
-            .filter("type:<protocol>", "Filter by protocol type")
-            .filter("length:<op><size>", "Filter by packet size")
-            .example("source:192.168 AND proto:udp")
-            .example("length:>100 AND type:rtp")
-            .example("NOT dest:10.0.0.1")
-            .example("(proto:tcp AND length:>500) OR source:192.168")
-            .build();
-
-        Self {
-            streams,
-            filter_input: FilterInput::new(help),
-            ws_sender: None,
-            config: TableConfig::default(),
-        }
-    }
-
-    fn ui(&mut self, ctx: &egui::Context) {
+impl_table_base!(
+    PacketsTable;
+    ws_sender: Option<WsSender>;
+    FilterHelpContent::builder("Network Packet Filters")
+        .filter("source:<ip>", "Filter by source IP address")
+        .filter("dest:<ip>", "Filter by destination IP address")
+        .filter(
+            "proto:<protocol> or protocol:<protocol>",
+            "Filter by protocol (TCP, UDP, RTP, RTCP, MPEG-TS)",
+        )
+        .filter("type:<protocol>", "Filter by protocol type")
+        .filter("length:<op><size>", "Filter by packet size")
+        .example("source:192.168 AND proto:udp")
+        .example("length:>100 AND type:rtp")
+        .example("NOT dest:10.0.0.1")
+        .example("(proto:tcp AND length:>500) OR source:192.168")
+    .build()
+    ;
+    ui: |self, ctx| {
         if self.filter_input.show(ctx) {
             self.check_filter();
         }
@@ -71,19 +45,8 @@ impl TableBase for PacketsTable {
             self.build_table(ui);
         });
     }
-
-    fn check_filter(&mut self) {
-        let filter = self.filter_input.get_filter();
-        if filter.is_empty() {
-            self.filter_input.set_error(None);
-            return;
-        }
-
-        let result = parse_filter(&filter.to_lowercase());
-        self.filter_input.set_error(result.err());
-    }
-
-    fn build_header(&mut self, header: &mut TableRow) {
+    ;
+    build_header: |self, header| {
         let headers = [
             "No.",
             "Time",
@@ -100,8 +63,8 @@ impl TableBase for PacketsTable {
             });
         }
     }
-
-    fn build_table_body(&mut self, body: TableBody) {
+    ;
+    build_table_body: |self, body| {
         let filter_valid = self.filter_input.get_error().is_none();
         let mut requests = Vec::new();
         let streams = self.streams.borrow();
@@ -175,7 +138,23 @@ impl TableBase for PacketsTable {
             .iter()
             .for_each(|req| self.send_parse_request(req.clone()));
     }
-}
+);
+
+declare_table!(PacketsTable, FilterType, {
+    height(30.0);
+    striped(true);
+    resizable(true);
+    stick_to_bottom(true);
+    columns(
+        column(None, 40.0, None, false, true),
+        column(None, 130.0, None, false, true),
+        column(None, 100.0, None, false, true),
+        column(None, 100.0, None, false, true),
+        column(None, 80.0, None, false, true),
+        column(None, 80.0, None, false, true),
+        column(None, 100.0, None, false, true),
+    )
+});
 
 impl PacketsTable {
     pub fn new_with_sender(streams: RefStreams, ws_sender: WsSender) -> Self {
