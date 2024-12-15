@@ -1,51 +1,22 @@
-use crate::app::common::{TableBase, TableConfig};
-use crate::app::utils::{FilterHelpContent, FilterInput};
-use crate::declare_table;
-use crate::define_column;
-use crate::streams::{RefStreams, Streams};
-use std::cell::Ref;
-
 use super::constants::*;
 use super::display::format_packet_text;
 use super::filters::{parse_filter, FilterContext};
 use super::types::PacketInfo;
+use crate::app::common::{TableBase, TableConfig};
+use crate::app::utils::{FilterHelpContent, FilterInput};
+use crate::define_column;
 use crate::filter_system::FilterExpression;
+use crate::streams::{RefStreams, Streams};
+use crate::{declare_table, declare_table_struct, impl_table_base};
 use egui_extras::{Column, TableBody, TableBuilder, TableRow};
 use netpix_common::mpegts::header::{AdaptationFieldControl, PIDTable};
+use std::cell::Ref;
 use std::collections::HashMap;
 use web_time::Duration;
 
-declare_table!(MpegTsPacketsTable, FilterType, {
-    height(30.0);
-    striped(true);
-    resizable(true);
-    stick_to_bottom(true);
-    columns(
-        column(Some(40.0), 40.0, Some(50.0), false, true),
-        column(Some(40.0), 40.0, Some(50.0), false, true),
-        column(Some(80.0), 80.0, Some(80.0), false, true),
-        column(Some(140.0), 140.0, None, false, true),
-        column(Some(140.0), 140.0, None, false, true),
-        column(None, 160.0, Some(160.0), false, true),
-        column(None, 160.0, Some(160.0), false, true),
-        column(None, 160.0, Some(160.0), false, true),
-        column(None, 160.0, Some(160.0), false, true),
-        column(None, 160.0, Some(160.0), false, true),
-        column(None, 160.0, Some(160.0), false, true),
-        column(None, 160.0, Some(160.0), false, true),
-        column(None, 80.0, None, false, true),
-    )
-});
-
-pub struct MpegTsPacketsTable {
-    streams: RefStreams,
-    filter_input: FilterInput,
-    config: TableConfig,
-}
-
-impl TableBase for MpegTsPacketsTable {
-    fn new(streams: RefStreams) -> Self {
-        let help = FilterHelpContent::builder("MPEG-TS Packet Filters")
+impl_table_base!(
+    MpegTsPacketsTable,
+    FilterHelpContent::builder("MPEG-TS Packet Filters")
             .filter("source:<ip>", "Filter by source IP address")
             .filter("dest:<ip>", "Filter by destination IP address")
             .filter("alias:<stream_alias>", "Filter by stream alias")
@@ -62,38 +33,9 @@ impl TableBase for MpegTsPacketsTable {
             .example("source:192.168 OR dest:10.0")
             .example("alias:A AND type:PCR")
             .example("(type:Pbuild_table500) OR pid:256")
-            .build();
-
-        Self {
-            streams,
-            filter_input: FilterInput::new(help),
-            config: TableConfig::default(),
-        }
-    }
-
-    fn ui(&mut self, ctx: &egui::Context) {
-        if self.filter_input.show(ctx) {
-            self.check_filter();
-        }
-
-        egui::CentralPanel::default().show(ctx, |ui| {
-            self.options_ui(ui);
-            self.build_table(ui);
-        });
-    }
-
-    fn check_filter(&mut self) {
-        let filter = self.filter_input.get_filter();
-        if filter.is_empty() {
-            self.filter_input.set_error(None);
-            return;
-        }
-
-        let result = parse_filter(&filter.to_lowercase());
-        self.filter_input.set_error(result.err());
-    }
-
-    fn build_header(&mut self, header: &mut TableRow) {
+            .build()
+    ;
+    build_header: |self, header| {
         let headers = [
             "ID",
             "Alias",
@@ -116,8 +58,9 @@ impl TableBase for MpegTsPacketsTable {
             });
         }
     }
+    ;
+    build_table_body: |self, body| {
 
-    fn build_table_body(&mut self, body: TableBody) {
         let filter_valid =
             self.filter_input.get_filter().is_empty() || self.filter_input.get_error().is_none();
 
@@ -233,6 +176,34 @@ impl TableBase for MpegTsPacketsTable {
             });
         });
     }
+);
+
+declare_table!(MpegTsPacketsTable, FilterType, {
+    height(30.0);
+    striped(true);
+    resizable(true);
+    stick_to_bottom(true);
+    columns(
+        column(Some(40.0), 40.0, Some(50.0), false, true),
+        column(Some(40.0), 40.0, Some(50.0), false, true),
+        column(Some(80.0), 80.0, Some(80.0), false, true),
+        column(Some(140.0), 140.0, None, false, true),
+        column(Some(140.0), 140.0, None, false, true),
+        column(None, 160.0, Some(160.0), false, true),
+        column(None, 160.0, Some(160.0), false, true),
+        column(None, 160.0, Some(160.0), false, true),
+        column(None, 160.0, Some(160.0), false, true),
+        column(None, 160.0, Some(160.0), false, true),
+        column(None, 160.0, Some(160.0), false, true),
+        column(None, 160.0, Some(160.0), false, true),
+        column(None, 80.0, None, false, true),
+    )
+});
+
+pub struct MpegTsPacketsTable {
+    streams: RefStreams,
+    filter_input: FilterInput,
+    config: TableConfig,
 }
 
 impl MpegTsPacketsTable {
