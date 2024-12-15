@@ -13,6 +13,11 @@ use egui_extras::{Column, TableBody, TableBuilder, TableRow};
 use netpix_common::mpegts::header::PIDTable;
 use std::collections::BTreeMap;
 
+declare_table_struct!(
+    MpegTsInformationTable,
+    open_modal: OpenModal
+);
+
 impl_table_base!(
     MpegTsInformationTable;
     open_modal: OpenModal;
@@ -112,13 +117,6 @@ declare_table!(MpegTsInformationTable, FilterType, {
         column(None, 800.0, None, true, true),
     )
 });
-
-pub struct MpegTsInformationTable {
-    streams: RefStreams,
-    open_modal: OpenModal,
-    config: TableConfig,
-    filter_input: FilterInput,
-}
 
 impl MpegTsInformationTable {
     fn row_matches_filter(&self, key: &RowKey, info: &MpegTsInfo) -> bool {

@@ -15,9 +15,14 @@ use egui_extras::{Column, TableBody, TableBuilder, TableRow};
 use netpix_common::mpegts::psi::pmt::stream_types::{stream_type_into_unique_letter, StreamType};
 use std::collections::HashMap;
 
+declare_table_struct!(
+    MpegTsStreamsTable,
+    open_modal: bool
+);
+
 impl_table_base!(
     MpegTsStreamsTable;
-    modal_open:bool;
+    open_modal: bool;
     FilterHelpContent::builder("MPEG-TS Streams Filters")
             .filter("alias:<value>", "Filter by stream alias")
             .filter("program:<number>", "Filter by program number")
@@ -43,7 +48,7 @@ impl_table_base!(
             self.build_table(ui);
 
             // Show modal if open
-            if self.modal_open {
+            if self.open_modal {
                 self.show_stream_type_info_modal(ctx);
             }
         });
@@ -186,13 +191,6 @@ declare_table!(MpegTsStreamsTable, FilterType, {
     )
 });
 
-pub struct MpegTsStreamsTable {
-    streams: RefStreams,
-    filter_input: FilterInput,
-    config: TableConfig,
-    modal_open: bool, // Add this field
-}
-
 impl MpegTsStreamsTable {
     fn options_ui(&mut self, ui: &mut egui::Ui) {
         let streams = &self.streams.borrow();
@@ -208,12 +206,12 @@ impl MpegTsStreamsTable {
                 let mut button = egui::Button::new("ℹ Stream Types");
 
                 // Change button appearance when modal is open
-                if self.modal_open {
+                if self.open_modal {
                     button = button.fill(ui.visuals().selection.bg_fill);
                 }
 
                 if ui.add_enabled(has_stream_types, button).clicked() {
-                    self.modal_open = !self.modal_open; // Toggle modal state
+                    self.open_modal = !self.open_modal; // Toggle modal state
                 }
             });
         });
@@ -247,7 +245,7 @@ impl MpegTsStreamsTable {
 
         Window::new("Stream Type Information")
             .resizable(false)
-            .open(&mut self.modal_open)
+            .open(&mut self.open_modal)
             .show(ctx, |ui| {
                 ui.vertical(|ui| {
                     for stream_type in unique_stream_types {

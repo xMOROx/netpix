@@ -14,6 +14,8 @@ use std::cell::Ref;
 use std::collections::HashMap;
 use web_time::Duration;
 
+declare_table_struct!(MpegTsPacketsTable);
+
 impl_table_base!(
     MpegTsPacketsTable,
     FilterHelpContent::builder("MPEG-TS Packet Filters")
@@ -199,12 +201,6 @@ declare_table!(MpegTsPacketsTable, FilterType, {
         column(None, 80.0, None, false, true),
     )
 });
-
-pub struct MpegTsPacketsTable {
-    streams: RefStreams,
-    filter_input: FilterInput,
-    config: TableConfig,
-}
 
 impl MpegTsPacketsTable {
     fn options_ui(&mut self, ui: &mut egui::Ui) {
