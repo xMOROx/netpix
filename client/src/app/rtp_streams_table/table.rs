@@ -52,8 +52,14 @@ impl_table_base!(
         .filter("source", "Filter by source IP address")
         .filter("dest", "Filter by destination IP address")
         .filter("alias", "Filter by stream alias")
+        .filter("cname", "Filter by CNAME value")
+        .filter("mean_bitrate", "Filter by mean bitrate in kbps")
+        .filter("mean_rtp_bitrate", "Filter by mean RTP bitrate in kbps")
+        .filter("packet_count", "Filter by packet count")
         .example("source:10.0.0")
-        .example("dest:192.168 AND NOT alias:test")
+        .example("dest:192.168 AND NOT alias:a")
+        .example("payload_type:96 AND mean_bitrate:>1000")
+        .example("cname:example")
         .build()
     ;
     ui: |self, ctx| {
@@ -246,22 +252,14 @@ impl_table_base!(
 
 impl RtpStreamsTable {
     pub fn new_with_sender(streams: RefStreams, ws_sender: WsSender) -> Self {
+        let new = Self::new(streams);
+
         Self {
-            streams,
-            filter_input: FilterInput::new(
-                FilterHelpContent::builder("RTP Stream Filters")
-                    .filter("source", "Filter by source IP address")
-                    .filter("dest", "Filter by destination IP address")
-                    .filter("alias", "Filter by stream alias")
-                    .filter("ssrc", "Filter by SSRC value")
-                    .example("source:10.0.0")
-                    .example("dest:192.168 AND NOT alias:test")
-                    .build(),
-            ),
             config: TableConfig::new(100.0, 30.0, 5.0),
             ws_sender: Some(ws_sender),
             chosen_key: None,
             sdp_window: SdpWindow::default(),
+            ..new
         }
     }
 
