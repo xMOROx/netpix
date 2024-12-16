@@ -60,6 +60,13 @@ pub enum Request {
     Reparse(usize, packet::SessionProtocol),
     ChangeSource(Source),
     ParseSdp(RtpStreamKey, String),
+    PacketsStats(PacketsStats),
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct PacketsStats {
+    pub discharged: usize,
+    pub overwritten: usize,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -67,6 +74,7 @@ pub enum Response {
     Packet(Packet),
     Sources(Vec<Source>),
     Sdp(RtpStreamKey, Sdp),
+    PacketsStats(PacketsStats),
 }
 
 impl Request {
