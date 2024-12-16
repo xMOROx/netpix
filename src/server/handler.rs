@@ -7,7 +7,7 @@ use futures_util::{
     SinkExt, StreamExt, TryFutureExt,
 };
 use log::{error, info, warn};
-use netpix_common::{Request, Response, RtpStreamKey, Sdp, Source};
+use netpix_common::{PacketsStats, Request, Response, RtpStreamKey, Sdp, Source};
 use ringbuf::{
     traits::{Consumer, Observer, RingBuffer},
     HeapRb,
@@ -63,23 +63,44 @@ pub async fn send_pcap_filenames(
         .await;
 }
 
-async fn discharge_old_packets(packets: &mut PacketRingBuffer, max_packets_age: u64) {
+async fn send_stats(clients: &Clients, discharged: usize, overwritten: usize) {
+    let stats = PacketsStats {
+        discharged,
+        overwritten,
+    };
+    let response = Response::PacketsStats(stats);
+    for (_, client) in clients.write().await.iter_mut() {
+        if let Ok(encoded) = response.encode() {
+            client.queue.push_back(Message::binary(encoded));
+        }
+    }
+}
+
+async fn discharge_old_packets(packets: &mut PacketRingBuffer, max_packets_age: u64) -> usize {
     let now = SystemTime::now();
+    let mut discharged_count = 0;
     while let Some(packet) = packets.try_peek() {
         if let Response::Packet(p) = packet {
             match now.duration_since(p.creation_time) {
                 Ok(age) if age.as_secs() <= max_packets_age => break,
                 _ => {
                     packets.try_pop();
+                    discharged_count += 1;
                 }
             }
         } else {
             break;
         }
     }
+
+    discharged_count
 }
 
 async fn sniff(mut sniffer: Sniffer, packets: Packets, clients: Clients, config: Config) {
+    let mut overwritten_count = 0;
+    let mut total_discharged_count = 0;
+    let mut last_stats_time = SystemTime::now();
+
     while let Some(result) = sniffer.next_packet().await {
         match result {
             Ok(mut pack) => {
@@ -102,12 +123,21 @@ async fn sniff(mut sniffer: Sniffer, packets: Packets, clients: Clients, config:
 
                 let mut packets = packets.write().await;
 
-                discharge_old_packets(&mut packets, config.max_packets_age).await;
+                let discharged = discharge_old_packets(&mut packets, config.max_packets_age).await;
+                total_discharged_count += discharged;
 
                 if packets.is_full() {
+                    overwritten_count += 1;
                     warn!("Packet buffer full, discarding oldest packet");
                 }
                 packets.push_overwrite(response);
+
+                if let Ok(elapsed) = last_stats_time.elapsed() {
+                    if elapsed.as_secs() >= 5 {
+                        send_stats(&clients, total_discharged_count, overwritten_count).await;
+                        last_stats_time = SystemTime::now();
+                    }
+                }
             }
             Err(err) => info!("Error when capturing a packet: {:?}", err),
         }
@@ -157,48 +187,6 @@ async fn send_all_packets(client_id: usize, packets: &Packets, clients: &Clients
         client.queue.push_back(msg);
     }
 }
-
-// async fn reparse_packet(
-//     client_id: usize,
-//     packets: &Packets,
-//     clients: &Clients,
-//     id: usize,
-//     cur_source: &Source,
-//     packet_type: SessionProtocol,
-// ) {
-// let mut packets = packets.write().await;
-// let Some(response_packet) = packets.iter_mut().nth(id) else {
-//     warn!(
-//         "Received reparse request for non-existent packet {}, client_id: {}",
-//         id, client_id
-//     );
-//     return;
-// };
-
-// let Response::Packet(packet) = response_packet else {
-//     unreachable!("");
-// };
-// packet.parse_as(packet_type);
-
-// let Ok(encoded) = response_packet.encode() else {
-//     error!("Failed to encode packet, client_id: {}", client_id);
-//     return;
-// };
-// let msg = Message::binary(encoded);
-// for (_, client) in clients.read().await.iter() {
-//     match client {
-//         Client {
-//             source: Some(source),
-//             sender,
-//         } if *source == *cur_source => {
-//             sender.send(msg.clone()).unwrap_or_else(|e| {
-//                 error!("Sniffer: error while sending packet: {}", e);
-//             });
-//         }
-//         _ => {}
-//     };
-// }
-// }
 
 async fn parse_sdp(
     client_id: usize,
@@ -271,31 +259,6 @@ pub async fn handle_messages(
                             }
                         }
                     }
-                    // Request::Reparse(id, packet_type) => {
-                    //     if let Some(ref cur_source) = source {
-                    //         if let Some(packets) = packets.get(cur_source) {
-                    //             reparse_packet(
-                    //                 client_id,
-                    //                 packets,
-                    //                 clients,
-                    //                 id,
-                    //                 cur_source,
-                    //                 packet_type,
-                    //             )
-                    //             .await;
-                    //         } else {
-                    //             warn!(
-                    //                 "No packets found for source: {:?}, client_id: {}",
-                    //                 cur_source, client_id
-                    //             );
-                    //         }
-                    //     } else {
-                    //         error!(
-                    //             "Received reparse request without a selected source, client_id: {}",
-                    //             client_id
-                    //         );
-                    //     }
-                    // }
                     Request::ChangeSource(new_source) => {
                         if let Some(packets) = packets.get(&new_source) {
                             {
@@ -318,6 +281,17 @@ pub async fn handle_messages(
                             parse_sdp(client_id, clients, cur_source, stream_key, sdp).await;
                         } else {
                             warn!("Received ParseSdp request without a selected source, client_id: {}", client_id);
+                        }
+                    }
+
+                    Request::PacketsStats(stats) => {
+                        let response = Response::PacketsStats(stats);
+                        if let Ok(encoded) = response.encode() {
+                            let msg = Message::binary(encoded);
+                            let mut wr_clients = clients.write().await;
+                            for (_, client) in wr_clients.iter_mut() {
+                                client.queue.push_back(msg.clone());
+                            }
                         }
                     }
 

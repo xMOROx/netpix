@@ -62,6 +62,8 @@ pub struct App {
     mpegts_packets_table: MpegTsPacketsTable,
     mpegts_streams_table: MpegTsStreamsTable,
     mpegts_info_table: MpegTsInformationTable,
+    discharged_count: usize,
+    overwritten_count: usize,
 }
 
 impl eframe::App for App {
@@ -106,7 +108,8 @@ impl App {
         let packets_table = PacketsTable::new_with_sender(streams.clone(), ws_sender.clone());
         let rtp_packets_table = RtpPacketsTable::new(streams.clone());
         let rtcp_packets_table = RtcpPacketsTable::new(streams.clone());
-        let rtp_streams_table = RtpStreamsTable::new_with_sender(streams.clone(), ws_sender.clone());
+        let rtp_streams_table =
+            RtpStreamsTable::new_with_sender(streams.clone(), ws_sender.clone());
         let rtp_streams_plot = RtpStreamsPlot::new(streams.clone());
 
         let mpegts_packets_table = MpegTsPacketsTable::new(streams.clone());
@@ -131,6 +134,8 @@ impl App {
             mpegts_packets_table,
             mpegts_streams_table,
             mpegts_info_table,
+            discharged_count: 0,
+            overwritten_count: 0,
         }
     }
 
@@ -272,9 +277,12 @@ impl App {
                 let captured_count = streams.packets.len();
                 let captured_label = format!("Captured: {}", captured_count);
 
-                //let filtered_count = 0; // TODO: implement filtering label
-                //let filtered_label = format!("Filtered: {}", filtered_count);
-                let label = format!("{} • {}", count_label, captured_label);
+                let discharged_label = format!("Discharged: {}", self.discharged_count);
+                let overwritten_label = format!("Overwritten: {}", self.overwritten_count);
+                let label = format!(
+                    "{} • {} • {} • {}",
+                    count_label, captured_label, discharged_label, overwritten_label
+                );
                 ui.label(label);
             });
         });
@@ -318,6 +326,10 @@ impl App {
                     if let Some(stream) = streams.rtp_streams.get_mut(&stream_key) {
                         stream.add_sdp(sdp);
                     }
+                }
+                Response::PacketsStats(stats) => {
+                    self.discharged_count = stats.discharged;
+                    self.overwritten_count = stats.overwritten;
                 }
             }
         }
