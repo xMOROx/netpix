@@ -272,9 +272,9 @@ impl App {
                 let captured_count = streams.packets.len();
                 let captured_label = format!("Captured: {}", captured_count);
 
-                let filtered_count = 0; // TODO
-                let filtered_label = format!("Filtered: {}", filtered_count);
-                let label = format!("{} • {} • {}", count_label, captured_label, filtered_label);
+                //let filtered_count = 0; // TODO: implement filtering label
+                //let filtered_label = format!("Filtered: {}", filtered_count);
+                let label = format!("{} • {}", count_label, captured_label);
                 ui.label(label);
             });
         });
@@ -373,12 +373,6 @@ fn side_button(text: &str) -> egui::Button {
 pub fn is_rtp_stream_visible(
     streams_visibility: &mut HashMap<RtpStreamKey, bool>,
     key: RtpStreamKey,
-) -> &mut bool {
-    streams_visibility.entry(key).or_insert(true)
-}
-pub fn is_mpegts_stream_visible(
-    streams_visibility: &mut HashMap<MpegtsStreamKey, bool>,
-    key: MpegtsStreamKey,
 ) -> &mut bool {
     streams_visibility.entry(key).or_insert(true)
 }

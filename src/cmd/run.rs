@@ -1,11 +1,16 @@
 use crate::server;
+use crate::server::config::Config;
 use crate::sniffer::{Error, Sniffer};
 use std::collections::HashMap;
 use std::net::{IpAddr, Ipv4Addr, SocketAddr};
+use std::u64;
 
 const DEFAULT_PORT: u16 = 3550;
 const DEFAULT_IP: IpAddr = IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1));
 const DEFAULT_PROMISC: bool = false;
+const DEFAULT_PACKET_BUFFER_SIZE: usize = 32_768;
+const DEFAULT_MAXIMUM_PACKAGE_AGE: u64 = 300;
+const DEFAULT_CLIENT_MESSAGE_INTERVAL_MS: u64 = 5; // ~ 300 messages per second
 
 #[derive(Debug, clap::Args)]
 pub struct Run {
@@ -27,6 +32,16 @@ pub struct Run {
     /// Enable promiscuous mode
     #[arg(short = 'P', long, default_value_t = DEFAULT_PROMISC)]
     promisc: bool,
+    /// Set packet buffer size -> number of packets that server is able to store without
+    /// discharging it
+    #[arg(short, long, default_value_t = DEFAULT_PACKET_BUFFER_SIZE)]
+    buffer_size: usize,
+    /// Interval in milliseconds between client messages
+    #[arg(short='m', long, default_value_t = DEFAULT_CLIENT_MESSAGE_INTERVAL_MS)]
+    message_interval: u64,
+    /// Maximum age of a package in seconds before it is considered outdated
+    #[arg(short='M', long, default_value_t = DEFAULT_MAXIMUM_PACKAGE_AGE)]
+    maximum_package_age: u64,
 }
 
 impl Run {
@@ -38,7 +53,7 @@ impl Run {
 
         let live_filter = self.create_capture_filter();
 
-        let mut file_sniffers = get_sniffers(self.files, |f| Sniffer::from_file(f));
+        let mut file_sniffers = get_sniffers(self.files, Sniffer::from_file);
         let mut interface_sniffers = get_sniffers(self.interfaces, |dev| {
             Sniffer::from_device(dev, self.promisc)
         });
@@ -63,7 +78,14 @@ impl Run {
         }
 
         let address = SocketAddr::new(self.address, self.port);
-        server::run(sniffers, address).await;
+        let config = Config::builder()
+            .client_message_interval_ms(self.message_interval)
+            .max_packets_age(self.maximum_package_age)
+            .packet_buffer_size(self.buffer_size)
+            .addr(address)
+            .build();
+
+        server::run(sniffers, config).await;
     }
 
     fn create_capture_filter(&self) -> String {

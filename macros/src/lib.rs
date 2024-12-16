@@ -23,9 +23,10 @@ pub fn setup_packet_handlers(_input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(_input as syn::ExprTuple);
     let sniffers = &input.elems[0];
     let clients = &input.elems[1];
+    let config = &input.elems[2];
 
     let expanded = quote! {
-        crate::server::handler::setup_packet_handlers(#sniffers, #clients.clone()).await
+        crate::server::handler::setup_packet_handlers(#sniffers, #clients.clone(), #config).await
     };
     expanded.into()
 }
