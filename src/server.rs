@@ -1,28 +1,26 @@
 mod asset;
 mod client;
+pub mod config;
 mod constants;
 mod handler;
 
 use crate::sniffer::Sniffer;
+use config::Config;
 use std::collections::HashMap;
-use std::net::SocketAddr;
 use warp::Filter;
 
 use netpix_macros::{
     run_server, setup_clients, setup_packet_handlers, setup_routes, spawn_message_sender,
 };
 
-pub async fn run(sniffers: HashMap<String, Sniffer>, addr: SocketAddr) {
+pub async fn run(sniffers: HashMap<String, Sniffer>, config: Config) {
     let clients = setup_clients!();
-    let source_to_packets = setup_packet_handlers!((sniffers, clients));
+    let source_to_packets = setup_packet_handlers!((sniffers, clients, config));
     let sender_clients = clients.clone();
 
     let routes = setup_routes!((clients, source_to_packets));
 
-    spawn_message_sender!((
-        sender_clients,
-        crate::server::constants::CLIENT_MESSAGE_INTERVAL_MS
-    ));
+    spawn_message_sender!((sender_clients, config.client_message_interval_ms,));
 
-    run_server!((routes, addr));
+    run_server!((routes, config.addr));
 }

@@ -1,3 +1,4 @@
+use crate::app::common::table::TableBase;
 use eframe::egui;
 use egui::{ComboBox, Label, TextWrapMode, Ui, Widget};
 use ewebsock::{WsEvent, WsMessage, WsReceiver, WsSender};
@@ -34,6 +35,8 @@ mod mpegts_streams_table;
 mod utils;
 
 mod tab;
+
+mod common;
 
 const SOURCE_KEY: &str = "source";
 const TAB_KEY: &str = "tab";
@@ -100,10 +103,10 @@ impl App {
             ewebsock::connect_with_wakeup(uri, wakeup).expect("Unable to connect to WebSocket");
 
         let streams = RefStreams::default();
-        let packets_table = PacketsTable::new(streams.clone(), ws_sender.clone());
+        let packets_table = PacketsTable::new_with_sender(streams.clone(), ws_sender.clone());
         let rtp_packets_table = RtpPacketsTable::new(streams.clone());
         let rtcp_packets_table = RtcpPacketsTable::new(streams.clone());
-        let rtp_streams_table = RtpStreamsTable::new(streams.clone(), ws_sender.clone());
+        let rtp_streams_table = RtpStreamsTable::new_with_sender(streams.clone(), ws_sender.clone());
         let rtp_streams_plot = RtpStreamsPlot::new(streams.clone());
 
         let mpegts_packets_table = MpegTsPacketsTable::new(streams.clone());
@@ -144,7 +147,6 @@ impl App {
             .show(ctx, |ui| {
                 ui.set_style(style);
                 ui.vertical_centered(|ui| {
-                    // I'm struggling to add a margin...
                     ui.add_space(6.0);
 
                     let button = side_button("▶");
@@ -270,9 +272,9 @@ impl App {
                 let captured_count = streams.packets.len();
                 let captured_label = format!("Captured: {}", captured_count);
 
-                let filtered_count = 0; // TODO
-                let filtered_label = format!("Filtered: {}", filtered_count);
-                let label = format!("{} • {} • {}", count_label, captured_label, filtered_label);
+                //let filtered_count = 0; // TODO: implement filtering label
+                //let filtered_label = format!("Filtered: {}", filtered_count);
+                let label = format!("{} • {}", count_label, captured_label);
                 ui.label(label);
             });
         });
@@ -371,12 +373,6 @@ fn side_button(text: &str) -> egui::Button {
 pub fn is_rtp_stream_visible(
     streams_visibility: &mut HashMap<RtpStreamKey, bool>,
     key: RtpStreamKey,
-) -> &mut bool {
-    streams_visibility.entry(key).or_insert(true)
-}
-pub fn is_mpegts_stream_visible(
-    streams_visibility: &mut HashMap<MpegtsStreamKey, bool>,
-    key: MpegtsStreamKey,
 ) -> &mut bool {
     streams_visibility.entry(key).or_insert(true)
 }

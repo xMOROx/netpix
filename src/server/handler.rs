@@ -1,4 +1,4 @@
-use super::client::Clients;
+use super::{client::Clients, config::Config};
 use crate::sniffer::Sniffer;
 use flate2::write::GzEncoder;
 use flate2::Compression;
@@ -7,7 +7,7 @@ use futures_util::{
     SinkExt, StreamExt, TryFutureExt,
 };
 use log::{error, info, warn};
-use netpix_common::{Request, Response, RtpStreamKey, Sdp, Source, PACKET_MAX_AGE_SECS};
+use netpix_common::{Request, Response, RtpStreamKey, Sdp, Source};
 use ringbuf::{
     traits::{Consumer, Observer, RingBuffer},
     HeapRb,
@@ -17,8 +17,6 @@ use std::{collections::HashMap, io::Write, sync::Arc};
 use tokio::sync::{mpsc::UnboundedSender, RwLock};
 use warp::ws::{Message, WebSocket};
 
-use super::constants::*;
-
 pub type PacketRingBuffer = HeapRb<Response>;
 pub type Packets = Arc<RwLock<PacketRingBuffer>>;
 pub type PacketsMap = Arc<HashMap<Source, Packets>>;
@@ -26,16 +24,17 @@ pub type PacketsMap = Arc<HashMap<Source, Packets>>;
 pub async fn setup_packet_handlers(
     sniffers: HashMap<String, Sniffer>,
     clients: Clients,
+    config: Config,
 ) -> PacketsMap {
     let mut source_to_packets = HashMap::new();
 
     for (_file, sniffer) in sniffers {
-        let packets = Arc::new(RwLock::new(HeapRb::new(PACKET_BUFFER_SIZE)));
+        let packets = Arc::new(RwLock::new(HeapRb::new(config.packet_buffer_size)));
         source_to_packets.insert(sniffer.source.clone(), packets.clone());
 
         let cloned_clients = clients.clone();
         tokio::task::spawn(async move {
-            sniff(sniffer, packets, cloned_clients).await;
+            sniff(sniffer, packets, cloned_clients, config).await;
         });
     }
 
@@ -64,12 +63,12 @@ pub async fn send_pcap_filenames(
         .await;
 }
 
-async fn discharge_old_packets(packets: &mut PacketRingBuffer) {
+async fn discharge_old_packets(packets: &mut PacketRingBuffer, max_packets_age: u64) {
     let now = SystemTime::now();
     while let Some(packet) = packets.try_peek() {
         if let Response::Packet(p) = packet {
             match now.duration_since(p.creation_time) {
-                Ok(age) if age.as_secs() <= PACKET_MAX_AGE_SECS => break,
+                Ok(age) if age.as_secs() <= max_packets_age => break,
                 _ => {
                     packets.try_pop();
                 }
@@ -80,7 +79,7 @@ async fn discharge_old_packets(packets: &mut PacketRingBuffer) {
     }
 }
 
-async fn sniff(mut sniffer: Sniffer, packets: Packets, clients: Clients) {
+async fn sniff(mut sniffer: Sniffer, packets: Packets, clients: Clients, config: Config) {
     while let Some(result) = sniffer.next_packet().await {
         match result {
             Ok(mut pack) => {
@@ -103,7 +102,7 @@ async fn sniff(mut sniffer: Sniffer, packets: Packets, clients: Clients) {
 
                 let mut packets = packets.write().await;
 
-                discharge_old_packets(&mut packets).await;
+                discharge_old_packets(&mut packets, config.max_packets_age).await;
 
                 if packets.is_full() {
                     warn!("Packet buffer full, discarding oldest packet");
