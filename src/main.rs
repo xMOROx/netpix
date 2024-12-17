@@ -9,28 +9,28 @@ mod sniffer;
 async fn main() {
     pretty_env_logger::init();
 
-    let cli = RtpeekerArgs::parse();
+    let cli = NetpixArgs::parse();
     cli.run().await;
 }
 
 #[derive(Debug, Parser)]
 #[clap(version, about)]
-struct RtpeekerArgs {
+struct NetpixArgs {
     #[clap(subcommand)]
-    pub(crate) action: RtpeekerSubcommands,
+    pub(crate) action: NetpixSubcommands,
 }
 
-impl RtpeekerArgs {
+impl NetpixArgs {
     pub async fn run(self) {
         match self.action {
-            RtpeekerSubcommands::Run(inner) => inner.run().await,
-            RtpeekerSubcommands::List(inner) => inner.run().await,
+            NetpixSubcommands::Run(inner) => inner.run().await,
+            NetpixSubcommands::List(inner) => inner.run().await,
         }
     }
 }
 
 #[derive(Debug, Subcommand)]
-enum RtpeekerSubcommands {
+enum NetpixSubcommands {
     /// Run the app. E.g "run -f rtp.pcap webex.pcap -i etn0 wireless". Obtain help with "run --help"
     Run(cmd::run::Run),
 
