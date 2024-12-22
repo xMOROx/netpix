@@ -57,10 +57,12 @@ impl_table_base!(
                 "Filter by payload size (operators: <, <=, >, >=)",
             )
             .filter("program:<number>", "Filter by program number")
+            .filter("stream:<type>", "Filter by stream type (audio, video, other)")
             .example("type:PAT AND payload:>1000")
             .example("source:192.168 OR dest:10.0")
             .example("alias:A AND type:PCR")
-            .example("(type:Pbuild_table500) OR pid:256")
+            .example("(type:PAT and payload: <100) OR pid:256")
+            .example("stream:audio AND payload:>1000")
             .build()
     ;
     build_header: |self, header| {
@@ -274,11 +276,11 @@ impl MpegTsPacketsTable {
                     (true, _, _) => format!("{} ({})", PMT_FORMAT, pid),
                     (_, Some(st), true) => {
                         let category = category_from_stream_type(get_stream_type_category(&st));
-                        format!("{} ({}) {}", category, pid, PCR_ES_FORMAT)
+                        format!("{} | {} ({})", category, PCR_ES_FORMAT, pid)
                     }
                     (_, Some(st), false) => {
                         let category = category_from_stream_type(get_stream_type_category(&st));
-                        format!("{} ({}) {}", category, pid, ES_FORMAT)
+                        format!("{} | {} ({})", category, ES_FORMAT, pid)
                     }
                     (_, None, true) => format!("{} ({})", PCR_FORMAT, pid),
                     _ => format!("{} ({})", PID_FORMAT, pid),
@@ -297,7 +299,6 @@ impl MpegTsPacketsTable {
         let streams = self.streams.borrow();
         let stream = streams.mpeg_ts_streams.get(&info.key);
 
-        // Look up program numbers for packet PIDs
         let program_numbers: Vec<u16> = if let Some(stream) = stream {
             if let Some(pat) = &stream.stream_info.pat {
                 info.packet
@@ -321,6 +322,20 @@ impl MpegTsPacketsTable {
         } else {
             Vec::new()
         };
+
+        let es_pids_info: Vec<(u16, &str)> = stream
+            .map(|s| {
+                s.stream_info
+                    .pmt
+                    .values()
+                    .flat_map(|pmt| {
+                        pmt.elementary_streams_info.iter().map(|es| {
+                            (es.elementary_pid, get_stream_type_category(&es.stream_type))
+                        })
+                    })
+                    .collect()
+            })
+            .unwrap_or_default();
 
         let ctx = FilterContext {
             packet: info.packet,
@@ -351,6 +366,7 @@ impl MpegTsPacketsTable {
                 .unwrap_or_default(),
             stream_alias: stream.map(|s| s.alias.clone()),
             program_numbers: &program_numbers,
+            es_pids_info: &es_pids_info,
         };
 
         parse_filter(&filter)

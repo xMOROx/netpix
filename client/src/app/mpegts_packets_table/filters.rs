@@ -65,6 +65,7 @@ pub struct FilterContext<'a> {
     pub pcr_pids: &'a [PIDTable],
     pub stream_alias: Option<String>,
     pub program_numbers: &'a [u16],
+    pub es_pids_info: &'a [(u16, &'a str)], // (PID, stream type category)
 }
 
 pub enum PacketType {
@@ -73,6 +74,25 @@ pub enum PacketType {
     PcrEs,
     Es,
     Pcr,
+}
+
+pub enum StreamType {
+    Audio,
+    Video,
+    Other,
+}
+
+impl FromStr for StreamType {
+    type Err = ();
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s.to_uppercase().as_str() {
+            "AUDIO" => Ok(StreamType::Audio),
+            "VIDEO" => Ok(StreamType::Video),
+            "OTHER" => Ok(StreamType::Other),
+            _ => Err(()),
+        }
+    }
 }
 
 declare_filter_type! {
@@ -85,6 +105,7 @@ declare_filter_type! {
         Pid(u16),
         Type(PacketType),
         ProgramNumber(u16),
+        StreamType(StreamType),
     }
 }
 
@@ -168,6 +189,26 @@ impl<'a> FilterExpression<'a> for FilterType {
             FilterType::Type(packet_type) => match_packet_type(ctx, packet_type),
             FilterType::ProgramNumber(program_number) => {
                 ctx.program_numbers.contains(program_number)
+            }
+            FilterType::StreamType(stream_type) => {
+                ctx.packet.content.fragments.iter().any(|fragment| {
+                    if let PIDTable::PID(pid) = fragment.header.pid {
+                        let stream_type_category = ctx
+                            .es_pids_info
+                            .iter()
+                            .find(|(es_pid, _)| *es_pid == pid)
+                            .map(|(_, category)| *category);
+
+                        matches!(
+                            (stream_type, stream_type_category),
+                            (StreamType::Audio, Some("Audio")) |
+                            (StreamType::Video, Some("Video")) |
+                            (StreamType::Other, Some("Other"))  
+                        )
+                    } else {
+                        false
+                    }
+                })
             }
             FilterType::And(left, right) => left.matches(ctx) && right.matches(ctx),
             FilterType::Or(left, right) => left.matches(ctx) || right.matches(ctx),
@@ -266,6 +307,18 @@ impl FilterParser for FilterType {
                     )
                 }),
 
+            "stream" => StreamType::from_str(value)
+                .map(FilterType::StreamType)
+                .map_err(|_| {
+                    ParseError::InvalidSyntax(
+                        "Invalid stream type. Must be one of:\n\
+                         - stream:audio (Audio streams)\n\
+                         - stream:video (Video streams)\n\
+                         - stream:other (Other streams)"
+                            .into(),
+                    )
+                }),
+
             unknown => Err(ParseError::InvalidSyntax(format!(
                 "Unknown filter type: '{}'.\nAvailable filters:\n\
                  - source: Source IP filter\n\
@@ -275,7 +328,8 @@ impl FilterParser for FilterType {
                  - p1-p7: PID position filter\n\
                  - pid: PID number filter\n\
                  - type: Packet type filter\n\
-                 - program: Program number filter",
+                 - program: Program number filter\n\
+                 - stream: Stream type filter",
                 unknown
             ))),
         }
