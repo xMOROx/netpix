@@ -29,3 +29,11 @@ pub fn get_fragment_payload_size(fragment: &MpegtsFragment) -> usize {
     }
     fragment.payload.as_ref().map_or(0, |p| p.data.len())
 }
+
+pub fn category_from_stream_type(stream_type: &str) -> &str {
+    match stream_type {
+        "Video" => "📹",
+        "Audio" => "🔊",
+        _ => "📦",
+    }
+}
