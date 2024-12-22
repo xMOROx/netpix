@@ -9,4 +9,3 @@ pub struct PacketInfo<'a> {
     pub timestamp: Duration,
     pub key: MpegtsStreamKey,
 }
-

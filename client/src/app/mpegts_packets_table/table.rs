@@ -3,6 +3,7 @@ use super::display::format_packet_text;
 use super::filters::{parse_filter, FilterContext};
 use super::types::PacketInfo;
 use crate::app::common::{TableBase, TableConfig};
+use crate::app::mpegts_packets_table::display::category_from_stream_type;
 use crate::app::utils::{FilterHelpContent, FilterInput};
 use crate::define_column;
 use crate::filter_system::FilterExpression;
@@ -10,11 +11,35 @@ use crate::streams::{RefStreams, Streams};
 use crate::{declare_table, declare_table_struct, impl_table_base};
 use egui_extras::{Column, TableBody, TableBuilder, TableRow};
 use netpix_common::mpegts::header::{AdaptationFieldControl, PIDTable};
+use netpix_common::mpegts::psi::pmt::stream_types::get_stream_type_category;
 use std::cell::Ref;
 use std::collections::HashMap;
 use web_time::Duration;
 
 declare_table_struct!(MpegTsPacketsTable);
+
+declare_table!(MpegTsPacketsTable, FilterType, {
+    height(30.0);
+    striped(true);
+    resizable(true);
+    stick_to_bottom(true);
+    columns(
+        column(Some(60.0), 60.0, Some(60.0), false, true),
+        column(Some(40.0), 40.0, Some(50.0), false, true),
+        column(Some(80.0), 80.0, Some(100.0), false, true),
+        column(Some(80.0), 80.0, Some(80.0), false, true),
+        column(Some(140.0), 140.0, None, false, true),
+        column(Some(140.0), 140.0, None, false, true),
+        column(Some(140.0), 140.0, Some(140.0), false, true),
+        column(Some(140.0), 140.0, Some(140.0), false, true),
+        column(Some(140.0), 140.0, Some(140.0), false, true),
+        column(Some(140.0), 140.0, Some(140.0), false, true),
+        column(Some(140.0), 140.0, Some(140.0), false, true),
+        column(Some(140.0), 140.0, Some(140.0), false, true),
+        column(Some(140.0), 140.0, Some(140.0), false, true),
+        column(None, 80.0, None, false, true),
+    )
+});
 
 impl_table_base!(
     MpegTsPacketsTable,
@@ -31,6 +56,7 @@ impl_table_base!(
                 "payload:<op><size>",
                 "Filter by payload size (operators: <, <=, >, >=)",
             )
+            .filter("program:<number>", "Filter by program number")
             .example("type:PAT AND payload:>1000")
             .example("source:192.168 OR dest:10.0")
             .example("alias:A AND type:PCR")
@@ -41,6 +67,7 @@ impl_table_base!(
         let headers = [
             "ID",
             "Alias",
+            "Program Number",
             "Time",
             "Source",
             "Destination",
@@ -122,6 +149,20 @@ impl_table_base!(
                 }
             });
 
+            // Program Number column
+            row.col(|ui| {
+                let stream = streams.mpeg_ts_streams.get(&info.key);
+                if let Some(stream) = stream {
+                    if let Some(pat) = &stream.stream_info.pat {
+                        let program_numbers: Vec<_> = pat.programs
+                            .iter()
+                            .map(|prog| prog.program_number.to_string())
+                            .collect();
+                        ui.label(program_numbers.join(", "));
+                    }
+                }
+            });
+
             // Time column
             row.col(|ui| {
                 ui.label(format!("{:.4}", info.timestamp.as_secs_f64()));
@@ -180,28 +221,6 @@ impl_table_base!(
     }
 );
 
-declare_table!(MpegTsPacketsTable, FilterType, {
-    height(30.0);
-    striped(true);
-    resizable(true);
-    stick_to_bottom(true);
-    columns(
-        column(Some(40.0), 40.0, Some(50.0), false, true),
-        column(Some(40.0), 40.0, Some(50.0), false, true),
-        column(Some(80.0), 80.0, Some(80.0), false, true),
-        column(Some(140.0), 140.0, None, false, true),
-        column(Some(140.0), 140.0, None, false, true),
-        column(None, 160.0, Some(160.0), false, true),
-        column(None, 160.0, Some(160.0), false, true),
-        column(None, 160.0, Some(160.0), false, true),
-        column(None, 160.0, Some(160.0), false, true),
-        column(None, 160.0, Some(160.0), false, true),
-        column(None, 160.0, Some(160.0), false, true),
-        column(None, 160.0, Some(160.0), false, true),
-        column(None, 80.0, None, false, true),
-    )
-});
-
 impl MpegTsPacketsTable {
     fn options_ui(&mut self, ui: &mut egui::Ui) {
         let streams = &self.streams.borrow().mpeg_ts_streams;
@@ -242,19 +261,26 @@ impl MpegTsPacketsTable {
                         .any(|pmt| pmt.fields.pcr_pid == pid)
                 });
 
-                let is_es = streams.mpeg_ts_streams.values().any(|stream| {
-                    stream.stream_info.pmt.values().any(|pmt| {
+                let stream_type = streams.mpeg_ts_streams.values().find_map(|stream| {
+                    stream.stream_info.pmt.values().find_map(|pmt| {
                         pmt.elementary_streams_info
                             .iter()
-                            .any(|es| es.elementary_pid == pid)
+                            .find(|es| es.elementary_pid == pid)
+                            .map(|es| es.stream_type.clone())
                     })
                 });
 
-                match (is_pmt, is_es, is_pcr) {
+                match (is_pmt, stream_type, is_pcr) {
                     (true, _, _) => format!("{} ({})", PMT_FORMAT, pid),
-                    (_, true, true) => format!("{} ({})", PCR_ES_FORMAT, pid),
-                    (_, true, false) => format!("{} ({})", ES_FORMAT, pid),
-                    (_, false, true) => format!("{} ({})", PCR_FORMAT, pid),
+                    (_, Some(st), true) => {
+                        let category = category_from_stream_type(get_stream_type_category(&st));
+                        format!("{} ({}) {}", category, pid, PCR_ES_FORMAT)
+                    }
+                    (_, Some(st), false) => {
+                        let category = category_from_stream_type(get_stream_type_category(&st));
+                        format!("{} ({}) {}", category, pid, ES_FORMAT)
+                    }
+                    (_, None, true) => format!("{} ({})", PCR_FORMAT, pid),
                     _ => format!("{} ({})", PID_FORMAT, pid),
                 }
             }
@@ -270,6 +296,31 @@ impl MpegTsPacketsTable {
         let filter = self.filter_input.get_filter().trim().to_lowercase();
         let streams = self.streams.borrow();
         let stream = streams.mpeg_ts_streams.get(&info.key);
+
+        // Look up program numbers for packet PIDs
+        let program_numbers: Vec<u16> = if let Some(stream) = stream {
+            if let Some(pat) = &stream.stream_info.pat {
+                info.packet
+                    .content
+                    .fragments
+                    .iter()
+                    .filter_map(|fragment| {
+                        if let PIDTable::PID(pid) = fragment.header.pid {
+                            pat.programs
+                                .iter()
+                                .find(|prog| prog.program_map_pid == Some(pid))
+                                .map(|prog| prog.program_number)
+                        } else {
+                            None
+                        }
+                    })
+                    .collect()
+            } else {
+                Vec::new()
+            }
+        } else {
+            Vec::new()
+        };
 
         let ctx = FilterContext {
             packet: info.packet,
@@ -299,6 +350,7 @@ impl MpegTsPacketsTable {
                 })
                 .unwrap_or_default(),
             stream_alias: stream.map(|s| s.alias.clone()),
+            program_numbers: &program_numbers,
         };
 
         parse_filter(&filter)

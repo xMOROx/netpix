@@ -64,6 +64,7 @@ pub struct FilterContext<'a> {
     pub es_pids: &'a [PIDTable],
     pub pcr_pids: &'a [PIDTable],
     pub stream_alias: Option<String>,
+    pub program_numbers: &'a [u16],
 }
 
 pub enum PacketType {
@@ -83,6 +84,7 @@ declare_filter_type! {
         PacketPid(usize, String),
         Pid(u16),
         Type(PacketType),
+        ProgramNumber(u16),
     }
 }
 
@@ -164,6 +166,9 @@ impl<'a> FilterExpression<'a> for FilterType {
                 |fragment| matches!(fragment.header.pid, PIDTable::PID(pid) if pid == *pid_value),
             ),
             FilterType::Type(packet_type) => match_packet_type(ctx, packet_type),
+            FilterType::ProgramNumber(program_number) => {
+                ctx.program_numbers.contains(program_number)
+            }
             FilterType::And(left, right) => left.matches(ctx) && right.matches(ctx),
             FilterType::Or(left, right) => left.matches(ctx) || right.matches(ctx),
             FilterType::Not(filter) => !filter.matches(ctx),
@@ -252,6 +257,15 @@ impl FilterParser for FilterType {
                     )
                 }),
 
+            "program" => value
+                .parse::<u16>()
+                .map(FilterType::ProgramNumber)
+                .map_err(|_| {
+                    ParseError::InvalidSyntax(
+                        "Invalid program number. Must be a positive number (e.g. program:1)".into(),
+                    )
+                }),
+
             unknown => Err(ParseError::InvalidSyntax(format!(
                 "Unknown filter type: '{}'.\nAvailable filters:\n\
                  - source: Source IP filter\n\
@@ -260,7 +274,8 @@ impl FilterParser for FilterType {
                  - payload: Payload size filter\n\
                  - p1-p7: PID position filter\n\
                  - pid: PID number filter\n\
-                 - type: Packet type filter",
+                 - type: Packet type filter\n\
+                 - program: Program number filter",
                 unknown
             ))),
         }

@@ -229,3 +229,33 @@ pub fn stream_type_into_unique_letter(stream_type: &StreamType) -> &str {
         StreamType::UserPrivate => "UP",
     }
 }
+
+pub fn get_stream_type_category(stream_type: &StreamType) -> &str {
+    match stream_type {
+        StreamType::Video111722
+        | StreamType::Video138182
+        | StreamType::Visual
+        | StreamType::VideoH264
+        | StreamType::VideoSVC
+        | StreamType::VideoMVC
+        | StreamType::Video3DH264
+        | StreamType::VideoHEVC
+        | StreamType::VideoHEVCTemporal
+        | StreamType::VideoMVCD
+        | StreamType::VideoHEVCEnhanceG
+        | StreamType::VideoHEVCEnhanceGTemp
+        | StreamType::VideoHEVCEnhanceH
+        | StreamType::VideoHEVCEnhanceHTemp
+        | StreamType::AuxiliaryVideo => "Video",
+
+        StreamType::Audio111723
+        | StreamType::Audio138183
+        | StreamType::AudioADTS
+        | StreamType::AudioLATM
+        | StreamType::RawAudio
+        | StreamType::AudioMHASMain
+        | StreamType::AudioMHASAux => "Audio",
+
+        _ => "Other",
+    }
+}
