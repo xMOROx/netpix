@@ -64,7 +64,6 @@ pub struct FilterContext<'a> {
     pub es_pids: &'a [PIDTable],
     pub pcr_pids: &'a [PIDTable],
     pub stream_alias: Option<String>,
-    pub program_numbers: &'a [u16],
     pub es_pids_info: &'a [(u16, &'a str)], // (PID, stream type category)
 }
 
@@ -104,7 +103,6 @@ declare_filter_type! {
         PacketPid(usize, String),
         Pid(u16),
         Type(PacketType),
-        ProgramNumber(u16),
         StreamType(StreamType),
     }
 }
@@ -187,9 +185,6 @@ impl<'a> FilterExpression<'a> for FilterType {
                 |fragment| matches!(fragment.header.pid, PIDTable::PID(pid) if pid == *pid_value),
             ),
             FilterType::Type(packet_type) => match_packet_type(ctx, packet_type),
-            FilterType::ProgramNumber(program_number) => {
-                ctx.program_numbers.contains(program_number)
-            }
             FilterType::StreamType(stream_type) => {
                 ctx.packet.content.fragments.iter().any(|fragment| {
                     if let PIDTable::PID(pid) = fragment.header.pid {
@@ -201,9 +196,9 @@ impl<'a> FilterExpression<'a> for FilterType {
 
                         matches!(
                             (stream_type, stream_type_category),
-                            (StreamType::Audio, Some("Audio")) |
-                            (StreamType::Video, Some("Video")) |
-                            (StreamType::Other, Some("Other"))  
+                            (StreamType::Audio, Some("Audio"))
+                                | (StreamType::Video, Some("Video"))
+                                | (StreamType::Other, Some("Other"))
                         )
                     } else {
                         false
@@ -298,15 +293,6 @@ impl FilterParser for FilterType {
                     )
                 }),
 
-            "program" => value
-                .parse::<u16>()
-                .map(FilterType::ProgramNumber)
-                .map_err(|_| {
-                    ParseError::InvalidSyntax(
-                        "Invalid program number. Must be a positive number (e.g. program:1)".into(),
-                    )
-                }),
-
             "stream" => StreamType::from_str(value)
                 .map(FilterType::StreamType)
                 .map_err(|_| {
@@ -328,7 +314,6 @@ impl FilterParser for FilterType {
                  - p1-p7: PID position filter\n\
                  - pid: PID number filter\n\
                  - type: Packet type filter\n\
-                 - program: Program number filter\n\
                  - stream: Stream type filter",
                 unknown
             ))),
