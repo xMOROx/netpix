@@ -30,7 +30,7 @@ const HEADER_TEXT_SIZE: f32 = 20.0;
 const SECTION_HEADER_TEXT_SIZE: f32 = 16.0;
 const HEADER_BOTTOM_MARGIN: f32 = 15.0;
 const SECTION_BOTTOM_MARGIN: f32 = 8.0;
-const SECTION_HEADER_COLOR: Color32 = Color32::from_rgb(255, 180, 0); // Golden yellow
+const SECTION_HEADER_COLOR: Color32 = Color32::from_rgb(153, 109, 0); // Dark orange
 
 #[derive(Debug, Clone)]
 pub struct FilterInput {
