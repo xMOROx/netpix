@@ -149,11 +149,7 @@ impl FilterInput {
                 for example in &self.help_content.examples {
                     ui.horizontal(|ui| {
                         ui.label("•");
-                        ui.label(
-                            RichText::new(example)
-                                .strong()
-                                .monospace(),
-                        );
+                        ui.label(RichText::new(example).strong().monospace());
                     });
                 }
 

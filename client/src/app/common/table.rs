@@ -1,5 +1,4 @@
-use crate::app::utils::FilterInput;
-use crate::streams::RefStreams;
+use crate::{app::utils::FilterInput, streams::RefStreams};
 use egui::Context;
 use egui_extras::{Column, TableBuilder};
 

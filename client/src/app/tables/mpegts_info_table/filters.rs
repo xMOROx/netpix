@@ -18,8 +18,10 @@
 //! - `type:value` - Filter by packet type (PAT, PMT)
 
 use super::types::{MpegTsInfo, RowKey};
-use crate::filter_system::*;
-use crate::{declare_filter_type, filter_system};
+use crate::{
+    declare_filter_type,
+    filter_system::{self, *},
+};
 use netpix_common::mpegts::header::PIDTable;
 use std::str::FromStr;
 

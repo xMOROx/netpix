@@ -1,42 +1,26 @@
-use crate::app::common::table::TableBase;
+use crate::{
+    app::{
+        common::table::TableBase,
+        tab::{MpegTsSection, RtpSection},
+    },
+    streams::RefStreams,
+};
 use eframe::egui;
 use egui::{ComboBox, Label, TextWrapMode, Ui, Widget};
 use ewebsock::{WsEvent, WsMessage, WsReceiver, WsSender};
 use log::{error, warn};
 use netpix_common::{MpegtsStreamKey, Request, Response, RtpStreamKey, Source};
-
-use packets_table::PacketsTable;
-use rtcp_packets_table::RtcpPacketsTable;
-use rtp_packets_table::RtpPacketsTable;
-use rtp_streams_table::RtpStreamsTable;
-use std::collections::HashMap;
-use std::sync::Arc;
-
-use mpegts_info_table::MpegTsInformationTable;
-use mpegts_packets_table::MpegTsPacketsTable;
-use mpegts_streams_table::MpegTsStreamsTable;
-
+use std::{collections::HashMap, sync::Arc};
 use tab::Tab;
-
-use crate::app::tab::{MpegTsSection, RtpSection};
-use crate::streams::RefStreams;
-use rtp_streams_plot::RtpStreamsPlot;
-
-mod packets_table;
-mod rtcp_packets_table;
-mod rtp_packets_table;
-mod rtp_streams_plot;
-mod rtp_streams_table;
-
-mod mpegts_info_table;
-mod mpegts_packets_table;
-mod mpegts_streams_table;
-
-mod utils;
-
-mod tab;
+use tables::{
+    MpegTsInformationTable, MpegTsPacketsTable, MpegTsStreamsTable, PacketsTable, RtcpPacketsTable,
+    RtpPacketsTable, RtpStreamsPlot, RtpStreamsTable,
+};
 
 mod common;
+mod tab;
+mod tables;
+mod utils;
 
 const SOURCE_KEY: &str = "source";
 const TAB_KEY: &str = "tab";
@@ -58,7 +42,6 @@ pub struct App {
     rtcp_packets_table: RtcpPacketsTable,
     rtp_streams_table: RtpStreamsTable,
     rtp_streams_plot: RtpStreamsPlot,
-
     mpegts_packets_table: MpegTsPacketsTable,
     mpegts_streams_table: MpegTsStreamsTable,
     mpegts_info_table: MpegTsInformationTable,

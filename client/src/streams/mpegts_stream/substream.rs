@@ -101,7 +101,6 @@ pub struct PacketUpdateContext {
     pub time: Duration,
 }
 
-
 impl MpegtsSubStream {
     pub fn new(params: SubStreamParameters) -> Self {
         Self {
@@ -158,9 +157,7 @@ impl MpegtsSubStream {
     fn update_mpegts_parameters(&mut self, mut context: PacketUpdateContext) {
         self.update_packet_times(&context.mpegts_info);
         self.update_rates(&mut context.mpegts_info);
-        self.update_statistics(
-            context.mpegts_info.clone(),
-        );
+        self.update_statistics(context.mpegts_info.clone());
         self.packets.push(context.mpegts_info);
     }
 

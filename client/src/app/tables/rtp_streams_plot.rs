@@ -1,23 +1,28 @@
 use self::SettingsXAxis::*;
-use super::is_rtp_stream_visible;
-use crate::streams::rtpStream::{RtpInfo, RtpStream};
-use crate::streams::{RefStreams, Streams};
-use eframe::egui;
-use eframe::egui::TextBuffer;
-use eframe::epaint::Color32;
+use crate::{
+    app::is_rtp_stream_visible,
+    streams::{
+        rtpStream::{RtpInfo, RtpStream},
+        RefStreams, Streams,
+    },
+};
+use eframe::{
+    egui::{self, TextBuffer},
+    epaint::Color32,
+};
+use egui::{Align2, RichText, Ui};
 use egui_plot::{
     Line, LineStyle, MarkerShape, Plot, PlotBounds, PlotPoint, PlotPoints, PlotUi, Points, Text,
 };
-use egui::Ui;
-use egui::{Align2, RichText};
-use netpix_common::packet::SessionPacket;
-use netpix_common::rtcp::ReceptionReport;
-use netpix_common::rtp::payload_type::MediaType;
-use netpix_common::RtpStreamKey;
-use netpix_common::{Packet, RtcpPacket, RtpPacket};
-use std::cell::Ref;
-use std::collections::HashMap;
-use std::fmt::{Display, Error, Formatter};
+use netpix_common::{
+    packet::SessionPacket, rtcp::ReceptionReport, rtp::payload_type::MediaType, Packet, RtcpPacket,
+    RtpPacket, RtpStreamKey,
+};
+use std::{
+    cell::Ref,
+    collections::HashMap,
+    fmt::{Display, Error, Formatter},
+};
 
 struct PointData {
     x: f64,

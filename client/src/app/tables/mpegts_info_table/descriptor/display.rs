@@ -1,20 +1,16 @@
-use netpix_common::mpegts::descriptors::*;
-use netpix_common::mpegts::descriptors::audio_stream::AudioStreamDescriptor;
-use netpix_common::mpegts::descriptors::avc_video_descriptor::AvcVideoDescriptor;
-use netpix_common::mpegts::descriptors::ca_descriptor::CaDescriptor;
-use netpix_common::mpegts::descriptors::copyright_descriptor::CopyrightDescriptor;
-use netpix_common::mpegts::descriptors::data_stream_alignment_descriptor::DataStreamAlignmentDescriptor;
-use netpix_common::mpegts::descriptors::hierarchy::HierarchyDescriptor;
-use netpix_common::mpegts::descriptors::iso_639_language_descriptor::Iso639LanguageDescriptor;
-use netpix_common::mpegts::descriptors::maximum_bitrate_descriptor::MaximumBitrateDescriptor;
-use netpix_common::mpegts::descriptors::multiplex_buffer_utilization_descriptor::MultiplexBufferUtilizationDescriptor;
-use netpix_common::mpegts::descriptors::private_data_indicator_descriptor::PrivateDataIndicatorDescriptor;
-use netpix_common::mpegts::descriptors::registration_descriptor::RegistrationDescriptor;
-use netpix_common::mpegts::descriptors::std_descriptor::StdDescriptor;
-use netpix_common::mpegts::descriptors::system_clock_descriptor::SystemClockDescriptor;
-use netpix_common::mpegts::descriptors::target_background_grid_descriptor::TargetBackgroundGridDescriptor;
-use netpix_common::mpegts::descriptors::video_stream::VideoStreamDescriptor;
-use netpix_common::mpegts::descriptors::video_window_descriptor::VideoWindowDescriptor;
+use netpix_common::mpegts::descriptors::{
+    audio_stream::AudioStreamDescriptor, avc_video_descriptor::AvcVideoDescriptor,
+    ca_descriptor::CaDescriptor, copyright_descriptor::CopyrightDescriptor,
+    data_stream_alignment_descriptor::DataStreamAlignmentDescriptor,
+    hierarchy::HierarchyDescriptor, iso_639_language_descriptor::Iso639LanguageDescriptor,
+    maximum_bitrate_descriptor::MaximumBitrateDescriptor,
+    multiplex_buffer_utilization_descriptor::MultiplexBufferUtilizationDescriptor,
+    private_data_indicator_descriptor::PrivateDataIndicatorDescriptor,
+    registration_descriptor::RegistrationDescriptor, std_descriptor::StdDescriptor,
+    system_clock_descriptor::SystemClockDescriptor,
+    target_background_grid_descriptor::TargetBackgroundGridDescriptor,
+    video_stream::VideoStreamDescriptor, video_window_descriptor::VideoWindowDescriptor, *,
+};
 
 pub trait DescriptorDisplay {
     fn display_name(&self) -> &'static str;

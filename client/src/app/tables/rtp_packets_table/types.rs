@@ -1,8 +1,6 @@
-use crate::app::common::types::TableConfig;
-use netpix_common::packet::SessionPacket;
-use netpix_common::{RtpPacket, RtpStreamKey};
+use crate::{app::common::types::TableConfig, define_filter_context};
+use netpix_common::{packet::SessionPacket, RtpPacket, RtpStreamKey};
 use web_time::Duration;
-use crate::define_filter_context;
 
 define_filter_context!(RtpFilterContext,
     packet: RtpPacket,

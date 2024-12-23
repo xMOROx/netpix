@@ -8,16 +8,8 @@ define_filter_context!(RtpStreamFilterContext,
     destination_addr: str
 );
 
+#[derive(Default)]
 pub struct SdpWindow {
     pub open: bool,
     pub sdp: String,
-}
-
-impl Default for SdpWindow {
-    fn default() -> Self {
-        Self {
-            open: false,
-            sdp: String::new(),
-        }
-    }
 }

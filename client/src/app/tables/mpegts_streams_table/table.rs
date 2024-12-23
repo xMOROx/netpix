@@ -1,15 +1,21 @@
-use super::display::build_bitrate_plot;
-use super::filters::{parse_filter, FilterContext};
-use super::types::StreamInfo;
-use crate::app::common::{TableBase, TableConfig};
-use crate::app::mpegts_streams_table::filters;
-use crate::app::utils::{FilterHelpContent, FilterInput};
-use crate::define_column;
-use crate::filter_system::FilterExpression;
-use crate::streams::mpegts_stream::substream::MpegtsSubStream;
-use crate::streams::stream_statistics::StreamStatistics;
-use crate::streams::RefStreams;
-use crate::{declare_table, declare_table_struct, impl_table_base};
+use super::{
+    display::build_bitrate_plot,
+    filters::{parse_filter, FilterContext},
+    types::StreamInfo,
+};
+use crate::{
+    app::{
+        common::{TableBase, TableConfig},
+        tables::mpegts_streams_table::filters,
+        utils::{FilterHelpContent, FilterInput},
+    },
+    declare_table, declare_table_struct, define_column,
+    filter_system::FilterExpression,
+    impl_table_base,
+    streams::{
+        mpegts_stream::substream::MpegtsSubStream, stream_statistics::StreamStatistics, RefStreams,
+    },
+};
 use egui::{Align2, Id, Window};
 use egui_extras::{Column, TableBody, TableBuilder, TableRow};
 use netpix_common::mpegts::psi::pmt::stream_types::{stream_type_into_unique_letter, StreamType};

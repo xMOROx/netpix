@@ -1,15 +1,17 @@
-use crate::app::common::*;
-use crate::app::rtp_streams_table::{filters::*, types::*};
-use crate::app::utils::*;
-use crate::define_column;
-use crate::filter_system::FilterExpression;
-use crate::streams::rtpStream::RtpStream;
-use crate::streams::RefStreams;
-use crate::{declare_table, declare_table_struct, impl_table_base};
+use crate::{
+    app::{
+        common::*,
+        tables::rtp_streams_table::{filters::*, types::*},
+        utils::*,
+    },
+    declare_table, declare_table_struct, define_column,
+    filter_system::FilterExpression,
+    impl_table_base,
+    streams::RefStreams,
+};
 use eframe::epaint::Color32;
 use egui::{RichText, TextEdit, Vec2};
-use egui_extras::TableBuilder;
-use egui_extras::{Column, TableBody, TableRow};
+use egui_extras::{Column, TableBody, TableBuilder, TableRow};
 use egui_plot::{Line, Plot, PlotPoints};
 use ewebsock::{WsMessage, WsSender};
 use netpix_common::{Request, RtpStreamKey};

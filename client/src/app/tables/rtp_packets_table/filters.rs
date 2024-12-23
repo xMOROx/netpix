@@ -44,12 +44,14 @@
 //! - `(dest:192.168 OR dest:10.0.0) AND NOT seq:0` - Non-initial packets to specific networks
 //! - `ssrc:1234 AND timestamp:>1000000` - Packets from specific stream after timestamp
 
-use crate::app::rtp_packets_table::RtpFilterContext;
-use crate::filter_system::{
-    CommonFilterParser, ComparisonFilter, FilterExpression, FilterParser, ParseError,
+use crate::{
+    app::tables::rtp_packets_table::RtpFilterContext,
+    declare_filter_type,
+    filter_system::{
+        self, CommonFilterParser, ComparisonFilter, FilterExpression, FilterParser, ParseError,
+    },
+    streams::rtpStream::RtpInfo,
 };
-use crate::streams::rtpStream::RtpInfo;
-use crate::{declare_filter_type, filter_system};
 use netpix_common::RtpPacket;
 
 declare_filter_type! {

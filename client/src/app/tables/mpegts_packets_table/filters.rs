@@ -52,11 +52,13 @@
 //! - `pid:256 AND (type:ES OR type:PCR+ES)` - ES or PCR+ES packets with PID 256
 //! - `alias:A AND payload:>=188` - Packets from stream aliased as "A" with full payloads
 
-use crate::streams::mpegts_stream::packet_info::MpegTsPacketInfo;
-use crate::{declare_filter_type, filter_system, filter_system::*};
+use crate::{
+    declare_filter_type,
+    filter_system::{self, *},
+    streams::mpegts_stream::packet_info::MpegTsPacketInfo,
+};
 use netpix_common::mpegts::header::{AdaptationFieldControl, PIDTable};
-use std::collections::VecDeque;
-use std::str::FromStr;
+use std::{collections::VecDeque, str::FromStr};
 
 pub struct FilterContext<'a> {
     pub packet: &'a MpegTsPacketInfo,

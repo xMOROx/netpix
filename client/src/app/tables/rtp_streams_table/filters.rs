@@ -36,11 +36,13 @@
 //! - `dest:192.168 OR dest:10.0.0` - Streams going to specific networks
 //! - `(mean_bitrate:>1000 OR packet_count:>1000) AND NOT source:192.168` - Large streams excluding specific network
 
-use crate::app::rtp_streams_table::RtpStreamFilterContext;
-use crate::filter_system::{
-    CommonFilterParser, ComparisonFilter, FilterExpression, FilterParser, ParseError,
+use crate::{
+    app::tables::rtp_streams_table::RtpStreamFilterContext,
+    declare_filter_type,
+    filter_system::{
+        self, CommonFilterParser, ComparisonFilter, FilterExpression, FilterParser, ParseError,
+    },
 };
-use crate::{declare_filter_type, filter_system};
 
 const KILO: f64 = 1000.0;
 
@@ -81,27 +83,51 @@ impl<'a> FilterExpression<'a> for FilterType {
                 .filter(|cname| cname.to_lowercase().contains(value))
                 .is_some(),
             FilterType::MeanBitrate(filter) => match filter {
-                ComparisonFilter::Equals(value) => ctx.stream.get_mean_bitrate() / KILO == (*value).parse().unwrap_or(0.0),
-                ComparisonFilter::GreaterThan(value) => ctx.stream.get_mean_bitrate() / KILO > *value,
-                ComparisonFilter::GreaterOrEqualThan(value) => ctx.stream.get_mean_bitrate() / KILO >= *value,
+                ComparisonFilter::Equals(value) => {
+                    ctx.stream.get_mean_bitrate() / KILO == (*value).parse().unwrap_or(0.0)
+                }
+                ComparisonFilter::GreaterThan(value) => {
+                    ctx.stream.get_mean_bitrate() / KILO > *value
+                }
+                ComparisonFilter::GreaterOrEqualThan(value) => {
+                    ctx.stream.get_mean_bitrate() / KILO >= *value
+                }
                 ComparisonFilter::LessThan(value) => ctx.stream.get_mean_bitrate() / KILO < *value,
-                ComparisonFilter::LessOrEqualThan(value) => ctx.stream.get_mean_bitrate() / KILO <= *value,
+                ComparisonFilter::LessOrEqualThan(value) => {
+                    ctx.stream.get_mean_bitrate() / KILO <= *value
+                }
             },
             FilterType::MeanRtpBitrate(filter) => match filter {
-                ComparisonFilter::Equals(value) => ctx.stream.get_mean_rtp_bitrate() / KILO == (*value).parse().unwrap_or(0.0),
-                ComparisonFilter::GreaterThan(value) => ctx.stream.get_mean_rtp_bitrate() / KILO > *value,
-                ComparisonFilter::GreaterOrEqualThan(value) => ctx.stream.get_mean_rtp_bitrate() / KILO >= *value,
-                ComparisonFilter::LessThan(value) => ctx.stream.get_mean_rtp_bitrate() / KILO < *value,
-                ComparisonFilter::LessOrEqualThan(value) => ctx.stream.get_mean_rtp_bitrate() / KILO <= *value,
-
+                ComparisonFilter::Equals(value) => {
+                    ctx.stream.get_mean_rtp_bitrate() / KILO == (*value).parse().unwrap_or(0.0)
+                }
+                ComparisonFilter::GreaterThan(value) => {
+                    ctx.stream.get_mean_rtp_bitrate() / KILO > *value
+                }
+                ComparisonFilter::GreaterOrEqualThan(value) => {
+                    ctx.stream.get_mean_rtp_bitrate() / KILO >= *value
+                }
+                ComparisonFilter::LessThan(value) => {
+                    ctx.stream.get_mean_rtp_bitrate() / KILO < *value
+                }
+                ComparisonFilter::LessOrEqualThan(value) => {
+                    ctx.stream.get_mean_rtp_bitrate() / KILO <= *value
+                }
             },
             FilterType::PacketCount(filter) => match filter {
-                ComparisonFilter::Equals(value) => ctx.stream.rtp_packets.len() == (*value).parse().unwrap_or(0),
-                ComparisonFilter::GreaterThan(value) => ctx.stream.rtp_packets.len() > *value as usize,
-                ComparisonFilter::GreaterOrEqualThan(value) => ctx.stream.rtp_packets.len() >= *value as usize,
+                ComparisonFilter::Equals(value) => {
+                    ctx.stream.rtp_packets.len() == (*value).parse().unwrap_or(0)
+                }
+                ComparisonFilter::GreaterThan(value) => {
+                    ctx.stream.rtp_packets.len() > *value as usize
+                }
+                ComparisonFilter::GreaterOrEqualThan(value) => {
+                    ctx.stream.rtp_packets.len() >= *value as usize
+                }
                 ComparisonFilter::LessThan(value) => ctx.stream.rtp_packets.len() < *value as usize,
-                ComparisonFilter::LessOrEqualThan(value) => ctx.stream.rtp_packets.len() <= *value as usize
-                
+                ComparisonFilter::LessOrEqualThan(value) => {
+                    ctx.stream.rtp_packets.len() <= *value as usize
+                }
             },
             FilterType::And(left, right) => left.matches(ctx) && right.matches(ctx),
             FilterType::Or(left, right) => left.matches(ctx) || right.matches(ctx),

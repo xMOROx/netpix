@@ -1,19 +1,27 @@
-use super::constants::*;
-use super::display::format_packet_text;
-use super::filters::{parse_filter, FilterContext};
-use super::types::PacketInfo;
-use crate::app::common::{TableBase, TableConfig};
-use crate::app::mpegts_packets_table::display::category_from_stream_type;
-use crate::app::utils::{FilterHelpContent, FilterInput};
-use crate::define_column;
-use crate::filter_system::FilterExpression;
-use crate::streams::{RefStreams, Streams};
-use crate::{declare_table, declare_table_struct, impl_table_base};
+use super::{
+    constants::*,
+    display::format_packet_text,
+    filters::{parse_filter, FilterContext},
+    types::PacketInfo,
+};
+use crate::{
+    app::{
+        common::TableConfig,
+        tables::mpegts_packets_table::display::category_from_stream_type,
+        utils::{FilterHelpContent, FilterInput},
+        TableBase,
+    },
+    declare_table, declare_table_struct, define_column,
+    filter_system::FilterExpression,
+    impl_table_base,
+    streams::{RefStreams, Streams},
+};
 use egui_extras::{Column, TableBody, TableBuilder, TableRow};
-use netpix_common::mpegts::header::{AdaptationFieldControl, PIDTable};
-use netpix_common::mpegts::psi::pmt::stream_types::get_stream_type_category;
-use std::cell::Ref;
-use std::collections::HashMap;
+use netpix_common::mpegts::{
+    header::{AdaptationFieldControl, PIDTable},
+    psi::pmt::stream_types::get_stream_type_category,
+};
+use std::{cell::Ref, collections::HashMap};
 use web_time::Duration;
 
 declare_table_struct!(MpegTsPacketsTable);
@@ -259,7 +267,7 @@ impl MpegTsPacketsTable {
                         pmt.elementary_streams_info
                             .iter()
                             .find(|es| es.elementary_pid == pid)
-                            .map(|es| es.stream_type.clone())
+                            .map(|es| es.stream_type)
                     })
                 });
 

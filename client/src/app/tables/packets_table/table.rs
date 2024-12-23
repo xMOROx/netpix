@@ -1,17 +1,23 @@
-use super::filters::{parse_filter, FilterContext};
-use super::types::PacketInfo;
-use crate::app::common::{TableBase, TableConfig};
-use crate::app::utils::{FilterHelpContent, FilterInput};
-use crate::define_column;
-use crate::filter_system::FilterExpression;
-use crate::streams::RefStreams;
-use crate::{declare_table, declare_table_struct, impl_table_base};
-use egui_extras::TableBody;
-use egui_extras::TableBuilder;
-use egui_extras::{Column, TableRow};
+use super::{
+    filters::{parse_filter, FilterContext},
+    types::PacketInfo,
+};
+use crate::{
+    app::{
+        common::{TableBase, TableConfig},
+        utils::{FilterHelpContent, FilterInput},
+    },
+    declare_table, declare_table_struct, define_column,
+    filter_system::FilterExpression,
+    impl_table_base,
+    streams::RefStreams,
+};
+use egui_extras::{Column, TableBody, TableBuilder, TableRow};
 use ewebsock::{WsMessage, WsSender};
-use netpix_common::packet::{Packet, SessionProtocol};
-use netpix_common::Request;
+use netpix_common::{
+    packet::{Packet, SessionProtocol},
+    Request,
+};
 
 declare_table_struct!(
     PacketsTable,
@@ -172,7 +178,7 @@ impl PacketsTable {
         let filter = self.filter_input.get_filter().trim();
         let ctx = FilterContext { packet };
 
-        parse_filter(&filter)
+        parse_filter(filter)
             .map(|filter_type| filter_type.matches(&ctx))
             .unwrap_or(true)
     }

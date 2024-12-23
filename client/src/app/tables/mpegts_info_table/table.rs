@@ -1,13 +1,15 @@
-use super::descriptor::*;
-use super::filters::*;
-use super::types::*;
-use crate::app::common::*;
-use crate::app::mpegts_info_table::table_body::build_table_body;
-use crate::app::utils::{FilterHelpContent, FilterInput};
-use crate::define_column;
-use crate::filter_system::FilterExpression;
-use crate::streams::RefStreams;
-use crate::{declare_table, declare_table_struct, impl_table_base};
+use super::{descriptor::*, filters::*, types::*};
+use crate::{
+    app::{
+        common::*,
+        tables::mpegts_info_table::table_body::build_table_body,
+        utils::{FilterHelpContent, FilterInput},
+    },
+    declare_table, declare_table_struct, define_column,
+    filter_system::FilterExpression,
+    impl_table_base,
+    streams::RefStreams,
+};
 use egui::Widget;
 use egui_extras::{Column, TableBody, TableBuilder, TableRow};
 use netpix_common::mpegts::header::PIDTable;

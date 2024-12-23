@@ -26,10 +26,12 @@
 //! - `bitrate:number` - Filter by mean bitrate (in kbps)
 //! - `fragmentrate:number` - Filter by fragment rate (fragments/sec)
 
-use crate::streams::mpegts_stream::substream::MpegtsSubStream;
-use crate::{declare_filter_type, filter_system, filter_system::*};
+use crate::{
+    declare_filter_type,
+    filter_system::{self, *},
+    streams::{mpegts_stream::substream::MpegtsSubStream, stream_statistics::StreamStatistics},
+};
 use std::str::FromStr;
-use crate::streams::stream_statistics::StreamStatistics;
 
 pub struct FilterContext<'a> {
     pub stream: &'a MpegtsSubStream,

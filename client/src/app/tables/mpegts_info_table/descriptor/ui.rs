@@ -1,5 +1,5 @@
 use super::display::DescriptorDisplay;
-use crate::app::mpegts_info_table::types::OpenModal;
+use crate::app::tables::mpegts_info_table::types::OpenModal;
 use egui;
 use netpix_common::mpegts::descriptors::*;
 

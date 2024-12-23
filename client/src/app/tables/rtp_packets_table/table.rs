@@ -1,15 +1,14 @@
 use super::filters::{parse_filter, FilterType};
-use crate::app::common::*;
-use crate::app::rtp_packets_table::RtpFilterContext;
-use crate::app::utils::*;
-use crate::define_column;
-use crate::filter_system::FilterExpression;
-use crate::streams::RefStreams;
-use crate::{declare_table, declare_table_struct, impl_table_base};
+use crate::{
+    app::{common::*, tables::rtp_packets_table::RtpFilterContext, utils::*},
+    declare_table, declare_table_struct, define_column,
+    filter_system::FilterExpression,
+    impl_table_base,
+    streams::RefStreams,
+};
 use eframe::epaint::Color32;
 use egui::{Context, RichText};
-use egui_extras::Column;
-use egui_extras::{TableBody, TableBuilder, TableRow};
+use egui_extras::{Column, TableBody, TableBuilder, TableRow};
 use netpix_common::packet::SessionPacket;
 use std::collections::HashMap;
 
