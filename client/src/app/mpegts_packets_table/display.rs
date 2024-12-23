@@ -2,10 +2,13 @@ use super::constants::*;
 use egui::Color32;
 use netpix_common::mpegts::{header::AdaptationFieldControl, MpegtsFragment};
 
+const PAT_COLOR: Color32 = Color32::from_rgb(0, 138, 0); // Dark lime green
+const PMT_COLOR: Color32 = Color32::from_rgb(45,127,159); // Dark blue
+
 pub fn format_packet_text(value: String, fragment: Option<&MpegtsFragment>) -> egui::RichText {
     match value {
-        s if s.contains(PAT_FORMAT) => egui::RichText::from(s).color(Color32::GREEN),
-        s if s.contains(PMT_FORMAT) => egui::RichText::from(s).color(Color32::LIGHT_BLUE),
+        s if s.contains(PAT_FORMAT) => egui::RichText::from(s).color(PAT_COLOR),
+        s if s.contains(PMT_FORMAT) => egui::RichText::from(s).color(PMT_COLOR),
         s if s.contains(PCR_FORMAT) && s.contains(ES_FORMAT) => format_pcr_es_text(s, fragment),
         s => egui::RichText::from(s),
     }
