@@ -63,22 +63,50 @@ impl_table_base!(
     ;
     build_table_body: |self, body| {
         let streams = self.streams.borrow();
-        let rtp_packets: Vec<_> = streams
+
+        let filtered_packets: Vec<_> = streams
             .packets
             .values()
             .filter(|packet| matches!(packet.contents, SessionPacket::Rtp(_)))
+            .filter(|packet| {
+                if let SessionPacket::Rtp(ref rtp_packet) = packet.contents {
+                    let key = (
+                        packet.source_addr,
+                        packet.destination_addr,
+                        packet.transport_protocol,
+                        rtp_packet.ssrc,
+                    );
+
+                    let stream_alias = streams
+                        .rtp_streams
+                        .get(&key)
+                        .map(|stream| stream.alias.to_string());
+
+                    let ctx = RtpFilterContext {
+                        packet: rtp_packet,
+                        source_addr: &packet.source_addr.to_string(),
+                        destination_addr: &packet.destination_addr.to_string(),
+                        alias: &stream_alias.unwrap_or_default(),
+                    };
+
+                    self.packet_matches_filter(&ctx)
+                } else {
+                    false
+                }
+            })
             .collect();
 
-        let mut ssrc_to_display_name = HashMap::new();
-        streams.rtp_streams.iter().for_each(|(key, stream)| {
-            ssrc_to_display_name.insert(*key, stream.alias.to_string());
-        });
+        let first_ts = filtered_packets.first().map(|p| p.timestamp).unwrap_or_default();
 
-        let first_ts = rtp_packets.first().map(|p| p.timestamp).unwrap_or_default();
+        // Build lookup table for SSRC aliases
+        let ssrc_to_display_name: HashMap<_, _> = streams
+            .rtp_streams
+            .iter()
+            .map(|(key, stream)| (*key, stream.alias.to_string()))
+            .collect();
 
-        body.rows(self.config.row_height, rtp_packets.len(), |mut row| {
-            let row_ix = row.index();
-            let packet = rtp_packets.get(row_ix).unwrap();
+        body.rows(self.config.row_height, filtered_packets.len(), |mut row| {
+            let packet = &filtered_packets[row.index()];
 
             let SessionPacket::Rtp(ref rtp_packet) = packet.contents else {
                 return;
