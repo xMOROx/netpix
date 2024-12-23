@@ -30,8 +30,6 @@ const HEADER_TEXT_SIZE: f32 = 20.0;
 const SECTION_HEADER_TEXT_SIZE: f32 = 16.0;
 const HEADER_BOTTOM_MARGIN: f32 = 15.0;
 const SECTION_BOTTOM_MARGIN: f32 = 8.0;
-const FILTER_SYNTAX_COLOR: Color32 = Color32::WHITE;
-const FILTER_DESC_COLOR: Color32 = Color32::GRAY;
 const SECTION_HEADER_COLOR: Color32 = Color32::from_rgb(255, 180, 0); // Golden yellow
 
 #[derive(Debug, Clone)]
@@ -119,8 +117,8 @@ impl FilterInput {
                 for (filter, desc) in &self.help_content.basic_filters {
                     ui.horizontal(|ui| {
                         ui.label("•");
-                        ui.label(RichText::new(filter).color(FILTER_SYNTAX_COLOR).monospace());
-                        ui.label(RichText::new(format!("- {}", desc)).color(FILTER_DESC_COLOR));
+                        ui.label(RichText::new(filter).strong().monospace());
+                        ui.label(RichText::new(format!("- {}", desc)));
                     });
                 }
 
@@ -135,8 +133,8 @@ impl FilterInput {
                 for (op, desc) in LOGICAL_OPERATORS {
                     ui.horizontal(|ui| {
                         ui.label("•");
-                        ui.label(RichText::new(op).color(FILTER_SYNTAX_COLOR).monospace());
-                        ui.label(RichText::new(format!("- {}", desc)).color(FILTER_DESC_COLOR));
+                        ui.label(RichText::new(op).strong().monospace());
+                        ui.label(RichText::new(format!("- {}", desc)));
                     });
                 }
 
@@ -153,7 +151,7 @@ impl FilterInput {
                         ui.label("•");
                         ui.label(
                             RichText::new(example)
-                                .color(FILTER_SYNTAX_COLOR)
+                                .strong()
                                 .monospace(),
                         );
                     });
