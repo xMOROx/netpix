@@ -26,17 +26,16 @@ declare_table!(MpegTsPacketsTable, FilterType, {
     columns(
         column(Some(60.0), 60.0, Some(60.0), false, true),
         column(Some(40.0), 40.0, Some(50.0), false, true),
-        column(Some(80.0), 80.0, Some(100.0), false, true),
         column(Some(80.0), 80.0, Some(80.0), false, true),
         column(Some(140.0), 140.0, None, false, true),
         column(Some(140.0), 140.0, None, false, true),
-        column(Some(140.0), 140.0, Some(140.0), false, true),
-        column(Some(140.0), 140.0, Some(140.0), false, true),
-        column(Some(140.0), 140.0, Some(140.0), false, true),
-        column(Some(140.0), 140.0, Some(140.0), false, true),
-        column(Some(140.0), 140.0, Some(140.0), false, true),
-        column(Some(140.0), 140.0, Some(140.0), false, true),
-        column(Some(140.0), 140.0, Some(140.0), false, true),
+        column(Some(160.0), 160.0, Some(160.0), false, true),
+        column(Some(160.0), 160.0, Some(160.0), false, true),
+        column(Some(160.0), 160.0, Some(160.0), false, true),
+        column(Some(160.0), 160.0, Some(160.0), false, true),
+        column(Some(160.0), 160.0, Some(160.0), false, true),
+        column(Some(160.0), 160.0, Some(160.0), false, true),
+        column(Some(160.0), 160.0, Some(160.0), false, true),
         column(None, 80.0, None, false, true),
     )
 });
@@ -56,7 +55,6 @@ impl_table_base!(
                 "payload:<op><size>",
                 "Filter by payload size (operators: <, <=, >, >=)",
             )
-            .filter("program:<number>", "Filter by program number")
             .filter("stream:<type>", "Filter by stream type (audio, video, other)")
             .example("type:PAT AND payload:>1000")
             .example("source:192.168 OR dest:10.0")
@@ -69,7 +67,6 @@ impl_table_base!(
         let headers = [
             "ID",
             "Alias",
-            "Program Number",
             "Time",
             "Source",
             "Destination",
@@ -148,20 +145,6 @@ impl_table_base!(
                 let stream = streams.mpeg_ts_streams.get(&info.key);
                 if let Some(stream) = stream {
                     ui.label(&stream.alias);
-                }
-            });
-
-            // Program Number column
-            row.col(|ui| {
-                let stream = streams.mpeg_ts_streams.get(&info.key);
-                if let Some(stream) = stream {
-                    if let Some(pat) = &stream.stream_info.pat {
-                        let program_numbers: Vec<_> = pat.programs
-                            .iter()
-                            .map(|prog| prog.program_number.to_string())
-                            .collect();
-                        ui.label(program_numbers.join(", "));
-                    }
                 }
             });
 
@@ -247,13 +230,21 @@ impl MpegTsPacketsTable {
         match pid {
             PIDTable::ProgramAssociation => PAT_FORMAT.to_string(),
             PIDTable::PID(pid) => {
-                let is_pmt = streams.mpeg_ts_streams.values().any(|stream| {
-                    stream.stream_info.pat.as_ref().map_or(false, |pat| {
-                        pat.programs
-                            .iter()
-                            .any(|prog| prog.program_map_pid == Some(pid))
+                let (is_pmt, program_number) = streams
+                    .mpeg_ts_streams
+                    .values()
+                    .find_map(|stream| {
+                        stream.stream_info.pat.as_ref().and_then(|pat| {
+                            pat.programs.iter().find_map(|prog| {
+                                if prog.program_map_pid == Some(pid) {
+                                    Some((true, Some(prog.program_number)))
+                                } else {
+                                    None
+                                }
+                            })
+                        })
                     })
-                });
+                    .unwrap_or((false, None));
 
                 let is_pcr = streams.mpeg_ts_streams.values().any(|stream| {
                     stream
@@ -272,17 +263,20 @@ impl MpegTsPacketsTable {
                     })
                 });
 
-                match (is_pmt, stream_type, is_pcr) {
-                    (true, _, _) => format!("{} ({})", PMT_FORMAT, pid),
-                    (_, Some(st), true) => {
+                match (is_pmt, stream_type, is_pcr, program_number) {
+                    (true, _, _, Some(prog_num)) => {
+                        format!("{} (PID:{} Program:{})", PMT_FORMAT, pid, prog_num)
+                    }
+                    (true, _, _, None) => format!("{} ({})", PMT_FORMAT, pid),
+                    (_, Some(st), true, _) => {
                         let category = category_from_stream_type(get_stream_type_category(&st));
                         format!("{} | {} ({})", category, PCR_ES_FORMAT, pid)
                     }
-                    (_, Some(st), false) => {
+                    (_, Some(st), false, _) => {
                         let category = category_from_stream_type(get_stream_type_category(&st));
                         format!("{} | {} ({})", category, ES_FORMAT, pid)
                     }
-                    (_, None, true) => format!("{} ({})", PCR_FORMAT, pid),
+                    (_, None, true, _) => format!("{} ({})", PCR_FORMAT, pid),
                     _ => format!("{} ({})", PID_FORMAT, pid),
                 }
             }
@@ -298,30 +292,6 @@ impl MpegTsPacketsTable {
         let filter = self.filter_input.get_filter().trim().to_lowercase();
         let streams = self.streams.borrow();
         let stream = streams.mpeg_ts_streams.get(&info.key);
-
-        let program_numbers: Vec<u16> = if let Some(stream) = stream {
-            if let Some(pat) = &stream.stream_info.pat {
-                info.packet
-                    .content
-                    .fragments
-                    .iter()
-                    .filter_map(|fragment| {
-                        if let PIDTable::PID(pid) = fragment.header.pid {
-                            pat.programs
-                                .iter()
-                                .find(|prog| prog.program_map_pid == Some(pid))
-                                .map(|prog| prog.program_number)
-                        } else {
-                            None
-                        }
-                    })
-                    .collect()
-            } else {
-                Vec::new()
-            }
-        } else {
-            Vec::new()
-        };
 
         let es_pids_info: Vec<(u16, &str)> = stream
             .map(|s| {
@@ -365,7 +335,6 @@ impl MpegTsPacketsTable {
                 })
                 .unwrap_or_default(),
             stream_alias: stream.map(|s| s.alias.clone()),
-            program_numbers: &program_numbers,
             es_pids_info: &es_pids_info,
         };
 
