@@ -1,30 +1,22 @@
 #![allow(dead_code)]
-use crate::streams::mpegts_stream::substream::{
-    MpegtsSubStream, MpegtsSubStreams, SubStreamKey, SubstreamMpegTsPacketInfo,
+use crate::streams::{
+    mpegts_stream::substream::MpegtsSubStreams,
+    stream_statistics::{Bitrate, Bytes, PacketsTime, StreamStatistics},
 };
-use crate::streams::stream_statistics::{
-    Bitrate, Bytes, PacketsTime, Statistics, StreamStatistics,
+use netpix_common::{
+    mpegts::psi::psi_buffer::{FragmentaryPsi, PsiBuffer}
+    ,
+    MpegtsPacket, Packet,
 };
-use netpix_common::mpegts::aggregator::MpegtsAggregator;
-use netpix_common::mpegts::header::{AdaptationFieldControl, PIDTable};
-use netpix_common::mpegts::psi::pat::fragmentary_pat::FragmentaryProgramAssociationTable;
-use netpix_common::mpegts::psi::pat::ProgramAssociationTable;
-use netpix_common::mpegts::psi::pmt::fragmentary_pmt::FragmentaryProgramMapTable;
-use netpix_common::mpegts::psi::pmt::ProgramMapTable;
-use netpix_common::mpegts::psi::psi_buffer::{FragmentaryPsi, PsiBuffer};
-use netpix_common::mpegts::MpegtsFragment;
-use netpix_common::packet::SessionPacket;
-use netpix_common::{MpegtsPacket, Packet, PacketAssociationTable};
 use rustc_hash::FxHashMap;
-use std::cmp::{max, min};
 use std::time::Duration;
+
+use packet_info::{MpegTsPacketInfo, MpegTsStreamInfo};
+use packet_processor::MpegtsPacketProcessor;
 
 pub mod packet_info;
 pub mod packet_processor;
 pub mod substream;
-
-use packet_info::{MpegTsPacketInfo, MpegTsStreamInfo};
-use packet_processor::MpegtsPacketProcessor;
 
 #[derive(Debug, Clone)]
 pub struct MpegTsStream {

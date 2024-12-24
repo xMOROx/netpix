@@ -1,14 +1,12 @@
 #![allow(dead_code)]
 use mpegts_stream::MpegTsStream;
+use netpix_common::{
+    packet::{SessionPacket, TransportProtocol},
+    MpegtsStreamKey, Packet, RtcpPacket, RtpStreamKey,
+};
 use packets::Packets;
 use rtpStream::RtpStream;
-use netpix_common::packet::SessionPacket;
-use netpix_common::{packet::TransportProtocol, Packet, RtcpPacket};
-use netpix_common::{MpegtsStreamKey, RtpStreamKey};
-use std::cell::RefCell;
-use std::collections::HashMap;
-use std::net::SocketAddr;
-use std::rc::Rc;
+use std::{cell::RefCell, collections::HashMap, net::SocketAddr, rc::Rc};
 
 pub mod mpegts_stream;
 mod packets;

@@ -1,6 +1,6 @@
+use crate::packet::TransportProtocol;
 use std::fmt;
 use std::net::SocketAddr;
-use crate::packet::TransportProtocol;
 
 #[derive(Debug, Copy, Clone, Hash, PartialEq, Eq, PartialOrd, Ord)]
 pub struct PacketAssociationTable {

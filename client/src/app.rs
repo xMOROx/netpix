@@ -1,42 +1,29 @@
-use crate::app::common::table::TableBase;
+use crate::app::common::PlotRegistry;
+use crate::app::plots::RtpStreamsPlot;
+use crate::{
+    app::{
+        common::table::{TableBase, TableRegistry},
+        tab::{MpegTsSection, RtpSection},
+    },
+    streams::RefStreams,
+};
 use eframe::egui;
 use egui::{ComboBox, Label, TextWrapMode, Ui, Widget};
 use ewebsock::{WsEvent, WsMessage, WsReceiver, WsSender};
 use log::{error, warn};
 use netpix_common::{MpegtsStreamKey, Request, Response, RtpStreamKey, Source};
-
-use packets_table::PacketsTable;
-use rtcp_packets_table::RtcpPacketsTable;
-use rtp_packets_table::RtpPacketsTable;
-use rtp_streams_table::RtpStreamsTable;
-use std::collections::HashMap;
-use std::sync::Arc;
-
-use mpegts_info_table::MpegTsInformationTable;
-use mpegts_packets_table::MpegTsPacketsTable;
-use mpegts_streams_table::MpegTsStreamsTable;
-
+use std::{collections::HashMap, sync::Arc};
 use tab::Tab;
-
-use crate::app::tab::{MpegTsSection, RtpSection};
-use crate::streams::RefStreams;
-use rtp_streams_plot::RtpStreamsPlot;
-
-mod packets_table;
-mod rtcp_packets_table;
-mod rtp_packets_table;
-mod rtp_streams_plot;
-mod rtp_streams_table;
-
-mod mpegts_info_table;
-mod mpegts_packets_table;
-mod mpegts_streams_table;
-
-mod utils;
-
-mod tab;
+use tables::{
+    MpegTsInformationTable, MpegTsPacketsTable, MpegTsStreamsTable, PacketsTable, RtcpPacketsTable,
+    RtpPacketsTable, RtpStreamsTable,
+};
 
 mod common;
+mod plots;
+mod tab;
+mod tables;
+mod utils;
 
 const SOURCE_KEY: &str = "source";
 const TAB_KEY: &str = "tab";
@@ -45,23 +32,12 @@ pub struct App {
     ws_sender: WsSender,
     ws_receiver: WsReceiver,
     is_capturing: bool,
-    // some kind of sparse vector would be the best
-    // but this will do
     streams: RefStreams,
     sources: Vec<Source>,
     selected_source: Option<Source>,
     tab: Tab,
-    // would rather keep this in `Tab` enum
-    // but it proved to be inconvinient
-    packets_table: PacketsTable,
-    rtp_packets_table: RtpPacketsTable,
-    rtcp_packets_table: RtcpPacketsTable,
-    rtp_streams_table: RtpStreamsTable,
-    rtp_streams_plot: RtpStreamsPlot,
-
-    mpegts_packets_table: MpegTsPacketsTable,
-    mpegts_streams_table: MpegTsStreamsTable,
-    mpegts_info_table: MpegTsInformationTable,
+    table_registry: TableRegistry,
+    plot_registry: PlotRegistry,
     discharged_count: usize,
     overwritten_count: usize,
 }
@@ -76,20 +52,13 @@ impl eframe::App for App {
         self.build_top_bar(ctx, frame);
         self.build_bottom_bar(ctx);
 
-        match self.tab {
-            Tab::Packets => self.packets_table.ui(ctx),
-            Tab::RtpSection(section) => match section {
-                RtpSection::Packets => self.rtp_packets_table.ui(ctx),
-                RtpSection::RtcpPackets => self.rtcp_packets_table.ui(ctx),
-                RtpSection::Streams => self.rtp_streams_table.ui(ctx),
-                RtpSection::Plot => self.rtp_streams_plot.ui(ctx),
-            },
-            Tab::MpegTsSection(section) => match section {
-                MpegTsSection::Packets => self.mpegts_packets_table.ui(ctx),
-                MpegTsSection::Streams => self.mpegts_streams_table.ui(ctx),
-                MpegTsSection::Information => self.mpegts_info_table.ui(ctx),
-            },
-        };
+        let table_id = self.tab.get_table_id();
+        if let Some(table) = self.table_registry.get_table_mut(table_id) {
+            table.ui(ctx);
+        }
+        if let Some(plot) = self.plot_registry.get_plot_mut(table_id) {
+            plot.ui(ctx);
+        }
     }
 }
 
@@ -105,35 +74,30 @@ impl App {
             ewebsock::connect_with_wakeup(uri, wakeup).expect("Unable to connect to WebSocket");
 
         let streams = RefStreams::default();
-        let packets_table = PacketsTable::new_with_sender(streams.clone(), ws_sender.clone());
-        let rtp_packets_table = RtpPacketsTable::new(streams.clone());
-        let rtcp_packets_table = RtcpPacketsTable::new(streams.clone());
-        let rtp_streams_table =
-            RtpStreamsTable::new_with_sender(streams.clone(), ws_sender.clone());
-        let rtp_streams_plot = RtpStreamsPlot::new(streams.clone());
+        let mut table_registry = TableRegistry::new();
+        let mut plot_registry = PlotRegistry::new();
 
-        let mpegts_packets_table = MpegTsPacketsTable::new(streams.clone());
-        let mpegts_streams_table = MpegTsStreamsTable::new(streams.clone());
-        let mpegts_info_table = MpegTsInformationTable::new(streams.clone());
+        table_registry.register::<PacketsTable>(streams.clone(), ws_sender.clone());
+        table_registry.register::<RtpPacketsTable>(streams.clone(), ws_sender.clone());
+        table_registry.register::<RtcpPacketsTable>(streams.clone(), ws_sender.clone());
+        table_registry.register::<RtpStreamsTable>(streams.clone(), ws_sender.clone());
+        table_registry.register::<MpegTsPacketsTable>(streams.clone(), ws_sender.clone());
+        table_registry.register::<MpegTsStreamsTable>(streams.clone(), ws_sender.clone());
+        table_registry.register::<MpegTsInformationTable>(streams.clone(), ws_sender.clone());
+        plot_registry.register::<RtpStreamsPlot>(streams.clone(), ws_sender.clone());
 
         let (tab, selected_source) = get_initial_state(cc);
 
         Self {
+            tab,
+            streams,
             ws_sender,
             ws_receiver,
-            is_capturing: true,
-            streams,
-            sources: Vec::new(),
+            plot_registry,
+            table_registry,
             selected_source,
-            tab,
-            packets_table,
-            rtp_packets_table,
-            rtcp_packets_table,
-            rtp_streams_table,
-            rtp_streams_plot,
-            mpegts_packets_table,
-            mpegts_streams_table,
-            mpegts_info_table,
+            is_capturing: true,
+            sources: Vec::new(),
             discharged_count: 0,
             overwritten_count: 0,
         }
@@ -387,4 +351,23 @@ pub fn is_rtp_stream_visible(
     key: RtpStreamKey,
 ) -> &mut bool {
     streams_visibility.entry(key).or_insert(true)
+}
+
+impl Tab {
+    fn get_table_id(&self) -> &'static str {
+        match self {
+            Tab::Packets => "packets",
+            Tab::RtpSection(section) => match section {
+                RtpSection::Packets => "rtp_packets",
+                RtpSection::RtcpPackets => "rtcp_packets",
+                RtpSection::Streams => "rtp_streams",
+                RtpSection::Plot => "rtp_streams_plot",
+            },
+            Tab::MpegTsSection(section) => match section {
+                MpegTsSection::Packets => "mpegts_packets",
+                MpegTsSection::Streams => "mpegts_streams",
+                MpegTsSection::Information => "mpegts_info",
+            },
+        }
+    }
 }

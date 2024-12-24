@@ -25,12 +25,3 @@ impl Default for TableConfig {
         }
     }
 }
-
-#[macro_export]
-macro_rules! define_filter_context {
-    ($name:ident, $($field:ident: $type:ty),*) => {
-        pub struct $name<'a> {
-            $(pub $field: &'a $type),*
-        }
-    };
-}
