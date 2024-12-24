@@ -1,10 +1,11 @@
 use crate::{app::utils::FilterInput, streams::RefStreams};
 use egui::Context;
 use egui_extras::{Column, TableBuilder};
+use ewebsock::WsSender;
 use std::any::Any;
 
 pub trait TableBase: Any {
-    fn new(streams: RefStreams) -> Self
+    fn new(streams: RefStreams, ws_sender: WsSender) -> Self
     where
         Self: Sized;
     fn ui(&mut self, ctx: &Context);
@@ -26,8 +27,8 @@ impl TableRegistry {
         Self { tables: Vec::new() }
     }
 
-    pub fn register<T: TableBase + 'static>(&mut self, streams: RefStreams) {
-        self.tables.push(Box::new(T::new(streams)));
+    pub fn register<T: TableBase + 'static>(&mut self, streams: RefStreams, ws_sender: WsSender) {
+        self.tables.push(Box::new(T::new(streams, ws_sender)));
     }
 
     pub fn get_table(&self, id: &str) -> Option<&dyn TableBase> {

@@ -18,7 +18,6 @@ use netpix_common::{Request, RtpStreamKey};
 use std::any::Any;
 
 declare_table_struct!(RtpStreamsTable,
-    ws_sender: Option<WsSender>,
     chosen_key: Option<RtpStreamKey>,
     sdp_window: SdpWindow
 );
@@ -48,7 +47,6 @@ declare_table!(RtpStreamsTable, FilterType, {
 
 impl_table_base!(
     RtpStreamsTable;
-    ws_sender: Option<WsSender>,
     chosen_key: Option<RtpStreamKey>,
     sdp_window: SdpWindow;
     FilterHelpContent::builder("RTP Stream Filters")
@@ -255,18 +253,6 @@ impl_table_base!(
 );
 
 impl RtpStreamsTable {
-    pub fn new_with_sender(streams: RefStreams, ws_sender: WsSender) -> Self {
-        let new = Self::new(streams);
-
-        Self {
-            config: TableConfig::new(100.0, 30.0, 5.0),
-            ws_sender: Some(ws_sender),
-            chosen_key: None,
-            sdp_window: SdpWindow::default(),
-            ..new
-        }
-    }
-
     pub fn send_sdp_request(&mut self) {
         let request = Request::ParseSdp(self.chosen_key.unwrap(), self.sdp_window.sdp.clone());
 
@@ -276,7 +262,7 @@ impl RtpStreamsTable {
         };
         let msg = WsMessage::Binary(msg);
 
-        self.ws_sender.as_mut().unwrap().send(msg);
+        self.ws_sender.send(msg);
     }
 
     fn stream_matches_filter(&self, ctx: &RtpStreamFilterContext) -> bool {

@@ -18,6 +18,7 @@ use crate::{
 };
 use egui::{Align2, Id, Window};
 use egui_extras::{Column, TableBody, TableBuilder, TableRow};
+use ewebsock::WsSender;
 use netpix_common::mpegts::psi::pmt::stream_types::{stream_type_into_unique_letter, StreamType};
 use std::{any::Any, collections::HashMap};
 

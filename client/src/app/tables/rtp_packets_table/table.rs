@@ -9,6 +9,7 @@ use crate::{
 use eframe::epaint::Color32;
 use egui::{Context, RichText};
 use egui_extras::{Column, TableBody, TableBuilder, TableRow};
+use ewebsock::WsSender;
 use netpix_common::packet::SessionPacket;
 use std::{any::Any, collections::HashMap};
 

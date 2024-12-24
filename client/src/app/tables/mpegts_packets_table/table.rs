@@ -17,6 +17,7 @@ use crate::{
     streams::{RefStreams, Streams},
 };
 use egui_extras::{Column, TableBody, TableBuilder, TableRow};
+use ewebsock::WsSender;
 use netpix_common::mpegts::{
     header::{AdaptationFieldControl, PIDTable},
     psi::pmt::stream_types::get_stream_type_category,

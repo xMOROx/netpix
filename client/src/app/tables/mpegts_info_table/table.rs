@@ -12,6 +12,7 @@ use crate::{
 };
 use egui::Widget;
 use egui_extras::{Column, TableBody, TableBuilder, TableRow};
+use ewebsock::WsSender;
 use netpix_common::mpegts::header::PIDTable;
 use std::any::Any;
 use std::collections::BTreeMap;

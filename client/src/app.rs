@@ -69,14 +69,14 @@ impl App {
         let streams = RefStreams::default();
         let mut table_registry = TableRegistry::new();
 
-        table_registry.register::<PacketsTable>(streams.clone());
-        table_registry.register::<RtpPacketsTable>(streams.clone());
+        table_registry.register::<PacketsTable>(streams.clone(), ws_sender.clone());
+        table_registry.register::<RtpPacketsTable>(streams.clone(), ws_sender.clone());
         // table_registry.register::<RtcpPacketsTable>(streams.clone());
-        table_registry.register::<RtpStreamsTable>(streams.clone());
+        table_registry.register::<RtpStreamsTable>(streams.clone(), ws_sender.clone());
         // table_registry.register::<RtpStreamsPlot>(streams.clone());
-        table_registry.register::<MpegTsPacketsTable>(streams.clone());
-        table_registry.register::<MpegTsStreamsTable>(streams.clone());
-        table_registry.register::<MpegTsInformationTable>(streams.clone());
+        table_registry.register::<MpegTsPacketsTable>(streams.clone(), ws_sender.clone());
+        table_registry.register::<MpegTsStreamsTable>(streams.clone(), ws_sender.clone());
+        table_registry.register::<MpegTsInformationTable>(streams.clone(), ws_sender.clone());
 
         let (tab, selected_source) = get_initial_state(cc);
 

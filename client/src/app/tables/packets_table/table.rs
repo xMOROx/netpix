@@ -21,14 +21,10 @@ use netpix_common::{
 
 use std::any::Any;
 
-declare_table_struct!(
-    PacketsTable,
-    ws_sender: Option<WsSender>
-);
+declare_table_struct!(PacketsTable);
 
 impl_table_base!(
-    PacketsTable;
-    ws_sender: Option<WsSender>;
+    PacketsTable,
     FilterHelpContent::builder("Network Packet Filters")
         .filter("source:<ip>", "Filter by source IP address")
         .filter("dest:<ip>", "Filter by destination IP address")
@@ -44,16 +40,6 @@ impl_table_base!(
         .example("(proto:tcp AND length:>500) OR source:192.168")
     .build(),
     "packets", "Network Packets"
-    ;
-    ui: |self, ctx| {
-        if self.filter_input.show(ctx) {
-            self.check_filter();
-        }
-
-        egui::CentralPanel::default().show(ctx, |ui| {
-            self.build_table(ui);
-        });
-    }
     ;
     build_header: |self, header| {
         let headers = [
@@ -166,13 +152,6 @@ declare_table!(PacketsTable, FilterType, {
 });
 
 impl PacketsTable {
-    pub fn new_with_sender(streams: RefStreams, ws_sender: WsSender) -> Self {
-        Self {
-            ws_sender: Some(ws_sender),
-            ..Self::new(streams)
-        }
-    }
-
     fn packet_matches_filter(&self, packet: &Packet) -> bool {
         if self.filter_input.get_filter().is_empty() {
             return true;
@@ -205,11 +184,7 @@ impl PacketsTable {
 
     fn send_parse_request(&mut self, request: Request) {
         if let Ok(msg) = request.encode() {
-            if let Some(ws_sender) = &mut self.ws_sender {
-                ws_sender.send(WsMessage::Binary(msg));
-            } else {
-                log::error!("Websocket sender is not set");
-            }
+            self.ws_sender.send(WsMessage::Binary(msg));
         } else {
             log::error!("Failed to encode request message");
         }

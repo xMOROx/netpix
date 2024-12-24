@@ -14,6 +14,7 @@ macro_rules! declare_table_struct {
             streams: RefStreams,
             filter_input: FilterInput,
             config: TableConfig,
+            ws_sender: WsSender,
         }
     };
     ($name:ident, $($field:ident: $type:ty),*) => {
@@ -21,6 +22,7 @@ macro_rules! declare_table_struct {
             streams: RefStreams,
             filter_input: FilterInput,
             config: TableConfig,
+            ws_sender: WsSender,
             $($field: $type),*
         }
     };
@@ -37,11 +39,12 @@ macro_rules! impl_table_base {
         $(,)?
     ) => {
         impl TableBase for $name {
-            fn new(streams: RefStreams) -> Self {
+            fn new(streams: RefStreams, ws_sender: WsSender) -> Self {
                 Self {
                     streams,
                     filter_input: FilterInput::new($help),
                     config: TableConfig::default(),
+                    ws_sender,
                 }
             }
 
@@ -102,11 +105,12 @@ macro_rules! impl_table_base {
         $(,)?
     ) => {
         impl TableBase for $name {
-            fn new(streams: RefStreams) -> Self {
+            fn new(streams: RefStreams, ws_sender: WsSender) -> Self {
                 Self {
                     streams,
                     filter_input: FilterInput::new($help),
                     config: TableConfig::default(),
+                    ws_sender,
                     $(
                         $field_name: <$field_type>::default(),
                     )*
