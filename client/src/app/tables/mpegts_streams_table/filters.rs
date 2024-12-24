@@ -31,7 +31,6 @@ use crate::{
     filter_system::{self, *},
     streams::{mpegts_stream::substream::MpegtsSubStream, stream_statistics::StreamStatistics},
 };
-use std::str::FromStr;
 
 pub struct FilterContext<'a> {
     pub stream: &'a MpegtsSubStream,

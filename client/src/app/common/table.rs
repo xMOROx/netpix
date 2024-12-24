@@ -1,6 +1,5 @@
-use crate::{app::utils::FilterInput, streams::RefStreams};
+use crate::streams::RefStreams;
 use egui::Context;
-use egui_extras::{Column, TableBuilder};
 use ewebsock::WsSender;
 use std::any::Any;
 

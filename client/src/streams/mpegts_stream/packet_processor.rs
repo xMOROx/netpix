@@ -15,8 +15,8 @@ use netpix_common::{
         },
         MpegtsFragment,
     },
-    packet::SessionPacket,
-    MpegtsPacket, Packet, PacketAssociationTable,
+    packet::SessionPacket
+    , Packet, PacketAssociationTable,
 };
 use std::time::Duration;
 

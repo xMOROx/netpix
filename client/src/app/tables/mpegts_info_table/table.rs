@@ -10,7 +10,6 @@ use crate::{
     impl_table_base,
     streams::RefStreams,
 };
-use egui::Widget;
 use egui_extras::{Column, TableBody, TableBuilder, TableRow};
 use ewebsock::WsSender;
 use netpix_common::mpegts::header::PIDTable;

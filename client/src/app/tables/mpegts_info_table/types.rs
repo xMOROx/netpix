@@ -3,7 +3,6 @@ use netpix_common::mpegts::{
     header::PIDTable,
     psi::{pat::ProgramAssociationTable, pmt::ProgramMapTable},
 };
-use std::cmp::Ordering;
 
 pub const LINE_HEIGHT: f32 = 32.0;
 

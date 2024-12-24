@@ -1,12 +1,12 @@
 use super::{
     display::build_bitrate_plot,
-    filters::{parse_filter, FilterContext},
-    types::StreamInfo,
+    filters::{parse_filter, FilterContext}
+    ,
 };
 use crate::{
     app::{
-        common::{TableBase, TableConfig},
-        tables::mpegts_streams_table::filters,
+        common::{TableBase, TableConfig}
+        ,
         utils::{FilterHelpContent, FilterInput},
     },
     declare_table, declare_table_struct, define_column,
@@ -16,7 +16,7 @@ use crate::{
         mpegts_stream::substream::MpegtsSubStream, stream_statistics::StreamStatistics, RefStreams,
     },
 };
-use egui::{Align2, Id, Window};
+use egui::Window;
 use egui_extras::{Column, TableBody, TableBuilder, TableRow};
 use ewebsock::WsSender;
 use netpix_common::mpegts::psi::pmt::stream_types::{stream_type_into_unique_letter, StreamType};

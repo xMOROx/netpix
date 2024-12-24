@@ -58,7 +58,7 @@ use crate::{
     streams::mpegts_stream::packet_info::MpegTsPacketInfo,
 };
 use netpix_common::mpegts::header::{AdaptationFieldControl, PIDTable};
-use std::{collections::VecDeque, str::FromStr};
+use std::str::FromStr;
 
 pub struct FilterContext<'a> {
     pub packet: &'a MpegTsPacketInfo,

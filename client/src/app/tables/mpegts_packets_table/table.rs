@@ -22,7 +22,7 @@ use netpix_common::mpegts::{
     header::{AdaptationFieldControl, PIDTable},
     psi::pmt::stream_types::get_stream_type_category,
 };
-use std::{any::Any, cell::Ref, collections::HashMap};
+use std::{any::Any, cell::Ref};
 use web_time::Duration;
 
 declare_table_struct!(MpegTsPacketsTable);

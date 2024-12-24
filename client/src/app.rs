@@ -71,7 +71,7 @@ impl App {
 
         table_registry.register::<PacketsTable>(streams.clone(), ws_sender.clone());
         table_registry.register::<RtpPacketsTable>(streams.clone(), ws_sender.clone());
-        // table_registry.register::<RtcpPacketsTable>(streams.clone());
+        table_registry.register::<RtcpPacketsTable>(streams.clone(), ws_sender.clone());
         table_registry.register::<RtpStreamsTable>(streams.clone(), ws_sender.clone());
         // table_registry.register::<RtpStreamsPlot>(streams.clone());
         table_registry.register::<MpegTsPacketsTable>(streams.clone(), ws_sender.clone());
