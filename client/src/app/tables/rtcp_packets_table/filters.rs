@@ -1,3 +1,40 @@
+//! RTCP Packet Filtering
+//!
+//! This module provides a filtering system for RTCP packets with support for complex queries.
+//!
+//! # Filter Syntax
+//!
+//! The basic filter syntax is: `field:value`
+//!
+//! Multiple filters can be combined using:
+//! - `AND` - both conditions must match
+//! - `OR` - either condition must match
+//! - `NOT` - negates the condition
+//! - Parentheses `()` for grouping
+//!
+//! # Available Filters
+//!
+//! ## Address Filters
+//! - `source:value` - Matches source IP address containing the value
+//! - `dest:value` - Matches destination IP address containing the value
+//!
+//! ## Type Filters
+//! - `type:sender` - Matches sender report packets
+//! - `type:receiver` - Matches receiver report packets
+//! - `type:sdes` - Matches source description packets
+//! - `type:bye` - Matches goodbye packets
+//!
+//! # Examples
+//!
+//! Simple filters:
+//! - `source:192.168` - Matches packets from addresses containing "192.168"
+//! - `type:sender` - Matches sender report packets
+//!
+//! Complex filters:
+//! - `source:192.168 AND type:sender` - Sender reports from specific address
+//! - `dest:10.0.0 OR dest:192.168` - Packets going to specific networks
+//! - `NOT type:bye` - All packets except goodbye messages
+
 use crate::{
     app::tables::rtcp_packets_table::RtcpFilterContext,
     declare_filter_type,
@@ -55,14 +92,42 @@ impl<'a> FilterExpression<'a> for FilterType {
 impl FilterParser for FilterType {
     fn parse_filter_value(prefix: &str, value: &str) -> Result<Self, ParseError> {
         match prefix.trim() {
-            "source" => Ok(FilterType::Source(value.to_lowercase())),
-            "dest" => Ok(FilterType::Destination(value.to_lowercase())),
-            "type" => Ok(FilterType::Type(value.to_lowercase())),
+            "source" => value
+                .contains('.')
+                .then_some(Ok(FilterType::Source(value.to_lowercase())))
+                .unwrap_or_else(|| {
+                    Err(ParseError::InvalidSyntax(
+                        "Invalid IP address format (e.g. source:192.168.1.1)".into(),
+                    ))
+                }),
+
+            "dest" => value
+                .contains('.')
+                .then_some(Ok(FilterType::Destination(value.to_lowercase())))
+                .unwrap_or_else(|| {
+                    Err(ParseError::InvalidSyntax(
+                        "Invalid IP address format (e.g. dest:192.168.1.1)".into(),
+                    ))
+                }),
+
+            "type" => (!value.is_empty())
+                .then_some(Ok(FilterType::Type(value.to_lowercase())))
+                .unwrap_or_else(|| {
+                    Err(ParseError::InvalidSyntax(
+                        "Invalid RTCP packet type.\nAvailable types:\n\
+                         - type:sender (Sender Report)\n\
+                         - type:receiver (Receiver Report)\n\
+                         - type:sdes (Source Description)\n\
+                         - type:bye (Goodbye)"
+                            .into(),
+                    ))
+                }),
+
             unknown => Err(ParseError::InvalidSyntax(format!(
                 "Unknown filter type: '{}'.\nAvailable filters:\n\
-                 - source: Source IP filter\n\
-                 - dest: Destination IP filter\n\
-                 - type: RTCP packet type filter",
+                 - source: Source IP filter (e.g. source:192.168)\n\
+                 - dest: Destination IP filter (e.g. dest:10.0.0)\n\
+                 - type: RTCP packet type filter (e.g. type:sender)",
                 unknown
             ))),
         }
