@@ -29,7 +29,7 @@ macro_rules! declare_table_struct {
 #[macro_export]
 macro_rules! impl_table_base {
     (
-        $name:ident, $help:expr
+        $name:ident, $help:expr, $id:expr, $display_name:expr
         ;
         build_header: |$self:ident, $header:ident| $header_impl:block
         ;
@@ -73,10 +73,26 @@ macro_rules! impl_table_base {
             fn build_table_body($self_body:&mut Self, $body: TableBody) {
                 $body_impl
             }
+
+            fn table_id(&self) -> &'static str {
+                $id
+            }
+
+            fn table_name(&self) -> &'static str {
+                $display_name
+            }
+
+            fn as_any(&self) -> &dyn Any {
+                self
+            }
+
+            fn as_any_mut(&mut self) -> &mut dyn Any {
+                self
+            }
         }
     };
-   (
-        $name:ident; $($field_name:ident : $field_type:ty),* $(,)?; $help:expr
+    (
+        $name:ident; $($field_name:ident : $field_type:ty),* $(,)?; $help:expr, $id:expr, $display_name:expr
         ;
         ui: |$ui_self:ident, $ctx:ident| $ui_body:block
         ;
@@ -96,6 +112,7 @@ macro_rules! impl_table_base {
                     )*
                 }
             }
+
             fn ui(&mut $ui_self, $ctx: &egui::Context) {
                 $ui_body
             }
@@ -117,6 +134,22 @@ macro_rules! impl_table_base {
 
             fn build_table_body($self_body:&mut Self, $body: TableBody) {
                 $body_impl
+            }
+
+            fn table_id(&self) -> &'static str {
+                $id
+            }
+
+            fn table_name(&self) -> &'static str {
+                $display_name
+            }
+
+            fn as_any(&self) -> &dyn Any {
+                self
+            }
+
+            fn as_any_mut(&mut self) -> &mut dyn Any {
+                self
             }
         }
     };

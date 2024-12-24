@@ -10,7 +10,7 @@ use eframe::epaint::Color32;
 use egui::{Context, RichText};
 use egui_extras::{Column, TableBody, TableBuilder, TableRow};
 use netpix_common::packet::SessionPacket;
-use std::collections::HashMap;
+use std::{any::Any, collections::HashMap};
 
 declare_table_struct!(RtpPacketsTable);
 
@@ -33,7 +33,8 @@ impl_table_base!(
         .example("(dest:192.168 OR dest:10.0.0) AND NOT seq:0")
         .example("padding:+ AND timestamp:>1000000")
         .example("padding:+ AND extension:-")
-        .build()
+        .build(),
+    "rtp_packets", "RTP Packets"
     ;
     build_header: |self, header| {
         let headers = [

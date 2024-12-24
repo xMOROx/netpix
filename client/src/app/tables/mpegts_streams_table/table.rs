@@ -19,7 +19,7 @@ use crate::{
 use egui::{Align2, Id, Window};
 use egui_extras::{Column, TableBody, TableBuilder, TableRow};
 use netpix_common::mpegts::psi::pmt::stream_types::{stream_type_into_unique_letter, StreamType};
-use std::collections::HashMap;
+use std::{any::Any, collections::HashMap};
 
 declare_table_struct!(
     MpegTsStreamsTable,
@@ -42,7 +42,8 @@ impl_table_base!(
             .example("source:192.168 OR dest:10.0")
             .example("fragments:>100 AND duration:<10")
             .example("(program:1 AND bitrate:>500) OR fragmentrate:>30")
-            .build()
+            .build(),
+    "mpegts_streams", "MPEG-TS Streams"
     ;
     ui: |self, ctx| {
         if self.filter_input.show(ctx) {

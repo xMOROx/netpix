@@ -21,7 +21,7 @@ use netpix_common::mpegts::{
     header::{AdaptationFieldControl, PIDTable},
     psi::pmt::stream_types::get_stream_type_category,
 };
-use std::{cell::Ref, collections::HashMap};
+use std::{any::Any, cell::Ref, collections::HashMap};
 use web_time::Duration;
 
 declare_table_struct!(MpegTsPacketsTable);
@@ -69,7 +69,8 @@ impl_table_base!(
             .example("alias:A AND type:PCR")
             .example("(type:PAT and payload: <100) OR pid:256")
             .example("stream:audio AND payload:>1000")
-            .build()
+            .build(),
+    "mpegts_packets", "MPEG-TS Packets"
     ;
     build_header: |self, header| {
         let headers = [

@@ -19,6 +19,8 @@ use netpix_common::{
     Request,
 };
 
+use std::any::Any;
+
 declare_table_struct!(
     PacketsTable,
     ws_sender: Option<WsSender>
@@ -40,7 +42,8 @@ impl_table_base!(
         .example("length:>100 AND type:rtp")
         .example("NOT dest:10.0.0.1")
         .example("(proto:tcp AND length:>500) OR source:192.168")
-    .build()
+    .build(),
+    "packets", "Network Packets"
     ;
     ui: |self, ctx| {
         if self.filter_input.show(ctx) {

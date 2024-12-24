@@ -15,6 +15,7 @@ use egui_extras::{Column, TableBody, TableBuilder, TableRow};
 use egui_plot::{Line, Plot, PlotPoints};
 use ewebsock::{WsMessage, WsSender};
 use netpix_common::{Request, RtpStreamKey};
+use std::any::Any;
 
 declare_table_struct!(RtpStreamsTable,
     ws_sender: Option<WsSender>,
@@ -62,7 +63,8 @@ impl_table_base!(
         .example("dest:192.168 AND NOT alias:a")
         .example("payload_type:96 AND mean_bitrate:>1000")
         .example("cname:example")
-        .build()
+        .build(),
+    "rtp_streams", "RTP Streams"
     ;
     ui: |self, ctx| {
                 if self.filter_input.show(ctx) {

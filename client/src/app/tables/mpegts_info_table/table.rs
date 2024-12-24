@@ -13,6 +13,7 @@ use crate::{
 use egui::Widget;
 use egui_extras::{Column, TableBody, TableBuilder, TableRow};
 use netpix_common::mpegts::header::PIDTable;
+use std::any::Any;
 use std::collections::BTreeMap;
 
 declare_table_struct!(
@@ -31,7 +32,8 @@ impl_table_base!(
             .example("pid:256 OR pid:257")
             .example("NOT type:PMT")
             .example("(type:PAT OR type:PMT) AND alias:stream2")
-            .build()
+            .build(),
+    "mpegts_info", "MPEG-TS Information"
     ;
     ui: |self, ctx| {
         if self.filter_input.show(ctx) {
