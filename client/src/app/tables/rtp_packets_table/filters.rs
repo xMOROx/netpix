@@ -49,10 +49,9 @@ use crate::{
     declare_filter_type,
     filter_system::{
         self, CommonFilterParser, ComparisonFilter, FilterExpression, FilterParser, ParseError,
-    },
-    streams::rtpStream::RtpInfo,
+    }
+    ,
 };
-use netpix_common::RtpPacket;
 
 declare_filter_type! {
     pub enum FilterType {

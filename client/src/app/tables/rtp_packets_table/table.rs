@@ -1,4 +1,4 @@
-use super::filters::{parse_filter, FilterType};
+use super::filters::parse_filter;
 use crate::{
     app::{common::*, tables::rtp_packets_table::RtpFilterContext, utils::*},
     declare_table, declare_table_struct, define_column,
@@ -7,7 +7,7 @@ use crate::{
     streams::RefStreams,
 };
 use eframe::epaint::Color32;
-use egui::{Context, RichText};
+use egui::RichText;
 use egui_extras::{Column, TableBody, TableBuilder, TableRow};
 use ewebsock::WsSender;
 use netpix_common::packet::SessionPacket;
