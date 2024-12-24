@@ -1,4 +1,5 @@
 use self::SettingsXAxis::*;
+use crate::app::common::PlotBase;
 use crate::{
     app::is_rtp_stream_visible,
     streams::{
@@ -10,14 +11,17 @@ use eframe::{
     egui::{self, TextBuffer},
     epaint::Color32,
 };
+use egui::Context;
 use egui::{Align2, RichText, Ui};
 use egui_plot::{
     Line, LineStyle, MarkerShape, Plot, PlotBounds, PlotPoint, PlotPoints, PlotUi, Points, Text,
 };
+use ewebsock::WsSender;
 use netpix_common::{
     packet::SessionPacket, rtcp::ReceptionReport, rtp::payload_type::MediaType, Packet, RtcpPacket,
     RtpPacket, RtpStreamKey,
 };
+use std::any::Any;
 use std::{
     cell::Ref,
     collections::HashMap,
@@ -86,12 +90,17 @@ pub struct RtpStreamsPlot {
     slider_start: i64,
     slider_length: i64,
     first_draw: bool,
+    ws_sender: WsSender,
 }
 
-impl RtpStreamsPlot {
-    pub fn new(streams: RefStreams) -> Self {
+impl PlotBase for RtpStreamsPlot {
+    fn new(streams: RefStreams, ws_sender: WsSender) -> Self
+    where
+        Self: Sized,
+    {
         Self {
             streams,
+            ws_sender,
             points_data: Vec::new(),
             stream_separator_lines: Vec::new(),
             stream_texts: Vec::new(),
@@ -107,7 +116,7 @@ impl RtpStreamsPlot {
         }
     }
 
-    pub fn ui(&mut self, ctx: &egui::Context) {
+    fn ui(&mut self, ctx: &Context) {
         egui::CentralPanel::default().show(ctx, |ui| {
             ui.vertical(|ui| {
                 ui.collapsing("Help", |ui| {
@@ -121,6 +130,24 @@ impl RtpStreamsPlot {
         });
     }
 
+    fn plot_id(&self) -> &'static str {
+        "rtp_streams_plot"
+    }
+
+    fn plot_name(&self) -> &'static str {
+        "RTP Streams Plot"
+    }
+
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+
+    fn as_any_mut(&mut self) -> &mut dyn Any {
+        self
+    }
+}
+
+impl RtpStreamsPlot {
     fn build_help_section(ui: &mut Ui) {
         ui.horizontal(|ui| {
             ui.vertical(|ui| {

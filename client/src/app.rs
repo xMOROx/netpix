@@ -1,3 +1,5 @@
+use crate::app::common::PlotRegistry;
+use crate::app::plots::RtpStreamsPlot;
 use crate::{
     app::{
         common::table::{TableBase, TableRegistry},
@@ -14,10 +16,11 @@ use std::{collections::HashMap, sync::Arc};
 use tab::Tab;
 use tables::{
     MpegTsInformationTable, MpegTsPacketsTable, MpegTsStreamsTable, PacketsTable, RtcpPacketsTable,
-    RtpPacketsTable, RtpStreamsPlot, RtpStreamsTable,
+    RtpPacketsTable, RtpStreamsTable,
 };
 
 mod common;
+mod plots;
 mod tab;
 mod tables;
 mod utils;
@@ -34,6 +37,7 @@ pub struct App {
     selected_source: Option<Source>,
     tab: Tab,
     table_registry: TableRegistry,
+    plot_registry: PlotRegistry,
     discharged_count: usize,
     overwritten_count: usize,
 }
@@ -52,6 +56,9 @@ impl eframe::App for App {
         if let Some(table) = self.table_registry.get_table_mut(table_id) {
             table.ui(ctx);
         }
+        if let Some(plot) = self.plot_registry.get_plot_mut(table_id) {
+            plot.ui(ctx);
+        }
     }
 }
 
@@ -68,27 +75,29 @@ impl App {
 
         let streams = RefStreams::default();
         let mut table_registry = TableRegistry::new();
+        let mut plot_registry = PlotRegistry::new();
 
         table_registry.register::<PacketsTable>(streams.clone(), ws_sender.clone());
         table_registry.register::<RtpPacketsTable>(streams.clone(), ws_sender.clone());
         table_registry.register::<RtcpPacketsTable>(streams.clone(), ws_sender.clone());
         table_registry.register::<RtpStreamsTable>(streams.clone(), ws_sender.clone());
-        // table_registry.register::<RtpStreamsPlot>(streams.clone());
         table_registry.register::<MpegTsPacketsTable>(streams.clone(), ws_sender.clone());
         table_registry.register::<MpegTsStreamsTable>(streams.clone(), ws_sender.clone());
         table_registry.register::<MpegTsInformationTable>(streams.clone(), ws_sender.clone());
+        plot_registry.register::<RtpStreamsPlot>(streams.clone(), ws_sender.clone());
 
         let (tab, selected_source) = get_initial_state(cc);
 
         Self {
+            tab,
+            streams,
             ws_sender,
             ws_receiver,
-            is_capturing: true,
-            streams,
-            sources: Vec::new(),
-            selected_source,
-            tab,
+            plot_registry,
             table_registry,
+            selected_source,
+            is_capturing: true,
+            sources: Vec::new(),
             discharged_count: 0,
             overwritten_count: 0,
         }
@@ -352,7 +361,7 @@ impl Tab {
                 RtpSection::Packets => "rtp_packets",
                 RtpSection::RtcpPackets => "rtcp_packets",
                 RtpSection::Streams => "rtp_streams",
-                RtpSection::Plot => "rtp_plot",
+                RtpSection::Plot => "rtp_streams_plot",
             },
             Tab::MpegTsSection(section) => match section {
                 MpegTsSection::Packets => "mpegts_packets",
