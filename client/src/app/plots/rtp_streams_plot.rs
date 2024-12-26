@@ -242,7 +242,11 @@ impl RtpStreamsPlot {
 
             ui.label(RichText::from("Toggle streams: ").strong());
             aliases.iter().for_each(|(key, alias)| {
-                let selected = is_rtp_stream_visible(&mut self.streams_visibility, *key);
+                let selected = {
+                    let streams_visibility = &mut self.streams_visibility;
+                    let key = *key;
+                    streams_visibility.entry(key).or_insert(true)
+                };
                 if ui.checkbox(selected, alias).clicked() {
                     self.requires_reset = true
                 }

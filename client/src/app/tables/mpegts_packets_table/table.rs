@@ -6,10 +6,8 @@ use super::{
 };
 use crate::{
     app::{
-        common::TableConfig,
-        tables::mpegts_packets_table::display::category_from_stream_type,
-        utils::{FilterHelpContent, FilterInput},
-        TableBase,
+        common::TableConfig, tables::mpegts_packets_table::display::category_from_stream_type,
+        FilterHelpContent, FilterInput, TableBase,
     },
     declare_table, declare_table_struct, define_column,
     filter_system::FilterExpression,

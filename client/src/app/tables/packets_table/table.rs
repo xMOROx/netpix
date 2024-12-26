@@ -5,7 +5,7 @@ use super::{
 use crate::{
     app::{
         common::{TableBase, TableConfig},
-        utils::{FilterHelpContent, FilterInput},
+        FilterHelpContent, FilterInput,
     },
     declare_table, declare_table_struct, define_column,
     filter_system::FilterExpression,

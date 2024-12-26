@@ -1,7 +1,7 @@
 use super::filters::parse_filter;
 use crate::filter_system::FilterExpression;
 use crate::{
-    app::{common::*, tables::rtcp_packets_table::*, utils::*},
+    app::{common::*, tables::rtcp_packets_table::*, FilterHelpContent, FilterInput},
     declare_table, declare_table_struct, define_column, impl_table_base,
     streams::RefStreams,
     utils::ntp_to_string,
@@ -127,7 +127,7 @@ impl RtcpPacketsTable {
             return true;
         }
 
-        parse_filter(&self.filter_input.get_filter())
+        parse_filter(self.filter_input.get_filter())
             .map(|filter| filter.matches(ctx))
             .unwrap_or(true)
     }

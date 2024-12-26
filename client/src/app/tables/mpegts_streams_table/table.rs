@@ -1,13 +1,11 @@
 use super::{
     display::build_bitrate_plot,
-    filters::{parse_filter, FilterContext}
-    ,
+    filters::{parse_filter, FilterContext},
 };
 use crate::{
     app::{
-        common::{TableBase, TableConfig}
-        ,
-        utils::{FilterHelpContent, FilterInput},
+        common::{TableBase, TableConfig},
+        FilterHelpContent, FilterInput,
     },
     declare_table, declare_table_struct, define_column,
     filter_system::FilterExpression,

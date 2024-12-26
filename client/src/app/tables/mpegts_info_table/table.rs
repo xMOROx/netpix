@@ -1,9 +1,8 @@
 use super::{descriptor::*, filters::*, types::*};
 use crate::{
     app::{
-        common::*,
-        tables::mpegts_info_table::table_body::build_table_body,
-        utils::{FilterHelpContent, FilterInput},
+        tables::mpegts_info_table::table_body::build_table_body, FilterHelpContent, FilterInput,
+        TableBase, TableConfig,
     },
     declare_table, declare_table_struct, define_column,
     filter_system::FilterExpression,
