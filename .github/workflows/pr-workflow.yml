@@ -1,0 +1,152 @@
+name: Pull Request Workflow
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, closed]
+
+permissions:
+  contents: write
+  pull-requests: write
+  checks: write
+  issues: write
+
+jobs:
+  pr-automation:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Initial PR Setup
+        if: github.event.action == 'opened'
+        uses: actions/github-script@v6
+        with:
+          script: |
+            // Add initial labels
+            await github.rest.issues.addLabels({
+              ...context.repo,
+              issue_number: context.issue.number,
+              labels: ['needs-review']
+            });
+            
+            // Assign PR to author
+            await github.rest.issues.addAssignees({
+              ...context.repo,
+              issue_number: context.issue.number,
+              assignees: [context.payload.pull_request.user.login]
+            });
+            
+            // Create PR checklist comment
+            const checklistBody = `## Pull Request Checklist
+            - [ ] Tests added/updated
+            - [ ] Code follows project style
+            
+            ### Review Status
+            - [ ] Changes reviewed
+            - [ ] CI checks passed
+            - [ ] No merge conflicts`;
+            
+            await github.rest.issues.createComment({
+              ...context.repo,
+              issue_number: context.issue.number,
+              body: checklistBody
+            });
+
+      - name: Size Labeling
+        uses: actions/github-script@v6
+        with:
+          script: |
+            const additions = context.payload.pull_request.additions || 0;
+            const deletions = context.payload.pull_request.deletions || 0;
+            const changes = additions + deletions;
+            
+            let sizeLabel = '';
+            if (changes < 10) sizeLabel = 'size/XS';
+            else if (changes < 50) sizeLabel = 'size/S';
+            else if (changes < 250) sizeLabel = 'size/M';
+            else if (changes < 1000) sizeLabel = 'size/L';
+            else sizeLabel = 'size/XL';
+            
+            await github.rest.issues.addLabels({
+              ...context.repo,
+              issue_number: context.issue.number,
+              labels: [sizeLabel]
+            });
+
+      - name: Handle PR Merge
+        if: github.event.pull_request.merged == true
+        uses: actions/github-script@v6
+        with:
+          script: |
+            // Add merged label
+            await github.rest.issues.addLabels({
+              ...context.repo,
+              issue_number: context.issue.number,
+              labels: ['merged']
+            });
+            
+            // Delete branch
+            const branch = context.payload.pull_request.head.ref;
+            await github.rest.git.deleteRef({
+              ...context.repo,
+              ref: `heads/${branch}`
+            });
+            
+            // Generate changelog entry
+            const prBody = context.payload.pull_request.body;
+            const title = context.payload.pull_request.title;
+            const number = context.payload.pull_request.number;
+            const author = context.payload.pull_request.user.login;
+            
+            const changelogEntry = `* ${title} (#${number}) by @${author}`;
+            
+            // Create or update changelog file
+            try {
+              await github.rest.issues.createComment({
+                ...context.repo,
+                issue_number: context.issue.number,
+                body: `📝 Changelog entry added:\n${changelogEntry}`
+              });
+            } catch (error) {
+              console.log('Error updating changelog:', error);
+            }
+
+  check-conflicts:
+    runs-on: ubuntu-latest
+    if: github.event.action != 'closed'
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check for merge conflicts
+        uses: actions/github-script@v6
+        with:
+          script: |
+            const hasMergeConflicts = context.payload.pull_request.mergeable === false;
+            if (hasMergeConflicts) {
+              await github.rest.issues.addLabels({
+                ...context.repo,
+                issue_number: context.issue.number,
+                labels: ['has-conflicts']
+              });
+              
+              await github.rest.issues.createComment({
+                ...context.repo,
+                issue_number: context.issue.number,
+                body: '⚠️ This PR has merge conflicts that need to be resolved before it can be merged.'
+              });
+            }
+
+  review-reminder:
+    runs-on: ubuntu-latest
+    if: github.event.action != 'closed'
+    steps:
+      - name: Check review status
+        uses: actions/github-script@v6
+        with:
+          script: |
+            const timeWithoutReview = Date.now() - new Date(context.payload.pull_request.created_at);
+            const daysWithoutReview = timeWithoutReview / (1000 * 60 * 60 * 24);
+            
+            if (daysWithoutReview >= 2) {
+              await github.rest.issues.createComment({
+                ...context.repo,
+                issue_number: context.issue.number,
+                body: '⏰ This PR has been waiting for review for 2+ days. @${context.payload.pull_request.requested_reviewers.map(r => r.login).join(", ")}'
+              });
+            }
