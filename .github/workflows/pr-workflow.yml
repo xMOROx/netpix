@@ -1,0 +1,132 @@
+name: Pull Request Workflow
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, closed]
+
+permissions:
+  contents: write
+  pull-requests: write
+  checks: write
+  issues: write
+  statuses: write
+
+jobs:
+  pr-lifecycle:
+    runs-on: ubuntu-latest
+    steps:
+      - name: PR Processing
+        uses: actions/github-script@v6
+        with:
+          script: |
+            const event = context.payload.action;
+            const pr = context.payload.pull_request;
+            
+            switch(event) {
+              case 'opened':
+                // Initial setup
+                await github.rest.issues.addLabels({
+                  ...context.repo,
+                  issue_number: context.issue.number,
+                  labels: ['needs-review']
+                });
+                
+                await github.rest.issues.addAssignees({
+                  ...context.repo,
+                  issue_number: context.issue.number,
+                  assignees: [pr.user.login]
+                });
+                
+                // Size labeling
+                const changes = pr.additions + pr.deletions;
+                let sizeLabel = 
+                  changes < 10 ? 'size/XS' :
+                  changes < 50 ? 'size/S' :
+                  changes < 250 ? 'size/M' :
+                  changes < 1000 ? 'size/L' : 'size/XL';
+                
+                await github.rest.issues.addLabels({
+                  ...context.repo,
+                  issue_number: context.issue.number,
+                  labels: [sizeLabel]
+                });
+                
+                // Create checklist
+                const checklistBody = `## Pull Request Checklist
+                - [ ] Tests added/updated
+                - [ ] Code follows project style
+                - [ ] CI checks passed
+                - [ ] No merge conflicts`;
+                
+                await github.rest.issues.createComment({
+                  ...context.repo,
+                  issue_number: context.issue.number,
+                  body: checklistBody
+                });
+                break;
+                
+              case 'closed':
+                if (pr.merged) {
+                  // Handle merged PR
+                  await github.rest.issues.addLabels({
+                    ...context.repo,
+                    issue_number: context.issue.number,
+                    labels: ['merged']
+                  });
+                  
+                  const changelogEntry = `* ${pr.title} (#${pr.number}) by @${pr.user.login}`;
+                  await github.rest.issues.createComment({
+                    ...context.repo,
+                    issue_number: context.issue.number,
+                    body: `📝 Added to changelog:\n${changelogEntry}`
+                  });
+                  
+                  // Delete branch if owned by same repo
+                  if (!pr.head.repo.fork) {
+                    try {
+                      await github.rest.git.deleteRef({
+                        ...context.repo,
+                        ref: `heads/${pr.head.ref}`
+                      });
+                    } catch (error) {
+                      console.log('Could not delete branch:', error);
+                    }
+                  }
+                }
+                break;
+                
+              case 'synchronize':
+                // Check for conflicts
+                if (pr.mergeable === false) {
+                  await github.rest.issues.addLabels({
+                    ...context.repo,
+                    issue_number: context.issue.number,
+                    labels: ['has-conflicts']
+                  });
+                }
+                break;
+            }
+
+  review-reminder:
+    runs-on: ubuntu-latest
+    if: github.event.action != 'closed'
+    steps:
+      - name: Check review status
+        uses: actions/github-script@v6
+        with:
+          script: |
+            const pr = context.payload.pull_request;
+            const timeWithoutReview = Date.now() - new Date(pr.created_at);
+            const daysWithoutReview = timeWithoutReview / (1000 * 60 * 60 * 24);
+            
+            if (daysWithoutReview >= 2 && pr.requested_reviewers?.length > 0) {
+              const reviewers = pr.requested_reviewers
+                .map(r => '@' + r.login)
+                .join(', ');
+                
+              await github.rest.issues.createComment({
+                ...context.repo,
+                issue_number: context.issue.number,
+                body: `⏰ This PR has been waiting for review for 2+ days.\nWaiting for: ${reviewers}`
+              });
+            }

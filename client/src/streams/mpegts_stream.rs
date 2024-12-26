@@ -4,8 +4,7 @@ use crate::streams::{
     stream_statistics::{Bitrate, Bytes, PacketsTime, StreamStatistics},
 };
 use netpix_common::{
-    mpegts::psi::psi_buffer::{FragmentaryPsi, PsiBuffer}
-    ,
+    mpegts::psi::psi_buffer::{FragmentaryPsi, PsiBuffer},
     MpegtsPacket, Packet,
 };
 use rustc_hash::FxHashMap;

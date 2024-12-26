@@ -1,0 +1,41 @@
+name: Daily Health Check
+
+on:
+  schedule:
+    - cron: '0 0 * * *'  # Run daily at midnight UTC
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  audit:
+    name: Security Audit
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Install cargo-audit
+        run: cargo install cargo-audit
+      
+      - name: Run security audit
+        run: cargo audit
+      
+      - name: Check for outdated dependencies
+        run: |
+          cargo outdated -R > outdated.txt
+      
+      - name: Create issue for outdated dependencies
+        if: failure()
+        uses: actions/github-script@v6
+        with:
+          script: |
+            const fs = require('fs');
+            const outdated = fs.readFileSync('outdated.txt', 'utf8');
+            await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: '📦 Outdated dependencies detected',
+              body: '```\n' + outdated + '\n```',
+              labels: ['dependencies']
+            });

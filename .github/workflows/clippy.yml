@@ -1,10 +1,15 @@
-name: Clippy Check
+name: Rust Code Quality
 
 on:
   pull_request:
     types: [ opened, synchronize ]
+  push:
+    branches: [ main ]
 
-permissions: write-all
+permissions:
+  contents: read
+  checks: write
+  pull-requests: write
 
 jobs:
   clippy:
@@ -12,20 +17,118 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        dir: [./client, ./common]
+        package: [client, common, macros]
+        include:
+          - package: client
+            path: ./client
+          - package: common
+            path: ./common
+          - package: macros
+            path: ./macros
+
     steps:
-      - uses: actions/checkout@v3
-      
-      - uses: dtolnay/rust-toolchain@master
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
         with:
-          toolchain: 1.82.0-x86_64-unknown-linux-gnu 
           components: clippy
-          
+      
+      - name: Generate lockfile hash
+        run: echo "${{ hashFiles('**/Cargo.lock') }}"
+        id: lockfile
+      
+      - name: Clippy cache
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: clippy-${{ runner.os }}-${{ steps.lockfile.outputs.hash }}
+          restore-keys: |
+            clippy-${{ runner.os }}-
+      
       - name: Install libpcap
         run: sudo apt-get install libpcap-dev
-        
-      - uses: actions-rs/clippy-check@v1
+      
+      - name: Run Clippy with reviewdog
+        uses: sksat/action-clippy@v1.1.0
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          reporter: github-pr-review
+          clippy_flags: --manifest-path ${{ matrix.path }}/Cargo.toml --all-features --all-targets
+          fail_on_error: true
+
+      - name: Run Clippy for checks
+        if: always()
+        uses: actions-rs/clippy-check@v1
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
-          args: --manifest-path ${{ matrix.dir }}/Cargo.toml --all-features --all-targets -- -D warnings
-          name: Clippy ${{ matrix.dir }}
+          args: --manifest-path ${{ matrix.path }}/Cargo.toml --all-features --all-targets -- -D warnings
+          name: Clippy ${{ matrix.package }}
+
+      - name: Generate Clippy report
+        if: always()
+        run: |
+          cargo clippy --manifest-path ${{ matrix.path }}/Cargo.toml --message-format=json > clippy-results.json
+      
+      - name: Store Clippy results
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: clippy-results-${{ matrix.package }}
+          path: clippy-results.json
+          retention-days: 7
+
+  rustfmt:
+    name: Rustfmt Check
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        package: [client, common, macros]
+        include:
+          - package: client
+            path: ./client
+          - package: common
+            path: ./common
+          - package: macros
+            path: ./macros
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt
+      
+      - name: Generate lockfile hash
+        run: echo "${{ hashFiles('**/Cargo.lock') }}"
+        id: lockfile
+      
+      - name: Rustfmt cache
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: rustfmt-${{ runner.os }}-${{ steps.lockfile.outputs.hash }}
+          restore-keys: |
+            rustfmt-${{ runner.os }}-
+      
+      - name: Install libpcap
+        run: sudo apt-get install libpcap-dev
+      
+      - name: Run Rustfmt check
+        run: cargo fmt --manifest-path ${{ matrix.path }}/Cargo.toml --all -- --check
+
+      - name: Upload formatting diff
+        if: failure()
+        run: |
+          cargo fmt --manifest-path ${{ matrix.path }}/Cargo.toml --all -- --check 2>&1 | tee fmt-diff.txt
+
+      - name: Store formatting results
+        if: failure()
+        uses: actions/upload-artifact@v3
+        with:
+          name: fmt-diff-${{ matrix.package }}
+          path: fmt-diff.txt
+          retention-days: 7
