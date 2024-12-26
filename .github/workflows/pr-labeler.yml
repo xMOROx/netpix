@@ -158,6 +158,25 @@ jobs:
           script: |
             const fs = require('fs');
             try {
+              // First, find and delete any previous auto-generated comments
+              const comments = await github.rest.issues.listComments({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+              });
+              
+              for (const comment of comments.data) {
+                if (comment.body.includes('## PR Analysis Results')) {
+                  await github.rest.issues.deleteComment({
+                    owner: context.repo.owner,
+                    repo: context.repo.repo,
+                    comment_id: comment.id,
+                  });
+                  console.log('Deleted previous analysis comment');
+                }
+              }
+              
+              // Now create the new comment
               if (!fs.existsSync('labels_output.json')) {
                 console.log('No analysis file found');
                 return;
