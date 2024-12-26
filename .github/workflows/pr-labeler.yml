@@ -29,11 +29,20 @@ jobs:
             const title = pr.title;
             const body = pr.body || '';
             const branch = pr.head.ref;
+            
+            console.log('PR Debug Info:');
+            console.log(`Title: ${title}`);
+            console.log(`Branch: ${branch}`);
+            console.log(`Body: ${body.substring(0, 100)}...`);
+            
             const files = await github.paginate(github.rest.pulls.listFiles, {
               owner: context.repo.owner,
               repo: context.repo.repo,
               pull_number: context.issue.number,
             });
+            
+            console.log('\nChanged files:');
+            files.forEach(file => console.log(`- ${file.filename}`));
             
             const matchesPattern = (text, patterns) => {
               return patterns.some(pattern => {
@@ -43,6 +52,7 @@ jobs:
             };
             
             const labels = new Set();
+            const debugInfo = new Map();
             
             for (const [label, config] of Object.entries(rules)) {
               if (!config.all) continue;
@@ -53,29 +63,54 @@ jobs:
               if (!orRules || !fileRules) continue;
               
               const matchedFiles = files.some(file => 
-                fileRules['changed-files'].some(pattern => 
-                  new RegExp(pattern.replace('*', '.*')).test(file.filename)
-                )
+                fileRules['changed-files'].some(pattern => {
+                  const matches = new RegExp(pattern.replace('*', '.*')).test(file.filename);
+                  if (matches) {
+                    debugInfo.set(label, {
+                      ...(debugInfo.get(label) || {}),
+                      matchedFile: file.filename,
+                      filePattern: pattern
+                    });
+                  }
+                  return matches;
+                })
               );
               
               if (!matchedFiles) continue;
               
               const { head_branch: branchPatterns = [], title: titlePatterns = [], body: bodyPatterns = [] } = orRules.or;
               
-              if (
-                matchesPattern(branch, branchPatterns) ||
-                matchesPattern(title, titlePatterns) ||
-                matchesPattern(body, bodyPatterns)
-              ) {
+              const matched = {
+                branch: matchesPattern(branch, branchPatterns),
+                title: matchesPattern(title, titlePatterns),
+                body: matchesPattern(body, bodyPatterns)
+              };
+              
+              if (matched.branch || matched.title || matched.body) {
                 labels.add(label);
+                debugInfo.set(label, {
+                  ...(debugInfo.get(label) || {}),
+                  matched
+                });
               }
             }
             
+            console.log('\nLabels to be applied:');
+            for (const [label, info] of debugInfo.entries()) {
+              console.log(`\nLabel: ${label}`);
+              console.log('Matched criteria:', JSON.stringify(info, null, 2));
+            }
+            
             if (labels.size > 0) {
+              const labelArray = Array.from(labels);
+              console.log('\nFinal labels:', labelArray);
+              
               await github.rest.issues.addLabels({
                 owner: context.repo.owner,
                 repo: context.repo.repo,
                 issue_number: context.issue.number,
-                labels: Array.from(labels)
+                labels: labelArray
               });
+            } else {
+              console.log('\nNo labels matched the criteria.');
             }
