@@ -1,4 +1,4 @@
-name: Clippy Check
+name: Rust Code Quality
 
 on:
   pull_request:
@@ -51,7 +51,16 @@ jobs:
       - name: Install libpcap
         run: sudo apt-get install libpcap-dev
       
-      - name: Run Clippy with annotations
+      - name: Run Clippy with reviewdog
+        uses: sksat/action-clippy@v1.1.0
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          reporter: github-pr-review
+          clippy_flags: --manifest-path ${{ matrix.path }}/Cargo.toml --all-features --all-targets
+          fail_on_error: true
+
+      - name: Run Clippy for checks
+        if: always()
         uses: actions-rs/clippy-check@v1
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
@@ -110,5 +119,34 @@ jobs:
       - name: Install libpcap
         run: sudo apt-get install libpcap-dev
       
-      - name: Run Rustfmt
-        run: cargo fmt --manifest-path ${{ matrix.path }}/Cargo.toml -- --check
+      - name: Install reviewdog
+        uses: reviewdog/action-setup@v1
+        with:
+          reviewdog_version: latest
+
+      - name: Run Rustfmt and report with reviewdog
+        env:
+          REVIEWDOG_GITHUB_API_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          cargo fmt --manifest-path ${{ matrix.path }}/Cargo.toml --all -- --check 2>&1 | \
+          reviewdog -f=rustfmt \
+            -name="rustfmt" \
+            -reporter=github-pr-review \
+            -fail-on-error=true
+
+      - name: Run Rustfmt check (for CI status)
+        if: always()
+        run: cargo fmt --manifest-path ${{ matrix.path }}/Cargo.toml --all -- --check
+
+      - name: Upload formatting diff
+        if: failure()
+        run: |
+          cargo fmt --manifest-path ${{ matrix.path }}/Cargo.toml --all -- --check 2>&1 | tee fmt-diff.txt
+
+      - name: Store formatting results
+        if: failure()
+        uses: actions/upload-artifact@v3
+        with:
+          name: fmt-diff-${{ matrix.package }}
+          path: fmt-diff.txt
+          retention-days: 7
