@@ -3,7 +3,7 @@ use egui::Color32;
 use netpix_common::mpegts::{header::AdaptationFieldControl, MpegtsFragment};
 
 const PAT_COLOR: Color32 = Color32::from_rgb(0, 138, 0); // Dark lime green
-const PMT_COLOR: Color32 = Color32::from_rgb(45,127,159); // Dark blue
+const PMT_COLOR: Color32 = Color32::from_rgb(45, 127, 159); // Dark blue
 
 pub fn format_packet_text(value: String, fragment: Option<&MpegtsFragment>) -> egui::RichText {
     match value {
