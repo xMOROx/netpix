@@ -1,6 +1,10 @@
 name: CI
 
-on: push
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    types: [ opened, synchronize ]
 
 jobs:
   formatting:
@@ -10,30 +14,57 @@ jobs:
       matrix:
         dir: [., ./client, ./common]
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: rustfmt
+      
+      - name: Cache Rust dependencies
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-rust-${{ hashFiles('**/Cargo.lock') }}
+      
       - name: Check formatting
         run: cargo fmt --check --manifest-path ${{ matrix.dir }}/Cargo.toml
 
   build:
     name: Build
+    needs: formatting
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
         with:
           targets: wasm32-unknown-unknown
+      
+      - name: Cache Rust dependencies
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-rust-${{ hashFiles('**/Cargo.lock') }}
+      
+      - name: Cache trunk
+        uses: actions/cache@v3
+        with:
+          path: ~/.cargo/bin/trunk
+          key: ${{ runner.os }}-trunk-0.18
+      
       - uses: cargo-bins/cargo-binstall@main
-      - name: Install libpcap
-        run: sudo apt-get install libpcap-dev
-      - name: Install trunk
-        run: cargo binstall --no-confirm --version ~0.18 trunk
-      - name: Compile the client
+      - name: Install dependencies
+        run: |
+          sudo apt-get install libpcap-dev
+          cargo binstall --no-confirm --version ~0.18 trunk
+      
+      - name: Build client
         working-directory: ./client
         run: trunk build --release --dist ../dist
-      - name: Install rtpeeker
+      
+      - name: Build binary
         run: cargo install --locked --path .
-
-# TODO: add clippy check and tests
