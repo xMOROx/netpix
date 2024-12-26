@@ -1,0 +1,71 @@
+"feature: server":
+  - all:
+    - head-branch: ['^feature', 'feature', '^feat', 'feat']
+    - changed-files: ['src/**']
+
+"feature: client":
+  - all:
+    - head-branch: ['^feature', 'feature', '^feat', 'feat']
+    - changed-files: ['client/**']
+
+"feature: common":
+  - all:
+    - head-branch: ['^feature', 'feature', '^feat', 'feat']
+    - changed-files: ['common/**']
+
+"feature: macros":
+  - all:
+    - head-branch: ['^feature', 'feature', '^feat', 'feat']
+    - changed-files: ['macros/**']
+
+"bugfix: server":
+  - all:
+    - head-branch: ['^fix', '^bug', '^bugfix', 'fix', 'bug', 'bugfix']
+    - changed-files: ['src/**']
+
+"bugfix: client":
+  - all:
+    - head-branch: ['^fix', '^bug', '^bugfix', 'fix', 'bug', 'bugfix']
+    - changed-files: ['client/**']
+
+"bugfix: common":
+  - all:
+    - head-branch: ['^fix', '^bug', '^bugfix', 'fix', 'bug', 'bugfix']
+    - changed-files: ['common/**']
+
+"bugfix: macros":
+  - all:
+    - head-branch: ['^fix', '^bug', '^bugfix', 'fix', 'bug', 'bugfix']
+    - changed-files: ['macros/**']
+
+"refactor: server":
+  - all:
+    - head-branch: ['^refactor', 'refactor']
+    - changed-files: ['src/**']
+
+"refactor: client":
+  - all:
+    - head-branch: ['^refactor', 'refactor']
+    - changed-files: ['client/**']
+
+"refactor: common":
+  - all:
+    - head-branch: ['^refactor', 'refactor']
+    - changed-files: ['common/**']
+
+"refactor: macros":
+  - all:
+    - head-branch: ['^refactor', 'refactor']
+    - changed-files: ['macros/**']
+
+documentation:
+  - head-branch: ['^docs', '^documentation']
+  - changed-files: ['docs/**/*', '**/*.md', '**/doc/**/*']
+
+cicd:
+  - head-branch: ['^ci', '^cd', '^cicd']
+  - changed-files: ['.github/workflows/**/*']
+
+chore:
+  - head-branch: ['^chore']
+  - changed-files: ['.gitignore', '.editorconfig', 'scripts/**/*']
