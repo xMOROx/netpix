@@ -19,11 +19,57 @@ jobs:
         with:
           python-version: '3.10'
 
+      - name: Set up Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: '1.21'
+
       - name: Install dependencies
         run: |
-          python -m pip install --upgrade pip
-          pip install pyyaml
-          sudo apt-get install -y jq
+          # Create workspace directory
+          WORKSPACE=/tmp/labeler-workspace
+          mkdir -p $WORKSPACE
+          cd $WORKSPACE
+          
+          # Copy source files
+          cp -r $GITHUB_WORKSPACE/.github/scripts/labeler ./labeler
+          cp $GITHUB_WORKSPACE/.github/scripts/main.go ./
+          
+          # Initialize main module
+          cat > go.mod <<EOF
+          module main
+          
+          go 1.21
+          
+          require (
+            gopkg.in/yaml.v3 v3.0.1
+            labeler v0.0.0
+          )
+          
+          replace labeler => ./labeler
+          EOF
+          
+          # Initialize labeler module
+          cd labeler
+          cat > go.mod <<EOF
+          module labeler
+          
+          go 1.21
+          
+          require (
+            gopkg.in/yaml.v3 v3.0.1
+          )
+          EOF
+          cd ..
+          
+          # Get dependencies
+          go mod tidy
+          cd labeler && go mod tidy && cd ..
+          
+          # Build binary
+          go build -o pr-labeler main.go
+          cp pr-labeler $GITHUB_WORKSPACE/
+          cd $GITHUB_WORKSPACE
 
       - name: Prepare PR data
         uses: actions/github-script@v7
@@ -51,26 +97,16 @@ jobs:
       - name: Run labeler script
         id: labeler
         run: |
-          # Copy all required Python files to the same directory
-          cp .github/scripts/rule_*.py .
-          cp .github/scripts/pr_labeler.py .
-          
-          # Run the script with debug mode in development
-          if [ "${{ github.event.pull_request.head.repo.fork }}" = "false" ]; then
-            python pr_labeler.py pr_data.json --debug > labels_output.json 2>debug.log
-            echo "Debug output:"
-            cat debug.log
-          else
-            python pr_labeler.py pr_data.json > labels_output.json
-          fi
+          # Run the compiled binary
+          ./pr-labeler --pr pr_data.json --rules .github/labeler.yml --debug > labels_output.json
           
           echo "Labels to be applied:"
           jq -r '.labels[]' labels_output.json | while read label; do
             echo "  - $label"
           done
           
-          # Store the labels for the next step
-          echo "labels=$(jq -r '.labels' labels_output.json)" >> $GITHUB_OUTPUT
+          # Store the labels for the next step - format as JSON array
+          echo "labels=$(jq -c '.labels' labels_output.json)" >> $GITHUB_OUTPUT
           
           # Store file analysis for the summary
           echo "analysis<<EOF" >> $GITHUB_OUTPUT
@@ -99,12 +135,13 @@ jobs:
               console.log('Parsed output:', output);
               
               if (output && output.labels && output.labels.length > 0) {
-                console.log('Applying labels:', output.labels);
+                const labels = output.labels.map(l => l.trim());
+                console.log('Applying labels:', labels);
                 await github.rest.issues.addLabels({
                   owner: context.repo.owner,
                   repo: context.repo.repo,
                   issue_number: context.issue.number,
-                  labels: output.labels
+                  labels: labels
                 });
               } else {
                 console.log('No labels to apply');
