@@ -17,12 +17,16 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        package: [client, common]
+        package: [client, common, macros, server]
         include:
           - package: client
             path: ./client
           - package: common
             path: ./common
+          - package: macros
+            path: ./macros
+          - package: server
+            path: .
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
@@ -66,3 +70,45 @@ jobs:
           name: clippy-results-${{ matrix.package }}
           path: clippy-results.json
           retention-days: 7
+
+  rustfmt:
+    name: Rustfmt Check
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        package: [client, common, macros, server]
+        include:
+          - package: client
+            path: ./client
+          - package: common
+            path: ./common
+          - package: macros
+            path: ./macros
+          - package: server
+            path: .
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt
+      
+      - name: Generate lockfile hash
+        run: echo "${{ hashFiles('**/Cargo.lock') }}"
+        id: lockfile
+      
+      - name: Rustfmt cache
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: rustfmt-${{ runner.os }}-${{ steps.lockfile.outputs.hash }}
+          restore-keys: |
+            rustfmt-${{ runner.os }}-
+      
+      - name: Install libpcap
+        run: sudo apt-get install libpcap-dev
+      
+      - name: Run Rustfmt
+        run: cargo fmt --manifest-path ${{ matrix.path }}/Cargo.toml -- --check
