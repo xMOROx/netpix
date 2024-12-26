@@ -9,12 +9,12 @@ use super::{
     common::{PlotRegistry, TableRegistry},
     get_initial_state,
     plots::RtpStreamsPlot,
-    side_button,
     tab::Tab,
     tables::{
         MpegTsInformationTable, MpegTsPacketsTable, MpegTsStreamsTable, PacketsTable,
         RtcpPacketsTable, RtpPacketsTable, RtpStreamsTable,
     },
+    ui_components::types::{AppBottomBar, AppSidePanel, AppTopBar},
     SOURCE_KEY, TAB_KEY,
 };
 
@@ -40,9 +40,9 @@ impl eframe::App for App {
             self.receive_packets()
         }
 
-        self.build_side_panel(ctx);
-        self.build_top_bar(ctx, frame);
-        self.build_bottom_bar(ctx);
+        AppSidePanel::build(self, ctx);
+        AppTopBar::build(self, ctx, frame);
+        AppBottomBar::build(self, ctx);
 
         let table_id = self.tab.get_table_id();
         if let Some(table) = self.table_registry.get_table_mut(table_id) {
@@ -95,155 +95,6 @@ impl App {
         }
     }
 
-    fn build_side_panel(&mut self, ctx: &egui::Context) {
-        let mut style = (*ctx.style()).clone();
-        style.spacing.item_spacing = (0.0, 8.0).into();
-        for (_text_style, font_id) in style.text_styles.iter_mut() {
-            font_id.size = 20.0;
-        }
-
-        egui::SidePanel::left("side_panel")
-            .resizable(false)
-            .default_width(32.0)
-            .show(ctx, |ui| {
-                ui.set_style(style);
-                ui.vertical_centered(|ui| {
-                    ui.add_space(6.0);
-
-                    let button = side_button("▶");
-                    let resp = ui
-                        .add_enabled(!self.is_capturing, button)
-                        .on_hover_text("Resume packet capturing");
-                    if resp.clicked() {
-                        self.is_capturing = true
-                    }
-
-                    let button = side_button("⏸");
-                    let resp = ui
-                        .add_enabled(self.is_capturing, button)
-                        .on_hover_text("Stop packet capturing");
-                    if resp.clicked() {
-                        self.is_capturing = false
-                    }
-
-                    let button = side_button("🗑");
-                    let resp = ui
-                        .add(button)
-                        .on_hover_text("Discard previously captured packets");
-                    if resp.clicked() {
-                        self.streams.borrow_mut().clear();
-                    }
-
-                    //TODO: implement more optimal way to do that - with lots of packages it is too much for wasm to handle this
-                    let button = side_button("↻");
-                    let resp = ui
-                        .add(button)
-                        .on_hover_text("Refetch all previously captured packets");
-                    if resp.clicked() {
-                        self.streams.borrow_mut().clear();
-                        self.refetch_packets()
-                    }
-                });
-
-                ui.with_layout(egui::Layout::bottom_up(egui::Align::Center), |ui| {
-                    ui.add_space(8.0);
-
-                    egui::widgets::global_theme_preference_switch(ui);
-                });
-            });
-    }
-
-    fn build_top_bar(&mut self, ctx: &egui::Context, frame: &mut eframe::Frame) {
-        let selected = self.tab.display_name();
-
-        egui::TopBottomPanel::top("top_panel").show(ctx, |ui| {
-            egui::menu::bar(ui, |ui| {
-                self.build_dropdown_source(ui, frame);
-                ui.separator();
-                self.build_menu_button(ui, frame);
-                Label::new(selected).ui(ui);
-            });
-        });
-    }
-
-    fn build_menu_button(&mut self, ui: &mut Ui, frame: &mut eframe::Frame) {
-        ui.menu_button("📑 Open tabs", |ui| {
-            ui.heading("Tabs");
-
-            let menu_sections = Tab::sections();
-
-            for (label, sections) in menu_sections {
-                ui.menu_button(label, |ui| {
-                    for tab in sections {
-                        let resp = ui.selectable_value(&mut self.tab, tab, tab.display_name());
-                        if resp.clicked() {
-                            if let Some(storage) = frame.storage_mut() {
-                                storage.set_string(TAB_KEY, tab.to_string());
-                            }
-                        }
-                    }
-                });
-            }
-        });
-    }
-
-    fn build_dropdown_source(&mut self, ui: &mut Ui, frame: &mut eframe::Frame) {
-        let selected = match self.selected_source {
-            Some(ref source) => source.to_string(),
-            None => "Select packets source...".to_string(),
-        };
-
-        ComboBox::from_id_salt("source_picker")
-            .width(300.0)
-            .wrap_mode(TextWrapMode::Extend)
-            .selected_text(selected)
-            .show_ui(ui, |ui| {
-                let mut was_changed = false;
-
-                for source in self.sources.iter() {
-                    let resp = ui.selectable_value(
-                        &mut self.selected_source,
-                        Some(source.clone()),
-                        source.to_string(),
-                    );
-                    if resp.clicked() {
-                        was_changed = true;
-                    }
-                }
-
-                if was_changed {
-                    self.streams.borrow_mut().clear();
-                    self.change_source_request();
-                    if let Some(storage) = frame.storage_mut() {
-                        let source = self.selected_source.as_ref().unwrap();
-                        storage.set_string(SOURCE_KEY, source.to_string());
-                    }
-                }
-            });
-    }
-
-    fn build_bottom_bar(&self, ctx: &egui::Context) {
-        egui::TopBottomPanel::bottom("bottom_panel").show(ctx, |ui| {
-            ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                ui.add_space(8.0);
-                let streams = self.streams.borrow();
-                let count = streams.packets.id_count();
-                let count_label = format!("Packets: {}", count);
-
-                let captured_count = streams.packets.len();
-                let captured_label = format!("Captured: {}", captured_count);
-
-                let discharged_label = format!("Discharged: {}", self.discharged_count);
-                let overwritten_label = format!("Overwritten: {}", self.overwritten_count);
-                let label = format!(
-                    "{} • {} • {} • {}",
-                    count_label, captured_label, discharged_label, overwritten_label
-                );
-                ui.label(label);
-            });
-        });
-    }
-
     fn receive_packets(&mut self) {
         while let Some(msg) = self.ws_receiver.try_recv() {
             let WsEvent::Message(msg) = msg else {
@@ -291,7 +142,7 @@ impl App {
         }
     }
 
-    fn refetch_packets(&mut self) {
+    pub fn refetch_packets(&mut self) {
         let request = Request::FetchAll;
         let Ok(msg) = request.encode() else {
             error!("Failed to encode a request message");
@@ -302,7 +153,7 @@ impl App {
         self.ws_sender.send(msg);
     }
 
-    fn change_source_request(&mut self) {
+    pub fn change_source_request(&mut self) {
         let selected = self.selected_source.as_ref().unwrap().clone();
         let request = Request::ChangeSource(selected);
         let Ok(msg) = request.encode() else {
