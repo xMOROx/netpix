@@ -1,7 +1,9 @@
-use super::error::ParseError;
-use super::lexer::Lexer;
-use super::traits::{CommonFilterParser, FilterCombinator, FilterExpression};
-use super::types::{get_operator_precedence, Token};
+use super::{
+    error::ParseError,
+    lexer::Lexer,
+    traits::{CommonFilterParser, FilterCombinator, FilterExpression},
+    types::{get_operator_precedence, Token},
+};
 
 pub type ParseResult<T> = Result<T, ParseError>;
 

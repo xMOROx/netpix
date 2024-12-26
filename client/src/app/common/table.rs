@@ -1,79 +1,46 @@
-use crate::app::utils::FilterInput;
 use crate::streams::RefStreams;
 use egui::Context;
-use egui_extras::{Column, TableBuilder};
+use ewebsock::WsSender;
+use std::any::Any;
 
-pub trait TableBase {
-    fn new(streams: RefStreams) -> Self;
+pub trait TableBase: Any {
+    fn new(streams: RefStreams, ws_sender: WsSender) -> Self
+    where
+        Self: Sized;
     fn ui(&mut self, ctx: &Context);
     fn check_filter(&mut self);
     fn build_header(&mut self, header: &mut egui_extras::TableRow);
     fn build_table_body(&mut self, body: egui_extras::TableBody);
+    fn table_id(&self) -> &'static str;
+    fn table_name(&self) -> &'static str;
+    fn as_any(&self) -> &dyn Any;
+    fn as_any_mut(&mut self) -> &mut dyn Any;
 }
 
-#[macro_export]
-macro_rules! define_column {
-    ($width:expr, $min:expr, $max:expr, $clipped:expr, $resizable:expr) => {
-        match ($width, $max) {
-            (Some(w), Some(max)) => Column::initial(w)
-                .at_least($min)
-                .at_most(max)
-                .clip($clipped)
-                .resizable($resizable),
-            (Some(w), None) => Column::initial(w)
-                .at_least($min)
-                .clip($clipped)
-                .resizable($resizable),
-            (None, Some(max)) => Column::remainder()
-                .at_least($min)
-                .at_most(max)
-                .clip($clipped)
-                .resizable($resizable),
-            (None, None) => Column::remainder()
-                .at_least($min)
-                .clip($clipped)
-                .resizable($resizable),
-        }
-    };
+pub struct TableRegistry {
+    tables: Vec<Box<dyn TableBase>>,
 }
 
-#[macro_export]
-macro_rules! declare_table {
-    ($table:ident, $filter:ty, {
-        $(height($height:expr))?
-        ;
-        $(striped($striped:expr))?
-        ;
-        $(resizable($resizable:expr))?
-        ;
-        $(stick_to_bottom($stick_to_bottom:expr))?
-        ;
-        columns(
-            $( column($width:expr, $min:expr, $max:expr, $clipped:expr, $column_resizable:expr) ),* $(,)?
-        )
-        $(,)?
-    }) => {
-        impl $table {
-            fn build_table(&mut self, ui: &mut egui::Ui) {
-                let mut builder = TableBuilder::new(ui)
-                    .striped($(($striped))?)
-                    .resizable($(($resizable))?)
-                    .stick_to_bottom($(($stick_to_bottom))?);
+impl TableRegistry {
+    pub fn new() -> Self {
+        Self { tables: Vec::new() }
+    }
 
-                $(
-                    builder = builder.column(
-                        define_column!($width, $min, $max, $clipped, $column_resizable)
-                    );
-                )*
+    pub fn register<T: TableBase + 'static>(&mut self, streams: RefStreams, ws_sender: WsSender) {
+        self.tables.push(Box::new(T::new(streams, ws_sender)));
+    }
 
-                builder
-                    .header($(($height))?, |mut header| {
-                        self.build_header(&mut header);
-                    })
-                    .body(|body| {
-                        self.build_table_body(body);
-                    });
-            }
-        }
-    };
+    pub fn get_table(&self, id: &str) -> Option<&dyn TableBase> {
+        self.tables
+            .iter()
+            .find(|t| t.table_id() == id)
+            .map(|t| t.as_ref())
+    }
+
+    pub fn get_table_mut(&mut self, id: &str) -> Option<&mut dyn TableBase> {
+        self.tables
+            .iter_mut()
+            .find(|t| t.table_id() == id)
+            .map(|t| t.as_mut())
+    }
 }

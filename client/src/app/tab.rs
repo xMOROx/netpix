@@ -61,6 +61,23 @@ impl Tab {
             Self::MpegTsSection(section) => section.display_name(),
         }
     }
+
+    pub fn get_table_id(&self) -> &'static str {
+        match self {
+            Tab::Packets => "packets",
+            Tab::RtpSection(section) => match section {
+                RtpSection::Packets => "rtp_packets",
+                RtpSection::RtcpPackets => "rtcp_packets",
+                RtpSection::Streams => "rtp_streams",
+                RtpSection::Plot => "rtp_streams_plot",
+            },
+            Tab::MpegTsSection(section) => match section {
+                MpegTsSection::Packets => "mpegts_packets",
+                MpegTsSection::Streams => "mpegts_streams",
+                MpegTsSection::Information => "mpegts_info",
+            },
+        }
+    }
 }
 
 impl fmt::Display for Tab {

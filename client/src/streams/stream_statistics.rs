@@ -1,6 +1,5 @@
 #![allow(dead_code)]
-use std::time::Duration;
-use std::convert::AsRef;
+use std::{convert::AsRef, time::Duration};
 
 pub trait StreamStatistics {
     fn get_duration(&self) -> Duration;
