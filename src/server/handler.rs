@@ -14,12 +14,12 @@ use ringbuf::{
 };
 use std::time::SystemTime;
 use std::{collections::HashMap, io::Write, sync::Arc};
-use tokio::sync::{mpsc::UnboundedSender, RwLock};
+use tokio::sync::{mpsc, mpsc::UnboundedSender, RwLock};
 use warp::ws::{Message, WebSocket};
 
 pub type PacketRingBuffer = HeapRb<Response>;
 pub type Packets = Arc<RwLock<PacketRingBuffer>>;
-pub type PacketsMap = Arc<HashMap<Source, Packets>>;
+pub type PacketsMap = Arc<HashMap<Source, (Packets, mpsc::Sender<()>)>>;
 
 pub async fn setup_packet_handlers(
     sniffers: HashMap<String, Sniffer>,
@@ -30,11 +30,12 @@ pub async fn setup_packet_handlers(
 
     for (_file, sniffer) in sniffers {
         let packets = Arc::new(RwLock::new(HeapRb::new(config.packet_buffer_size)));
-        source_to_packets.insert(sniffer.source.clone(), packets.clone());
+        let (cancel_tx, cancel_rx) = mpsc::channel(1);
+        source_to_packets.insert(sniffer.source.clone(), (packets.clone(), cancel_tx));
 
         let cloned_clients = clients.clone();
         tokio::task::spawn(async move {
-            sniff(sniffer, packets, cloned_clients, config).await;
+            sniff(sniffer, packets, cloned_clients, config, cancel_rx).await;
         });
     }
 
@@ -44,7 +45,7 @@ pub async fn setup_packet_handlers(
 pub async fn send_pcap_filenames(
     client_id: &usize,
     ws_tx: &mut SplitSink<WebSocket, Message>,
-    source_to_packets: &Arc<HashMap<Source, Packets>>,
+    source_to_packets: &Arc<HashMap<Source, (Packets, mpsc::Sender<()>)>>,
 ) {
     let sources = source_to_packets.keys().cloned().collect();
     let response = Response::Sources(sources);
@@ -96,50 +97,65 @@ async fn discharge_old_packets(packets: &mut PacketRingBuffer, max_packets_age: 
     discharged_count
 }
 
-async fn sniff(mut sniffer: Sniffer, packets: Packets, clients: Clients, config: Config) {
+async fn sniff(
+    mut sniffer: Sniffer,
+    packets: Packets,
+    clients: Clients,
+    config: Config,
+    mut cancel_rx: mpsc::Receiver<()>,
+) {
     let mut overwritten_count = 0;
     let mut total_discharged_count = 0;
     let mut last_stats_time = SystemTime::now();
 
-    while let Some(result) = sniffer.next_packet().await {
-        match result {
-            Ok(mut pack) => {
-                pack.guess_payload();
-                let response = Response::Packet(pack);
+    loop {
+        tokio::select! {
+            _ = cancel_rx.recv() => {
+                // Source changed, stop processing
+                break;
+            }
+            result = sniffer.next_packet() => {
+                match result {
+                    Some(Ok(mut pack)) => {
+                        pack.guess_payload();
+                        let response = Response::Packet(pack);
 
-                let Ok(encoded) = response.encode() else {
-                    error!("Sniffer: failed to encode packet");
-                    continue;
-                };
-                let msg = Message::binary(encoded);
+                        let Ok(encoded) = response.encode() else {
+                            error!("Sniffer: failed to encode packet");
+                            continue;
+                        };
+                        let msg = Message::binary(encoded);
 
-                for (_, client) in clients.write().await.iter_mut() {
-                    if let Some(src) = &client.source {
-                        if *src == sniffer.source {
-                            client.queue.push_back(msg.clone());
+                        for (_, client) in clients.write().await.iter_mut() {
+                            if let Some(src) = &client.source {
+                                if *src == sniffer.source {
+                                    client.queue.push_back(msg.clone());
+                                }
+                            }
+                        }
+
+                        let mut packets = packets.write().await;
+
+                        let discharged = discharge_old_packets(&mut packets, config.max_packets_age).await;
+                        total_discharged_count += discharged;
+
+                        if packets.is_full() {
+                            overwritten_count += 1;
+                            warn!("Packet buffer full, discarding oldest packet");
+                        }
+                        packets.push_overwrite(response);
+
+                        if let Ok(elapsed) = last_stats_time.elapsed() {
+                            if elapsed.as_secs() >= 5 {
+                                send_stats(&clients, total_discharged_count, overwritten_count).await;
+                                last_stats_time = SystemTime::now();
+                            }
                         }
                     }
-                }
-
-                let mut packets = packets.write().await;
-
-                let discharged = discharge_old_packets(&mut packets, config.max_packets_age).await;
-                total_discharged_count += discharged;
-
-                if packets.is_full() {
-                    overwritten_count += 1;
-                    warn!("Packet buffer full, discarding oldest packet");
-                }
-                packets.push_overwrite(response);
-
-                if let Ok(elapsed) = last_stats_time.elapsed() {
-                    if elapsed.as_secs() >= 5 {
-                        send_stats(&clients, total_discharged_count, overwritten_count).await;
-                        last_stats_time = SystemTime::now();
-                    }
+                    Some(Err(err)) => info!("Error when capturing a packet: {:?}", err),
+                    None => break,
                 }
             }
-            Err(err) => info!("Error when capturing a packet: {:?}", err),
         }
     }
 }
@@ -221,6 +237,35 @@ async fn parse_sdp(
         }
     }
 }
+
+async fn handle_source_change(
+    client_id: usize,
+    new_source: Source,
+    clients: &Clients,
+    packets: &PacketsMap,
+) -> bool {
+    if let Some((new_packets, _)) = packets.get(&new_source) {
+        let mut wr_clients = clients.write().await;
+        let client = wr_clients.get_mut(&client_id).unwrap();
+
+        if let Some(old_source) = &client.source {
+            if let Some((_, cancel_tx)) = packets.get(old_source) {
+                let _ = cancel_tx.send(()).await;
+            }
+        }
+
+        client.queue.clear();
+
+        client.source = Some(new_source.clone());
+        drop(wr_clients);
+
+        send_all_packets(client_id, new_packets, clients).await;
+        true
+    } else {
+        false
+    }
+}
+
 pub async fn handle_messages(
     client_id: usize,
     mut ws_rx: SplitStream<WebSocket>,
@@ -249,7 +294,7 @@ pub async fn handle_messages(
                 match req {
                     Request::FetchAll => {
                         if let Some(ref cur_source) = source {
-                            if let Some(packets) = packets.get(cur_source) {
+                            if let Some((packets, _)) = packets.get(cur_source) {
                                 send_all_packets(client_id, packets, clients).await;
                             } else {
                                 warn!(
@@ -260,14 +305,10 @@ pub async fn handle_messages(
                         }
                     }
                     Request::ChangeSource(new_source) => {
-                        if let Some(packets) = packets.get(&new_source) {
-                            {
-                                let mut wr_clients = clients.write().await;
-                                let client = wr_clients.get_mut(&client_id).unwrap();
-                                client.source = Some(new_source.clone());
-                            }
+                        if handle_source_change(client_id, new_source.clone(), clients, packets)
+                            .await
+                        {
                             source = Some(new_source);
-                            send_all_packets(client_id, packets, clients).await;
                         } else {
                             warn!(
                                 "Attempted to change to unknown source: {:?}, client_id: {}",
