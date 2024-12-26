@@ -1,8 +1,8 @@
-from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from typing import List, Dict, Any, Optional
 import re
 from fnmatch import fnmatch
+from pathlib import Path
 
 @dataclass
 class RuleContext:
@@ -11,114 +11,75 @@ class RuleContext:
     pr_branch: str
     changed_files: List[str]
 
-class Condition(ABC):
-    @abstractmethod
-    def evaluate(self, context: RuleContext) -> bool:
-        pass
+class RuleEvaluator:
+    def __init__(self, context: RuleContext):
+        self.context = context
 
-class Pattern(ABC):
-    def __init__(self, patterns: List[str]):
-        self.patterns = [p.replace('(?i)', '') for p in patterns]
-    
-    def matches(self, text: str) -> bool:
-        return any(re.search(pattern, text, re.IGNORECASE) for pattern in self.patterns)
+    def matches_pattern(self, text: str, patterns: List[str]) -> bool:
+        if not patterns:
+            return False
+        return any(re.search(pattern.replace('(?i)', ''), text, re.IGNORECASE) 
+                  for pattern in patterns)
 
-class FilePattern(Pattern):
-    def matches(self, filename: str) -> bool:
+    def matches_file_pattern(self, patterns: List[str]) -> bool:
+        if not patterns or not self.context.changed_files:
+            return False
         return any(
-            fnmatch(filename, pattern)
-            for pattern in self.patterns
+            any(fnmatch(file, pattern) for pattern in patterns)
+            for file in self.context.changed_files
         )
 
-class BranchPattern(Pattern):
-    def evaluate(self, context: RuleContext) -> bool:
-        return self.matches(context.pr_branch)
+    def get_matched_files(self, patterns: List[str]) -> List[str]:
+        return [
+            file for file in self.context.changed_files
+            if any(fnmatch(file, pattern) for pattern in patterns)
+        ]
 
-class TitlePattern(Pattern):
-    def evaluate(self, context: RuleContext) -> bool:
-        return self.matches(context.pr_title)
+    def evaluate_or_condition(self, condition: Dict[str, List[str]]) -> bool:
+        if not condition:
+            return False
 
-class BodyPattern(Pattern):
-    def evaluate(self, context: RuleContext) -> bool:
-        return self.matches(context.pr_body)
+        return (
+            self.matches_pattern(self.context.pr_branch, condition.get('head-branch', [])) or
+            self.matches_pattern(self.context.pr_title, condition.get('title', [])) or
+            self.matches_pattern(self.context.pr_body, condition.get('body', []))
+        )
 
-class FilesCondition(Condition):
-    def __init__(self, patterns: List[str]):
-        self.pattern = FilePattern(patterns)
-    
-    def evaluate(self, context: RuleContext) -> bool:
-        return any(self.pattern.matches(file) for file in context.changed_files)
-
-    def get_matched_files(self, context: RuleContext) -> List[str]:
-        return [f for f in context.changed_files if self.pattern.matches(f)]
-
-class OrCondition(Condition):
-    def __init__(self, rules: Dict[str, List[str]]):
-        self.conditions = []
-        if 'head-branch' in rules:
-            self.conditions.append(BranchPattern(rules['head-branch']))
-        if 'title' in rules:
-            self.conditions.append(TitlePattern(rules['title']))
-        if 'body' in rules:
-            self.conditions.append(BodyPattern(rules['body']))
-    
-    def evaluate(self, context: RuleContext) -> bool:
-        return any(condition.evaluate(context) for condition in self.conditions)
-
-class AllCondition(Condition):
-    def __init__(self, conditions: List[Condition]):
-        self.conditions = conditions
-    
-    def evaluate(self, context: RuleContext) -> bool:
-        return all(condition.evaluate(context) for condition in self.conditions)
-
-class AnyCondition(Condition):
-    def __init__(self, conditions: List[Condition]):
-        self.conditions = conditions
-    
-    def evaluate(self, context: RuleContext) -> bool:
-        return any(condition.evaluate(context) for condition in self.conditions)
+    def evaluate_rule(self, rule_config: List[Dict]) -> Dict[str, Any]:
+        for rule_set in rule_config:
+            if 'any' in rule_set:
+                conditions = rule_set['any']
+                or_conditions = next((cond['or'] for cond in conditions if 'or' in cond), {})
+                file_patterns = next((cond['changed-files'] for cond in conditions if 'changed-files' in cond), [])
+                
+                matches_metadata = self.evaluate_or_condition(or_conditions)
+                matches_files = self.matches_file_pattern(file_patterns)
+                
+                if matches_metadata and matches_files:
+                    return {
+                        'matched': True,
+                        'matched_files': self.get_matched_files(file_patterns),
+                        'matched_metadata': {
+                            'branch': self.matches_pattern(self.context.pr_branch, or_conditions.get('head-branch', [])),
+                            'title': self.matches_pattern(self.context.pr_title, or_conditions.get('title', [])),
+                            'body': self.matches_pattern(self.context.pr_body, or_conditions.get('body', []))
+                        }
+                    }
+                
+        return {'matched': False}
 
 class RuleParser:
     @staticmethod
-    def parse_condition(rule_data: Dict[str, Any]) -> Optional[Condition]:
-        if 'all' in rule_data:
-            conditions = []
-            for item in rule_data['all']:
-                if 'or' in item:
-                    conditions.append(OrCondition(item['or']))
-                elif 'changed-files' in item:
-                    conditions.append(FilesCondition(item['changed-files']))
-            return AllCondition(conditions)
-        elif 'any' in rule_data:
-            conditions = []
-            for item in rule_data['any']:
-                if 'or' in item:
-                    conditions.append(OrCondition(item['or']))
-                elif 'changed-files' in item:
-                    conditions.append(FilesCondition(item['changed-files']))
-            return AnyCondition(conditions)
-        elif 'or' in rule_data:
-            return OrCondition(rule_data['or'])
-        return None
-
-    @staticmethod
-    def parse_rules(rules_data: Dict[str, Any]) -> Dict[str, List[Condition]]:
-        parsed_rules = {}
-        for label, config in rules_data.items():
-            if not isinstance(config, list):
+    def parse_rules(rules_data: Dict[str, Any], context: RuleContext) -> Dict[str, Any]:
+        evaluator = RuleEvaluator(context)
+        matches = {}
+        
+        for label, rule_config in rules_data.items():
+            if not isinstance(rule_config, list):
                 continue
-                
-            conditions = []
-            for rule_set in config:
-                if not isinstance(rule_set, dict):
-                    continue
-                    
-                condition = RuleParser.parse_condition(rule_set)
-                if condition:
-                    conditions.append(condition)
-                    
-            if conditions:
-                parsed_rules[label] = conditions
-                
-        return parsed_rules
+
+            result = evaluator.evaluate_rule(rule_config)
+            if result['matched']:
+                matches[label] = result
+
+        return matches
