@@ -44,13 +44,13 @@
 //! - `(dest:192.168 OR dest:10.0.0) AND NOT seq:0` - Non-initial packets to specific networks
 //! - `ssrc:1234 AND timestamp:>1000000` - Packets from specific stream after timestamp
 
+use crate::app::rtp_packets_table::RtpFilterContext;
 use crate::filter_system::{
     CommonFilterParser, ComparisonFilter, FilterExpression, FilterParser, ParseError,
 };
 use crate::streams::rtpStream::RtpInfo;
 use crate::{declare_filter_type, filter_system};
 use netpix_common::RtpPacket;
-use crate::app::rtp_packets_table::RtpFilterContext;
 
 declare_filter_type! {
     pub enum FilterType {
@@ -81,36 +81,50 @@ impl<'a> FilterExpression<'a> for FilterType {
 
     fn matches(&self, ctx: &Self::Context) -> bool {
         match self {
-            FilterType::Source(value) => ctx.source_addr.to_string().to_lowercase().contains(value),
-            FilterType::Destination(value) => ctx
-                .destination_addr
-                .to_string()
-                .to_lowercase()
-                .contains(value),
-            FilterType::Alias(value) => ctx.alias.to_lowercase().contains(value),
+            FilterType::Source(value) => {
+                if value.is_empty() {
+                    return true;
+                }
+                ctx.source_addr.to_lowercase().contains(value)
+            }
+            FilterType::Destination(value) => {
+                if value.is_empty() {
+                    return true;
+                }
+                ctx.destination_addr.to_lowercase().contains(value)
+            }
+            FilterType::Alias(value) => {
+                if value.is_empty() {
+                    return true;
+                }
+                ctx.alias.to_lowercase().contains(value)
+            }
             FilterType::Padding(value) => match value.as_str() {
                 "+" => ctx.packet.padding,
                 "-" => !ctx.packet.padding,
-                _ => false,
+                _ => true,
             },
             FilterType::Extension(value) => match value.as_str() {
                 "+" => ctx.packet.extension,
                 "-" => !ctx.packet.extension,
-                _ => false,
+                _ => true,
             },
             FilterType::Marker(value) => match value.as_str() {
                 "+" => ctx.packet.marker,
                 "-" => !ctx.packet.marker,
-                _ => false,
+                _ => true,
             },
             FilterType::SequenceNumber(value) => ctx.packet.sequence_number == *value,
-            FilterType::Timestamp(filter) => match filter {
-                ComparisonFilter::GreaterThan(val) => ctx.packet.timestamp > *val,
-                ComparisonFilter::GreaterOrEqualThan(val) => ctx.packet.timestamp >= *val,
-                ComparisonFilter::LessThan(val) => ctx.packet.timestamp < *val,
-                ComparisonFilter::LessOrEqualThan(val) => ctx.packet.timestamp <= *val,
-                ComparisonFilter::Equals(value) => ctx.packet.timestamp.to_string() == *value,
-            },
+            FilterType::Timestamp(filter) => {
+                let ts = ctx.packet.timestamp;
+                match filter {
+                    ComparisonFilter::GreaterThan(val) => ts > *val,
+                    ComparisonFilter::GreaterOrEqualThan(val) => ts >= *val,
+                    ComparisonFilter::LessThan(val) => ts < *val,
+                    ComparisonFilter::LessOrEqualThan(val) => ts <= *val,
+                    ComparisonFilter::Equals(value) => ts.to_string() == *value,
+                }
+            }
             FilterType::Payload(filter) => {
                 let size = ctx.packet.payload_length;
                 match filter {
