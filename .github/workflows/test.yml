@@ -11,20 +11,38 @@ permissions:
   pull-requests: write
 
 jobs:
-  test-common:
-    name: Test Common Package
+  test:
+    name: Test Package
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        package: [common]
+        include:
+          - package: common
+            path: ./common
     steps:
-      - uses: actions/checkout@v3
-      - uses: dtolnay/rust-toolchain@master
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      
+      - name: Cache Rust dependencies
+        uses: actions/cache@v3
         with:
-          toolchain: 1.82.0-x86_64-unknown-linux-gnu 
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-rust-${{ hashFiles('**/Cargo.lock') }}
+      
       - name: Install libpcap
         run: sudo apt-get install libpcap-dev
       
-      - name: Run tests
-        working-directory: ./common
-        run: cargo test
+      - name: Store test results
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: test-results-${{ matrix.package }}
+          path: ${{ matrix.path }}/target/debug/deps/*.stdout
+          retention-days: 7
       
       - name: Report failure
         if: failure() && github.event_name == 'pull_request'
@@ -35,5 +53,7 @@ jobs:
               issue_number: context.issue.number,
               owner: context.repo.owner,
               repo: context.repo.repo,
-              body: '❌ Common package tests failed. Please check the CI run for details: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}'
+              body: `❌ ${process.env.PACKAGE} package tests failed. [View logs](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})`
             })
+        env:
+          PACKAGE: ${{ matrix.package }}

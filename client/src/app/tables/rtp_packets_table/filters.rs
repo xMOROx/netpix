@@ -49,8 +49,7 @@ use crate::{
     declare_filter_type,
     filter_system::{
         self, CommonFilterParser, ComparisonFilter, FilterExpression, FilterParser, ParseError,
-    }
-    ,
+    },
 };
 
 declare_filter_type! {

@@ -120,10 +120,7 @@ fn test_display_for_stream_types() {
         format!("{}", StreamType::MetadataCarousel),
         "Metadata Carousel"
     );
-    assert_eq!(
-        format!("{}", StreamType::MetadataObject),
-        "Metadata Object"
-    );
+    assert_eq!(format!("{}", StreamType::MetadataObject), "Metadata Object");
     assert_eq!(
         format!("{}", StreamType::MetadataDownload),
         "Metadata Synchronized Download Protocol"
@@ -132,10 +129,7 @@ fn test_display_for_stream_types() {
     assert_eq!(format!("{}", StreamType::VideoH264), "H.264 Video");
     assert_eq!(format!("{}", StreamType::RawAudio), "Raw Audio");
     assert_eq!(format!("{}", StreamType::Text), "Text");
-    assert_eq!(
-        format!("{}", StreamType::AuxiliaryVideo),
-        "Auxiliary Video"
-    );
+    assert_eq!(format!("{}", StreamType::AuxiliaryVideo), "Auxiliary Video");
     assert_eq!(format!("{}", StreamType::VideoSVC), "SVC Video");
     assert_eq!(format!("{}", StreamType::VideoMVC), "MVC Video");
     assert_eq!(

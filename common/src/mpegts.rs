@@ -46,7 +46,6 @@ impl MpegtsPacket {
             return None;
         }
 
-
         let fragments: Vec<_> = (0..buffer.len())
             .step_by(FRAGMENT_SIZE)
             .filter_map(|start_index| {

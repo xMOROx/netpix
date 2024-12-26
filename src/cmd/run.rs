@@ -3,7 +3,6 @@ use crate::server::config::Config;
 use crate::sniffer::{Error, Sniffer};
 use std::collections::HashMap;
 use std::net::{IpAddr, Ipv4Addr, SocketAddr};
-use std::u64;
 
 const DEFAULT_PORT: u16 = 3550;
 const DEFAULT_IP: IpAddr = IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1));

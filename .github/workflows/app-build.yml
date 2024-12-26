@@ -1,0 +1,115 @@
+name: Application Build
+
+on:
+  pull_request:
+    types: [ opened, synchronize ]
+  push:
+    branches: [ main ]
+
+jobs:
+  common:
+    name: Build Common Library
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      
+      - name: Generate lockfile hash
+        run: echo "${{ hashFiles('**/Cargo.lock') }}"
+        id: lockfile
+      
+      - name: Build cache
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: build-common-${{ runner.os }}-${{ steps.lockfile.outputs.hash }}
+          restore-keys: |
+            build-common-${{ runner.os }}-
+      
+      - name: Build common
+        working-directory: ./common
+        run: cargo build --release
+
+  macros:
+    name: Build Macros Library
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      
+      - name: Generate lockfile hash
+        run: echo "${{ hashFiles('**/Cargo.lock') }}"
+        id: lockfile
+      
+      - name: Build cache
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: build-macros-${{ runner.os }}-${{ steps.lockfile.outputs.hash }}
+          restore-keys: |
+            build-macros-${{ runner.os }}-
+      
+      - name: Build macros
+        working-directory: ./macros
+        run: cargo build --release
+
+  build:
+    name: Build Application
+    needs: [common, macros]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+      
+      - name: Generate lockfile hash
+        run: echo "${{ hashFiles('**/Cargo.lock') }}"
+        id: lockfile
+      
+      - name: Build cache
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: build-${{ runner.os }}-${{ steps.lockfile.outputs.hash }}
+          restore-keys: |
+            build-${{ runner.os }}-
+      
+      - name: Cache trunk
+        uses: actions/cache@v3
+        with:
+          path: ~/.cargo/bin/trunk
+          key: ${{ runner.os }}-trunk-0.21
+      
+      - uses: cargo-bins/cargo-binstall@main
+      
+      - name: Install dependencies
+        run: |
+          sudo apt-get install libpcap-dev
+          cargo binstall --no-confirm --version ~0.21.4 trunk
+      
+      - name: Build client (WASM)
+        working-directory: ./client
+        run: trunk build --release --dist ../dist
+      
+      - name: Build server binary
+        run: cargo build --release
+      
+      - name: Store artifacts
+        if: success()
+        uses: actions/upload-artifact@v3
+        with:
+          name: rtpeeker-artifacts
+          path: |
+            dist
+            target/release/rtpeeker
+          retention-days: 7
