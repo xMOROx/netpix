@@ -16,10 +16,8 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        package: [client, common]
+        package: [common]
         include:
-          - package: client
-            path: ./client
           - package: common
             path: ./common
     steps:
