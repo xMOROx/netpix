@@ -88,14 +88,14 @@ jobs:
         uses: actions/cache@v3
         with:
           path: ~/.cargo/bin/trunk
-          key: ${{ runner.os }}-trunk-0.18
+          key: ${{ runner.os }}-trunk-0.21
       
       - uses: cargo-bins/cargo-binstall@main
       
       - name: Install dependencies
         run: |
           sudo apt-get install libpcap-dev
-          cargo binstall --no-confirm --version ~0.18 trunk
+          cargo binstall --no-confirm --version ~0.21.4 trunk
       
       - name: Build client (WASM)
         working-directory: ./client
