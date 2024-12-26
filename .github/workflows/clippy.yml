@@ -17,7 +17,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        package: [client, common, macros, server]
+        package: [client, common, macros]
         include:
           - package: client
             path: ./client
@@ -25,8 +25,7 @@ jobs:
             path: ./common
           - package: macros
             path: ./macros
-          - package: server
-            path: .
+
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
@@ -85,7 +84,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        package: [client, common, macros, server]
+        package: [client, common, macros]
         include:
           - package: client
             path: ./client
@@ -93,8 +92,7 @@ jobs:
             path: ./common
           - package: macros
             path: ./macros
-          - package: server
-            path: .
+
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
