@@ -1,7 +1,7 @@
 name: PR Labeler
 on:
   pull_request:
-    types: [opened, synchronize, reopened]
+    types: [opened, edited, synchronize]
 
 permissions:
   contents: read
@@ -14,8 +14,68 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Label PR based on changes
-        uses: actions/labeler@v5
+      - name: Install js-yaml
+        run: npm install js-yaml
+
+      - name: Run custom labeler
+        uses: actions/github-script@v7
         with:
-          repo-token: "${{ secrets.GITHUB_TOKEN }}"
-          configuration-path: .github/labeler.yml
+          script: |
+            const fs = require('fs');
+            const yaml = require('./node_modules/js-yaml');
+            const rules = yaml.load(fs.readFileSync('.github/labeler.yml', 'utf8'));
+            
+            const pr = context.payload.pull_request;
+            const title = pr.title;
+            const body = pr.body || '';
+            const branch = pr.head.ref;
+            const files = await github.paginate(github.rest.pulls.listFiles, {
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: context.issue.number,
+            });
+            
+            const matchesPattern = (text, patterns) => {
+              return patterns.some(pattern => {
+                const regex = new RegExp(pattern.replace('(?i)', ''), 'i');
+                return regex.test(text);
+              });
+            };
+            
+            const labels = new Set();
+            
+            for (const [label, config] of Object.entries(rules)) {
+              if (!config.all) continue;
+              
+              const orRules = config.all.find(rule => rule.or);
+              const fileRules = config.all.find(rule => rule['changed-files']);
+              
+              if (!orRules || !fileRules) continue;
+              
+              const matchedFiles = files.some(file => 
+                fileRules['changed-files'].some(pattern => 
+                  new RegExp(pattern.replace('*', '.*')).test(file.filename)
+                )
+              );
+              
+              if (!matchedFiles) continue;
+              
+              const { head_branch: branchPatterns = [], title: titlePatterns = [], body: bodyPatterns = [] } = orRules.or;
+              
+              if (
+                matchesPattern(branch, branchPatterns) ||
+                matchesPattern(title, titlePatterns) ||
+                matchesPattern(body, bodyPatterns)
+              ) {
+                labels.add(label);
+              }
+            }
+            
+            if (labels.size > 0) {
+              await github.rest.issues.addLabels({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                labels: Array.from(labels)
+              });
+            }
