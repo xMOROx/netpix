@@ -38,9 +38,28 @@ jobs:
       - name: Install libpcap
         run: sudo apt-get install libpcap-dev
       
-      - name: Run tests
+      - name: Install cargo-tarpaulin
+        run: cargo install cargo-tarpaulin
+      
+      - name: Run tests with coverage
         working-directory: ${{ matrix.path }}
-        run: cargo test --all-features
+        run: |
+          cargo tarpaulin --out Xml --output-dir coverage
+      
+      - name: Upload coverage reports
+        uses: codecov/codecov-action@v3
+        with:
+          files: ${{ matrix.path }}/coverage/cobertura.xml
+          flags: ${{ matrix.package }}
+          fail_ci_if_error: false
+      
+      - name: Store test results
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: test-results-${{ matrix.package }}
+          path: ${{ matrix.path }}/target/debug/deps/*.stdout
+          retention-days: 7
       
       - name: Report failure
         if: failure() && github.event_name == 'pull_request'

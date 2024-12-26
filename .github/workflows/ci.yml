@@ -41,6 +41,21 @@ jobs:
         with:
           targets: wasm32-unknown-unknown
       
+      - name: Generate lockfile hash
+        run: echo "${{ hashFiles('**/Cargo.lock') }}"
+        id: lockfile
+      
+      - name: Restore build cache
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: build-${{ runner.os }}-${{ steps.lockfile.outputs.hash }}
+          restore-keys: |
+            build-${{ runner.os }}-
+      
       - name: Cache Rust dependencies
         uses: actions/cache@v3
         with:
@@ -68,3 +83,17 @@ jobs:
       
       - name: Build binary
         run: cargo install --locked --path .
+      
+      - name: Store WASM artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: wasm-build
+          path: dist
+          retention-days: 7
+      
+      - name: Store binary artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: rtpeeker-binary
+          path: target/release/rtpeeker
+          retention-days: 7

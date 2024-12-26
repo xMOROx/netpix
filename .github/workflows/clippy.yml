@@ -3,6 +3,8 @@ name: Clippy Check
 on:
   pull_request:
     types: [ opened, synchronize ]
+  push:
+    branches: [ main ]
 
 permissions:
   contents: read
@@ -27,21 +29,40 @@ jobs:
         with:
           components: clippy
       
-      - name: Cache Rust dependencies
+      - name: Generate lockfile hash
+        run: echo "${{ hashFiles('**/Cargo.lock') }}"
+        id: lockfile
+      
+      - name: Clippy cache
         uses: actions/cache@v3
         with:
           path: |
             ~/.cargo/registry
             ~/.cargo/git
             target
-          key: ${{ runner.os }}-rust-${{ hashFiles('**/Cargo.lock') }}
+          key: clippy-${{ runner.os }}-${{ steps.lockfile.outputs.hash }}
+          restore-keys: |
+            clippy-${{ runner.os }}-
       
       - name: Install libpcap
         run: sudo apt-get install libpcap-dev
       
-      - name: Run Clippy
+      - name: Run Clippy with annotations
         uses: actions-rs/clippy-check@v1
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           args: --manifest-path ${{ matrix.path }}/Cargo.toml --all-features --all-targets -- -D warnings
           name: Clippy ${{ matrix.package }}
+
+      - name: Generate Clippy report
+        if: always()
+        run: |
+          cargo clippy --manifest-path ${{ matrix.path }}/Cargo.toml --message-format=json > clippy-results.json
+      
+      - name: Store Clippy results
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: clippy-results-${{ matrix.package }}
+          path: clippy-results.json
+          retention-days: 7
