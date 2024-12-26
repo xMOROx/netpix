@@ -1,12 +1,16 @@
 #![allow(dead_code)]
 use crate::utils::ntp_to_f64;
-use netpix_common::packet::TransportProtocol;
-use netpix_common::rtcp::{source_description::SdesType, SourceDescription};
-use netpix_common::rtp::payload_type::PayloadType;
-use netpix_common::{Packet, RtcpPacket, RtpPacket, Sdp};
-use std::cmp::{max, min};
-use std::net::SocketAddr;
-use std::time::Duration;
+use netpix_common::{
+    packet::TransportProtocol,
+    rtcp::{source_description::SdesType, SourceDescription},
+    rtp::payload_type::PayloadType,
+    Packet, RtcpPacket, RtpPacket, Sdp,
+};
+use std::{
+    cmp::{max, min},
+    net::SocketAddr,
+    time::Duration,
+};
 
 #[derive(Debug, Clone)]
 pub struct RtcpInfo {

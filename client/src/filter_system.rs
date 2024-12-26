@@ -7,10 +7,8 @@ mod types;
 
 pub use comparison::ComparisonFilter;
 pub use error::ParseError;
-pub use lexer::Lexer;
-pub use parser::{parse_expression, parse_filter, validate_filter_syntax};
+pub use parser::parse_filter;
 pub use traits::*;
-pub use types::*;
 
 #[macro_export]
 macro_rules! declare_filter_type {
