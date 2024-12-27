@@ -21,6 +21,7 @@ use crate::mpegts::psi::pmt::stream_types::StreamType::{
 };
 use crate::mpegts::psi::pmt::{ElementaryStreamInfo, PmtFields};
 use crate::mpegts::psi::psi_buffer::FragmentaryPsi;
+use pretty_assertions::assert_eq;
 
 #[test]
 fn test_pmt_buffer_with_one_fragment() {

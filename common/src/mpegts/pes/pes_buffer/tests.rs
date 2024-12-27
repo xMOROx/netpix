@@ -1,6 +1,7 @@
 use super::*;
 use crate::mpegts::{Header, RawPayload};
 use crate::utils::traits::BufferOperations;
+use pretty_assertions::assert_eq;
 
 #[test]
 fn test_pes_packet_payload_new() {
