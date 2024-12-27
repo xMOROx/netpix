@@ -1,0 +1,246 @@
+name: PR Labeler
+on:
+  pull_request:
+    types: [opened, edited, synchronize]
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  label-pr:
+    name: Label PR
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+
+      - name: Set up Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: '1.21'
+
+      - name: Install dependencies
+        run: |
+          # Create workspace directory
+          WORKSPACE=/tmp/labeler-workspace
+          mkdir -p $WORKSPACE
+          cd $WORKSPACE
+          
+          # Copy source files
+          cp -r $GITHUB_WORKSPACE/.github/scripts/labeler ./labeler
+          cp $GITHUB_WORKSPACE/.github/scripts/main.go ./
+          
+          # Initialize main module
+          cat > go.mod <<EOF
+          module main
+          
+          go 1.21
+          
+          require (
+            gopkg.in/yaml.v3 v3.0.1
+            labeler v0.0.0
+          )
+          
+          replace labeler => ./labeler
+          EOF
+          
+          # Initialize labeler module
+          cd labeler
+          cat > go.mod <<EOF
+          module labeler
+          
+          go 1.21
+          
+          require (
+            gopkg.in/yaml.v3 v3.0.1
+          )
+          EOF
+          cd ..
+          
+          # Get dependencies
+          go mod tidy
+          cd labeler && go mod tidy && cd ..
+          
+          # Build binary
+          go build -o pr-labeler main.go
+          cp pr-labeler $GITHUB_WORKSPACE/
+          cd $GITHUB_WORKSPACE
+
+      - name: Prepare PR data
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const pr = context.payload.pull_request;
+            
+            const files = await github.paginate(github.rest.pulls.listFiles, {
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: context.issue.number,
+            });
+            
+            const prData = {
+              title: pr.title,
+              body: pr.body || '',
+              branch: pr.head.ref,
+              changed_files: files.map(f => f.filename),
+              files: files
+            };
+            
+            fs.writeFileSync('pr_data.json', JSON.stringify(prData, null, 2));
+
+      - name: Run labeler script
+        id: labeler
+        run: |
+          # Run the compiled binary
+          ./pr-labeler --pr pr_data.json --rules .github/labeler.yml --debug > labels_output.json
+          
+          echo "Labels to be applied:"
+          jq -r '.labels[]' labels_output.json | while read label; do
+            echo "  - $label"
+          done
+          
+          # Store the labels for the next step - format as JSON array
+          echo "labels=$(jq -c '.labels' labels_output.json)" >> $GITHUB_OUTPUT
+          
+          # Store file analysis for the summary
+          echo "analysis<<EOF" >> $GITHUB_OUTPUT
+          jq -r '.file_analysis' labels_output.json >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+      - name: Apply labels
+        if: steps.labeler.outputs.labels != '[]'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            try {
+              if (!fs.existsSync('labels_output.json')) {
+                console.log('No labels output file found');
+                return;
+              }
+              
+              const content = fs.readFileSync('labels_output.json', 'utf8');
+              if (!content.trim()) {
+                console.log('Labels output file is empty');
+                return;
+              }
+              
+              const output = JSON.parse(content);
+              console.log('Parsed output:', output);
+              
+              if (output && output.labels && output.labels.length > 0) {
+                const labels = output.labels.map(l => l.trim());
+                console.log('Applying labels:', labels);
+                await github.rest.issues.addLabels({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  issue_number: context.issue.number,
+                  labels: labels
+                });
+              } else {
+                console.log('No labels to apply');
+              }
+            } catch (error) {
+              console.error('Error processing labels:', error);
+              console.log('File content:', fs.readFileSync('labels_output.json', 'utf8'));
+            }
+
+      - name: Create PR comment with analysis
+        if: always()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            try {
+              // First, find and delete any previous auto-generated comments
+              const comments = await github.rest.issues.listComments({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+              });
+              
+              for (const comment of comments.data) {
+                if (comment.body.includes('## PR Analysis Results')) {
+                  await github.rest.issues.deleteComment({
+                    owner: context.repo.owner,
+                    repo: context.repo.repo,
+                    comment_id: comment.id,
+                  });
+                  console.log('Deleted previous analysis comment');
+                }
+              }
+              
+              // Now create the new comment
+              if (!fs.existsSync('labels_output.json')) {
+                console.log('No analysis file found');
+                return;
+              }
+              
+              const content = fs.readFileSync('labels_output.json', 'utf8');
+              if (!content.trim()) {
+                console.log('Analysis file is empty');
+                return;
+              }
+              
+              const output = JSON.parse(content);
+              console.log('Parsed analysis:', output);
+              
+              const analysis = output.file_analysis || {};
+              const labels = output.labels || [];
+              
+              const body = `## PR Analysis Results\n
+              ### Applied Labels
+              ${labels.length ? labels.map(label => `- \`${label}\``).join('\n') : '*No labels applied*'}\n
+              ${analysis.total_files ? `
+              ### File Changes Summary
+              - Total files changed: ${analysis.total_files}
+              
+              ${analysis.files_by_status ? `
+              #### Changes by Status
+              ${Object.entries(analysis.files_by_status)
+                .map(([status, count]) => `- ${status}: ${count}`)
+                .join('\n')}
+              ` : ''}
+              
+              ${analysis.files_by_extension ? `
+              #### Changes by Extension
+              ${Object.entries(analysis.files_by_extension)
+                .map(([ext, count]) => `- ${ext || '(no extension)'}: ${count}`)
+                .join('\n')}
+              ` : ''}
+              
+              ${analysis.changes_by_path ? `
+              #### Changes by Directory
+              ${Object.entries(analysis.changes_by_path)
+                .map(([path, count]) => `- ${path || '/'}: ${count}`)
+                .join('\n')}
+              ` : ''}
+              ` : '*No file analysis available*'}`;
+              
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                body: body.replace(/\n\s+/g, '\n').trim()
+              });
+            } catch (error) {
+              console.error('Error creating PR comment:', error);
+              console.log('Attempting to create error comment...');
+              
+              try {
+                await github.rest.issues.createComment({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  issue_number: context.issue.number,
+                  body: '⚠️ Error occurred while analyzing PR changes. Please check the action logs for details.'
+                });
+              } catch (commentError) {
+                console.error('Failed to create error comment:', commentError);
+              }
+            }
