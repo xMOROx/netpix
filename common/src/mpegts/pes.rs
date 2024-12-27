@@ -6,10 +6,10 @@ pub mod pes_buffer;
 pub mod trick_mode_control;
 
 use crate::utils::bits::BitReader;
+use bincode::{Decode, Encode};
 use constants::*;
 use enums::StreamType;
 use header::PesHeader;
-use bincode::{Decode, Encode};
 use std::cmp::PartialEq;
 
 #[derive(Decode, Encode, Debug, Clone, Eq, PartialEq)]

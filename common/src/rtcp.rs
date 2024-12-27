@@ -1,8 +1,8 @@
+use bincode::{Decode, Encode};
 pub use goodbye::Goodbye;
 pub use receiver_report::ReceiverReport;
 pub use reception_report::ReceptionReport;
 pub use sender_report::SenderReport;
-use bincode::{Decode, Encode};
 pub use source_description::SourceDescription;
 
 pub mod goodbye;

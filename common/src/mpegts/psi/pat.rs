@@ -3,8 +3,8 @@ pub mod fragmentary_pat;
 pub mod pat_buffer;
 
 use crate::utils::{BitReader, Crc32Reader};
-use constants::*;
 use bincode::{Decode, Encode};
+use constants::*;
 
 #[derive(Decode, Encode, Debug, Clone, Ord, PartialOrd, Eq)]
 pub struct ProgramAssociationTable {

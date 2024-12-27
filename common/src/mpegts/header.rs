@@ -11,9 +11,7 @@ pub struct Header {
     pub continuity_counter: u8,
 }
 
-#[derive(
-    Decode, Encode, Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Ord, PartialOrd,
-)]
+#[derive(Decode, Encode, Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Ord, PartialOrd)]
 pub enum PIDTable {
     #[default]
     ProgramAssociation,

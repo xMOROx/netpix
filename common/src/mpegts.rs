@@ -15,8 +15,8 @@ use crate::mpegts::header::Header;
 use crate::mpegts::header::{AdaptationFieldControl, PIDTable, TransportScramblingControl};
 use crate::mpegts::payload::RawPayload;
 use crate::utils::bits::BitReader;
-use constants::*;
 use bincode::{Decode, Encode};
+use constants::*;
 
 #[derive(Decode, Encode, Debug, Clone, Eq, PartialEq)]
 pub struct MpegtsPacket {

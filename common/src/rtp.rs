@@ -1,5 +1,5 @@
-use payload_type::PayloadType;
 use bincode::{Decode, Encode};
+use payload_type::PayloadType;
 
 pub mod payload_type;
 
