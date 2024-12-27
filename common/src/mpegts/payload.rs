@@ -1,6 +1,6 @@
-use serde::{Deserialize, Serialize};
+use bincode::{Decode, Encode};
 
-#[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq, Default)]
+#[derive(Decode, Encode, Debug, Clone, Eq, PartialEq, Default)]
 pub struct RawPayload {
     pub data: Vec<u8>,
 }

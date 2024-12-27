@@ -2,7 +2,7 @@ pub use goodbye::Goodbye;
 pub use receiver_report::ReceiverReport;
 pub use reception_report::ReceptionReport;
 pub use sender_report::SenderReport;
-use serde::{Deserialize, Serialize};
+use bincode::{Decode, Encode};
 pub use source_description::SourceDescription;
 
 pub mod goodbye;
@@ -11,7 +11,7 @@ pub mod reception_report;
 pub mod sender_report;
 pub mod source_description;
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Decode, Encode, Debug, Clone)]
 pub enum RtcpPacket {
     SenderReport(sender_report::SenderReport),
     ReceiverReport(receiver_report::ReceiverReport),

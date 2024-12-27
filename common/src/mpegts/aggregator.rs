@@ -8,10 +8,10 @@ use crate::mpegts::psi::pat::ProgramAssociationTable;
 use crate::mpegts::psi::pmt::ProgramMapTable;
 use crate::mpegts::MpegtsFragment;
 use crate::utils::traits::BufferOperations;
-use serde::{Deserialize, Serialize};
+use bincode::{Decode, Encode};
 use std::collections::HashMap;
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Decode, Encode, Debug, Clone)]
 pub struct MpegtsAggregator {
     pub pat_buffer: PatBuffer,
     pub pmt_buffers: HashMap<u16, PmtBuffer>,

@@ -3,17 +3,17 @@ use std::fmt;
 use crate::implement_descriptor;
 use crate::mpegts::descriptors::{DescriptorHeader, ParsableDescriptor};
 use crate::utils::bits::BitReader;
-use serde::{Deserialize, Serialize};
+use bincode::{Decode, Encode};
 
 const SECTION_LENGTH: u8 = 4;
 
-#[derive(Serialize, Deserialize, Debug, Clone, Ord, PartialOrd, Eq)]
+#[derive(Decode, Encode, Debug, Clone, Ord, PartialOrd, Eq)]
 pub struct Section {
     pub language_code: String,
     pub audio_type: AudioType,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, Ord, PartialOrd, Eq)]
+#[derive(Decode, Encode, Debug, Clone, Ord, PartialOrd, Eq)]
 pub enum AudioType {
     Undefined,
     CleanEffects,

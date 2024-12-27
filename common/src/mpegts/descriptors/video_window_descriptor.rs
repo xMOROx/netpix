@@ -1,7 +1,7 @@
 use crate::implement_descriptor;
 use crate::mpegts::descriptors::{DescriptorHeader, ParsableDescriptor};
 use crate::utils::bits::BitReader;
-use serde::{Deserialize, Serialize};
+use bincode::{Decode, Encode};
 
 const HORIZONTAL_OFFSET_MASK: u8 = 0b1111_1100;
 const VERTICAL_OFFSET_UP_MASK: u8 = 0b1100_0000;

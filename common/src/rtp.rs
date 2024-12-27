@@ -1,9 +1,9 @@
 use payload_type::PayloadType;
-use serde::{Deserialize, Serialize};
+use bincode::{Decode, Encode};
 
 pub mod payload_type;
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Decode, Encode, Debug, Clone)]
 pub struct RtpPacket {
     pub version: u8,
     pub padding: bool,

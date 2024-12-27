@@ -6,10 +6,10 @@ pub mod stream_types;
 use crate::mpegts::descriptors::Descriptors;
 use crate::mpegts::psi::pmt::stream_types::StreamType;
 use crate::utils::{BitReader, Crc32Reader};
+use bincode::{Decode, Encode};
 use constants::*;
-use serde::{Deserialize, Serialize};
 
-#[derive(Serialize, Deserialize, Debug, Clone, Ord, PartialOrd, Eq)]
+#[derive(Decode, Encode, Debug, Clone, Ord, PartialOrd, Eq)]
 pub struct ProgramMapTable {
     pub fields: PmtFields,
     pub descriptors: Vec<Descriptors>,
@@ -18,7 +18,7 @@ pub struct ProgramMapTable {
     pub fragment_count: usize,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, Ord, PartialOrd, Eq)]
+#[derive(Decode, Encode, Debug, Clone, Ord, PartialOrd, Eq)]
 pub struct PmtFields {
     pub program_number: u16,
     pub pcr_pid: u16,
@@ -46,7 +46,7 @@ impl PartialEq for PmtFields {
     }
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, Ord, PartialOrd, Eq)]
+#[derive(Decode, Encode, Debug, Clone, Ord, PartialOrd, Eq)]
 pub struct ElementaryStreamInfo {
     pub stream_type: StreamType, // table is defined on page 55 of H.222.0 (03/2017)
     pub elementary_pid: u16,

@@ -1,9 +1,9 @@
 use super::constants::*;
 use super::optional_fields::OptionalFields;
 use crate::utils::traits::{BitManipulation, DataParser, DataValidator};
-use serde::{Deserialize, Serialize};
+use bincode::{Decode, Encode};
 
-#[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq)]
+#[derive(Decode, Encode, Debug, Clone, Eq, PartialEq)]
 pub struct PesHeader {
     pub size: usize,
     pub scrambling_control: u8,

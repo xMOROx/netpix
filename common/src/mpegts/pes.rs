@@ -9,10 +9,10 @@ use crate::utils::bits::BitReader;
 use constants::*;
 use enums::StreamType;
 use header::PesHeader;
-use serde::{Deserialize, Serialize};
+use bincode::{Decode, Encode};
 use std::cmp::PartialEq;
 
-#[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq)]
+#[derive(Decode, Encode, Debug, Clone, Eq, PartialEq)]
 pub struct PacketizedElementaryStream {
     pub required_fields: RequiredFields,
     pub header: Option<PesHeader>,
@@ -20,7 +20,7 @@ pub struct PacketizedElementaryStream {
     pub padding_bytes: Option<Vec<u8>>,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq)]
+#[derive(Decode, Encode, Debug, Clone, Eq, PartialEq)]
 pub struct RequiredFields {
     pub packet_start_code_prefix: u32,
     pub stream_id: u8,

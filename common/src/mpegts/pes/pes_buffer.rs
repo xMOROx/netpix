@@ -4,9 +4,9 @@ mod tests;
 use super::{PacketizedElementaryStream, REQUIRED_FIELDS_SIZE};
 use crate::mpegts::MpegtsFragment;
 use crate::utils::BufferOperations;
-use serde::{Deserialize, Serialize};
+use bincode::{Decode, Encode};
 
-#[derive(Serialize, Deserialize, Debug, Clone, Default)]
+#[derive(Decode, Encode, Debug, Clone, Default)]
 pub struct PesPacketPayload {
     data: Vec<u8>,
     is_completable: bool,
@@ -68,7 +68,7 @@ impl BufferOperations for PesPacketPayload {
     }
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, Default)]
+#[derive(Decode, Encode, Debug, Clone, Default)]
 pub struct PesBuffer {
     payload: PesPacketPayload,
 }

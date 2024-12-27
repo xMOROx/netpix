@@ -1,7 +1,7 @@
 use crate::implement_descriptor;
 use crate::mpegts::descriptors::{DescriptorHeader, ParsableDescriptor};
 use crate::utils::bits::BitReader;
-use serde::{Deserialize, Serialize};
+use bincode::{Decode, Encode};
 
 const MAXIMUM_BITRATE: u8 = 0b00111111;
 const BITRATE_PER_SECOND: u32 = 50;

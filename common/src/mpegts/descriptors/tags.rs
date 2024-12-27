@@ -1,6 +1,6 @@
-use serde::{Deserialize, Serialize};
+use bincode::{Decode, Encode};
 
-#[derive(Serialize, Deserialize, Debug, Clone, Ord, PartialOrd, Eq, Default)]
+#[derive(Decode, Encode, Debug, Clone, Ord, PartialOrd, Eq, Default)]
 pub enum DescriptorTag {
     VideoStreamDescriptorTag,
     AudioStreamDescriptorTag,

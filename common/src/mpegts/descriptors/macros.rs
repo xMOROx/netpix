@@ -1,7 +1,7 @@
 #[macro_export]
 macro_rules! declare_descriptor_variants {
     ($(($variant:ident, $type:ty)),* $(,)?) => {
-        #[derive(Serialize, Deserialize, Debug, Clone, Ord, PartialOrd, Eq)]
+        #[derive(Decode, Encode, Debug, Clone, Ord, PartialOrd, Eq)]
         pub enum Descriptors {
             $($variant($type),)*
             UserPrivate(u8),
@@ -93,7 +93,7 @@ macro_rules! implement_descriptor {
         $(,)?
     ) => {
         $(#[$struct_meta])*
-        #[derive(serde::Serialize, serde::Deserialize, Debug, Clone, Ord, PartialOrd, Eq)]
+        #[derive(bincode::Encode, bincode::Decode, Debug, Clone, Ord, PartialOrd, Eq)]
         $vis struct $name {
             pub header: $crate::mpegts::descriptors::DescriptorHeader,
             $(
@@ -170,7 +170,7 @@ macro_rules! implement_descriptor {
         $(,)?
     ) => {
         $(#[$struct_meta])*
-        #[derive(serde::Serialize, serde::Deserialize, Debug, Clone, Ord, PartialOrd, Eq)]
+        #[derive(bincode::Encode, bincode::Decode, Debug, Clone, Ord, PartialOrd, Eq)]
         $vis struct $name {
             pub header: $crate::mpegts::descriptors::DescriptorHeader,
             $(
