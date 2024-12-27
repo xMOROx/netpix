@@ -70,11 +70,13 @@ jobs:
                 });
                 
                 // Create checklist
-                const checklistBody = `## Pull Request Checklist
-                - [ ] Tests added/updated
-                - [ ] Code follows project style
-                - [ ] CI checks passed
-                - [ ] No merge conflicts`;
+                const checklistBody = `
+              ## Pull Request Checklist
+              - [ ] Tests added/updated
+              - [ ] Code follows project style
+              - [ ] CI checks passed
+              - [ ] No merge conflicts
+                `;
                 
                 await github.rest.issues.createComment({
                   ...context.repo,
