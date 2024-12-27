@@ -15,16 +15,16 @@ use crate::mpegts::header::Header;
 use crate::mpegts::header::{AdaptationFieldControl, PIDTable, TransportScramblingControl};
 use crate::mpegts::payload::RawPayload;
 use crate::utils::bits::BitReader;
+use bincode::{Decode, Encode};
 use constants::*;
-use serde::{Deserialize, Serialize};
 
-#[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq)]
+#[derive(Decode, Encode, Debug, Clone, Eq, PartialEq)]
 pub struct MpegtsPacket {
     pub number_of_fragments: usize,
     pub fragments: Vec<MpegtsFragment>,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq)]
+#[derive(Decode, Encode, Debug, Clone, Eq, PartialEq)]
 pub struct MpegtsFragment {
     pub header: Header,
     pub adaptation_field: Option<AdaptationField>,

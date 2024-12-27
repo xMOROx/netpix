@@ -1,5 +1,5 @@
 use super::{MpegtsPacket, RtcpPacket, RtpPacket};
-use serde::{Deserialize, Serialize};
+use bincode::{Decode, Encode};
 
 use std::net::SocketAddr;
 use std::str::FromStr;
@@ -17,7 +17,7 @@ use pnet_packet::{
     Packet as _,
 };
 
-#[derive(Serialize, Deserialize, PartialEq, Debug, Copy, Clone)]
+#[derive(Encode, Decode, PartialEq, Debug, Copy, Clone)]
 pub enum SessionProtocol {
     Unknown,
     Rtp,
@@ -57,7 +57,7 @@ impl fmt::Display for SessionProtocol {
     }
 }
 
-#[derive(Serialize, Deserialize, Debug, Copy, Clone, Hash, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Decode, Encode, Debug, Copy, Clone, Hash, PartialEq, Eq, PartialOrd, Ord)]
 pub enum TransportProtocol {
     Tcp,
     Udp,
@@ -74,7 +74,7 @@ impl fmt::Display for TransportProtocol {
     }
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Decode, Encode, Debug, Clone)]
 pub enum SessionPacket {
     Unknown,
     Rtp(RtpPacket),
@@ -82,7 +82,7 @@ pub enum SessionPacket {
     Mpegts(MpegtsPacket),
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Encode, Decode, Debug, Clone)]
 pub struct Packet {
     pub payload: Option<Vec<u8>>,
     pub id: usize,

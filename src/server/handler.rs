@@ -161,10 +161,11 @@ async fn sniff(
 }
 
 async fn send_batch(packets: Vec<Response>, ws_tx: &UnboundedSender<Message>, client_id: usize) {
-    let encoded = bincode::serialize(&packets).unwrap_or_else(|e| {
-        error!("Failed to encode packet batch: {}", e);
-        Vec::new()
-    });
+    let encoded =
+        bincode::encode_to_vec(&packets, bincode::config::standard()).unwrap_or_else(|e| {
+            error!("Failed to encode packet batch: {}", e);
+            Vec::new()
+        });
 
     let mut encoder = GzEncoder::new(Vec::new(), Compression::default());
     encoder.write_all(&encoded).unwrap_or_else(|e| {
@@ -292,7 +293,7 @@ pub async fn handle_messages(
                 };
 
                 match req {
-                    Request::FetchAll => {
+                    (Request::FetchAll, _) => {
                         if let Some(ref cur_source) = source {
                             if let Some((packets, _)) = packets.get(cur_source) {
                                 send_all_packets(client_id, packets, clients).await;
@@ -304,7 +305,7 @@ pub async fn handle_messages(
                             }
                         }
                     }
-                    Request::ChangeSource(new_source) => {
+                    (Request::ChangeSource(new_source), _) => {
                         if handle_source_change(client_id, new_source.clone(), clients, packets)
                             .await
                         {
@@ -317,7 +318,7 @@ pub async fn handle_messages(
                         }
                     }
 
-                    Request::ParseSdp(stream_key, sdp) => {
+                    (Request::ParseSdp(stream_key, sdp), _) => {
                         if let Some(cur_source) = &source {
                             parse_sdp(client_id, clients, cur_source, stream_key, sdp).await;
                         } else {
@@ -325,7 +326,7 @@ pub async fn handle_messages(
                         }
                     }
 
-                    Request::PacketsStats(stats) => {
+                    (Request::PacketsStats(stats), _) => {
                         let response = Response::PacketsStats(stats);
                         if let Ok(encoded) = response.encode() {
                             let msg = Message::binary(encoded);

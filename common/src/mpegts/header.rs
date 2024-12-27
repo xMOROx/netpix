@@ -1,6 +1,6 @@
-use serde::{Deserialize, Serialize};
+use bincode::{Decode, Encode};
 
-#[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq, Default)]
+#[derive(Decode, Encode, Debug, Clone, Eq, PartialEq, Default)]
 pub struct Header {
     pub transport_error_indicator: bool,
     pub payload_unit_start_indicator: bool,
@@ -11,9 +11,7 @@ pub struct Header {
     pub continuity_counter: u8,
 }
 
-#[derive(
-    Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Ord, PartialOrd,
-)]
+#[derive(Decode, Encode, Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Ord, PartialOrd)]
 pub enum PIDTable {
     #[default]
     ProgramAssociation,
@@ -25,14 +23,14 @@ pub enum PIDTable {
     NullPacket,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq, Default)]
+#[derive(Decode, Encode, Debug, Clone, Eq, PartialEq, Default)]
 pub enum TransportScramblingControl {
     #[default]
     NotScrambled,
     UserDefined(u8),
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq, Default)]
+#[derive(Decode, Encode, Debug, Clone, Eq, PartialEq, Default)]
 pub enum AdaptationFieldControl {
     #[default]
     PayloadOnly,

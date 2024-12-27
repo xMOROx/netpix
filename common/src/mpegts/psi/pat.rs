@@ -3,10 +3,10 @@ pub mod fragmentary_pat;
 pub mod pat_buffer;
 
 use crate::utils::{BitReader, Crc32Reader};
+use bincode::{Decode, Encode};
 use constants::*;
-use serde::{Deserialize, Serialize};
 
-#[derive(Serialize, Deserialize, Debug, Clone, Ord, PartialOrd, Eq)]
+#[derive(Decode, Encode, Debug, Clone, Ord, PartialOrd, Eq)]
 pub struct ProgramAssociationTable {
     pub transport_stream_id: u16,
     pub programs: Vec<ProgramAssociationItem>,
@@ -14,7 +14,7 @@ pub struct ProgramAssociationTable {
     pub fragment_count: usize,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, Ord, PartialOrd, Eq)]
+#[derive(Decode, Encode, Debug, Clone, Ord, PartialOrd, Eq)]
 pub struct ProgramAssociationItem {
     pub program_number: u16,
     pub network_pid: Option<u16>,

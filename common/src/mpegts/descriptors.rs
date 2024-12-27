@@ -39,7 +39,7 @@ use crate::{
 use crate::{
     impl_descriptor_display, impl_descriptor_partial_eq, impl_descriptor_unmarshall_match,
 };
-use serde::{Deserialize, Serialize};
+use bincode::{Decode, Encode};
 use std::fmt::Debug;
 
 const HEADER_SIZE: u8 = 2;
@@ -126,7 +126,7 @@ impl_descriptor_partial_eq! {
     (Iso639LanguageDescriptor),
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, Ord, PartialOrd, Eq)]
+#[derive(Decode, Encode, Debug, Clone, Ord, PartialOrd, Eq)]
 pub struct DescriptorHeader {
     pub descriptor_tag: DescriptorTag,
     pub descriptor_length: u8,

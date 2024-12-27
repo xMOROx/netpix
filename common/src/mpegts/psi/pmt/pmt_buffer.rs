@@ -5,9 +5,9 @@ use crate::mpegts::psi::pmt::fragmentary_pmt::FragmentaryProgramMapTable;
 use crate::mpegts::psi::pmt::{PmtFields, ProgramMapTable};
 use crate::mpegts::psi::psi_buffer::PsiBuffer;
 use crate::utils::{DataAccumulator, DataValidator};
-use serde::{Deserialize, Serialize};
+use bincode::{Decode, Encode};
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Decode, Encode, Debug, Clone)]
 pub struct PmtBuffer {
     last_section_number: u8,
     pmt_fragments: Vec<FragmentaryProgramMapTable>,

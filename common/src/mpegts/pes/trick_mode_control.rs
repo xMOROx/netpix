@@ -1,8 +1,8 @@
-use serde::{Deserialize, Serialize};
+use bincode::{Decode, Encode};
 
 use super::enums::TrickModeControlValues;
 
-#[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq)]
+#[derive(Decode, Encode, Debug, Clone, Eq, PartialEq)]
 pub struct TrickModeControl {
     pub trick_mode_control: TrickModeControlValues,
     pub field_id: Option<u8>,

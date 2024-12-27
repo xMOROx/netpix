@@ -1,6 +1,6 @@
-use serde::{Deserialize, Serialize};
+use bincode::{Decode, Encode};
 
-#[derive(Serialize, Deserialize, Debug, PartialEq, Clone)]
+#[derive(Decode, Encode, Debug, PartialEq, Clone)]
 pub enum StreamType {
     ProgramStreamMap,
     PrivateStream1,
@@ -27,7 +27,7 @@ pub enum StreamType {
     Unknown,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq)]
+#[derive(Decode, Encode, Debug, Clone, Eq, PartialEq)]
 pub enum TrickModeControlValues {
     FastForward,
     SlowMotion,
@@ -37,7 +37,7 @@ pub enum TrickModeControlValues {
     Reserved,
 }
 
-#[derive(Serialize, Deserialize, Debug, PartialEq)]
+#[derive(Decode, Encode, Debug, PartialEq)]
 pub enum PtsDtsFlags {
     No,
     Forbidden,

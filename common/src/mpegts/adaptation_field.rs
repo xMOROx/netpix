@@ -1,10 +1,10 @@
 use crate::utils::bits::BitReader;
-use serde::{Deserialize, Serialize};
+use bincode::{Decode, Encode};
 
 const STUFFING_BYTE: u8 = 0xFF;
 const LTW_OFFSET_MASK: u8 = 0x7F;
 
-#[derive(Default, Serialize, Deserialize, Debug, Clone, Eq, PartialEq)]
+#[derive(Default, Decode, Encode, Debug, Clone, Eq, PartialEq)]
 pub struct AdaptationField {
     pub adaptation_field_length: u8,
     pub discontinuity_indicator: bool,
@@ -26,7 +26,7 @@ pub struct AdaptationField {
     pub number_of_stuffing_bytes: Option<u8>,
 }
 
-#[derive(Default, Serialize, Deserialize, Debug, Clone, Eq, PartialEq)]
+#[derive(Default, Decode, Encode, Debug, Clone, Eq, PartialEq)]
 pub struct AdaptationFieldExtension {
     pub adaptation_field_extension_length: u8,
     pub ltw_flag: bool,

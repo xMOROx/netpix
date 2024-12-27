@@ -1,7 +1,7 @@
-use serde::{Deserialize, Serialize};
+use bincode::{Decode, Encode};
 use std::fmt;
 
-#[derive(Serialize, Deserialize, Debug, Clone, Copy)]
+#[derive(Decode, Encode, Debug, Clone, Copy)]
 pub enum MediaType {
     Audio,
     Video,
@@ -20,7 +20,7 @@ impl fmt::Display for MediaType {
     }
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Decode, Encode, Debug, Clone)]
 pub struct PayloadType {
     pub id: u8,
     pub name: String,

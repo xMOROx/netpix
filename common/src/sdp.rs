@@ -1,8 +1,8 @@
 use crate::rtp::payload_type::PayloadType;
-use serde::{Deserialize, Serialize};
+use bincode::{Decode, Encode};
 use std::collections::HashMap;
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Decode, Encode, Debug, Clone)]
 pub struct Sdp {
     pub payload_types: HashMap<u8, PayloadType>,
 }
