@@ -1,4 +1,8 @@
-use serde::{Deserialize, Serialize};
+use bincode::{
+    config,
+    error::{DecodeError, EncodeError},
+    Decode, Encode,
+};
 use std::fmt;
 
 pub use crate::mpegts::MpegtsPacket;
@@ -19,7 +23,7 @@ pub use stream_keys::{MpegtsStreamKey, PacketAssociationTable, RtpStreamKey};
 
 pub const PACKET_MAX_AGE_SECS: u64 = 120; // 2 minutes
 
-#[derive(Serialize, Deserialize, Debug, Clone, Hash, Eq, PartialEq)]
+#[derive(Decode, Encode, Debug, Clone, Hash, Eq, PartialEq)]
 pub enum Source {
     File(String),
     Interface(String),
@@ -54,7 +58,7 @@ impl fmt::Display for Source {
     }
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Encode, Decode, Debug, Clone)]
 pub enum Request {
     FetchAll,
     Reparse(usize, packet::SessionProtocol),
@@ -63,13 +67,13 @@ pub enum Request {
     PacketsStats(PacketsStats),
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Decode, Encode, Debug, Clone)]
 pub struct PacketsStats {
     pub discharged: usize,
     pub overwritten: usize,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Decode, Encode, Debug, Clone)]
 pub enum Response {
     Packet(Packet),
     Sources(Vec<Source>),
@@ -78,21 +82,21 @@ pub enum Response {
 }
 
 impl Request {
-    pub fn decode(bytes: &[u8]) -> Result<Self, bincode::Error> {
-        bincode::deserialize(bytes)
+    pub fn decode(bytes: &[u8]) -> Result<(Self, usize), DecodeError> {
+        bincode::decode_from_slice(bytes, config::standard())
     }
 
-    pub fn encode(&self) -> Result<Vec<u8>, bincode::Error> {
-        bincode::serialize(self)
+    pub fn encode(&self) -> Result<Vec<u8>, EncodeError> {
+        bincode::encode_to_vec(self, config::standard())
     }
 }
 
 impl Response {
-    pub fn decode(bytes: &[u8]) -> Result<Self, bincode::Error> {
-        bincode::deserialize(bytes)
+    pub fn decode(bytes: &[u8]) -> Result<(Self, usize), DecodeError> {
+        bincode::decode_from_slice(bytes, config::standard())
     }
 
-    pub fn encode(&self) -> Result<Vec<u8>, bincode::Error> {
-        bincode::serialize(self)
+    pub fn encode(&self) -> Result<Vec<u8>, EncodeError> {
+        bincode::encode_to_vec(self, config::standard())
     }
 }

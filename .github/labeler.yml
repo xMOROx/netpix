@@ -2,96 +2,96 @@
   - all:
       - or:
           head-branch: ['^feature', 'feature', '^feat', 'feat']
-          title: ['(?i)feature[\s\-_:]+server', '(?i)feat[\s\-_:]+server']
-          body: ['(?i)feature[\s\-_:]+server', '(?i)feat[\s\-_:]+server']
+          title: ['(?i)feature([\s\-_:]+server)*', '(?i)feat([\s\-_:]+server)*']
+          body: ['(?i)feature([\s\-_:]+server)*', '(?i)feat([\s\-_:]+server)*']
       - changed-files: ['src/**']
 
 "feature: client":
   - all:
       - or:
           head-branch: ['^feature', 'feature', '^feat', 'feat']
-          title: ['(?i)feature[\s\-_:]+client', '(?i)feat[\s\-_:]+client']
-          body: ['(?i)feature[\s\-_:]+client', '(?i)feat[\s\-_:]+client']
+          title: ['(?i)feature([\s\-_:]+client)*', '(?i)feat([\s\-_:]+client)*']
+          body: ['(?i)feature([\s\-_:]+client)*', '(?i)feat([\s\-_:]+client)*']
       - changed-files: ['client/**']
 
 "feature: common":
   - all:
       - or:
           head-branch: ['^feature', 'feature', '^feat', 'feat']
-          title: ['(?i)feature[\s\-_:]+common', '(?i)feat[\s\-_:]+common']
-          body: ['(?i)feature[\s\-_:]+common', '(?i)feat[\s\-_:]+common']
+          title: ['(?i)feature([\s\-_:]+common)*', '(?i)feat([\s\-_:]+common)*']
+          body: ['(?i)feature([\s\-_:]+common)*', '(?i)feat([\s\-_:]+common)*']
       - changed-files: ['common/**']
 
 "feature: macros":
   - all:
       - or:
           head-branch: ['^feature', 'feature', '^feat', 'feat']
-          title: ['(?i)feature[\s\-_:]+macro', '(?i)feat[\s\-_:]+macro']
-          body: ['(?i)feature[\s\-_:]+macro', '(?i)feat[\s\-_:]+macro']
+          title: ['(?i)feature([\s\-_:]+macro)*', '(?i)feat([\s\-_:]+macro)*']
+          body: ['(?i)feature([\s\-_:]+macro)*', '(?i)feat([\s\-_:]+macro)*']
       - changed-files: ['macros/**']
 
 "bugfix: server":
   - all:
       - or:
-          head-branch: ['^fix', '^bug', '^bugfix', 'fix', 'bug', 'bugfix']
-          title: ['(?i)fix[\s\-_:]+server', '(?i)bug[\s\-_:]+server']
-          body: ['(?i)fix[\s\-_:]+server', '(?i)bug[\s\-_:]+server']
+          head-branch: ['^fix', '^bugfix', 'fix', 'bugfix']
+          title: ['(?i)fix([\s\-_:]+server)*', '(?i)bugfix([\s\-_:]+server)*']
+          body: ['(?i)fix([\s\-_:]+server)*', '(?i)bugfix([\s\-_:]+server)*']
       - changed-files: ['src/**']
 
 "bugfix: client":
   - all:
       - or:
-          head-branch: ['^fix', '^bug', '^bugfix']
-          title: ['(?i)fix[\s\-_:]+client']
-          body: ['(?i)bug[\s\-_:]+client']
+          head-branch: ['^fix', '^bugfix', 'fix', 'bugfix']
+          title: ['(?i)fix([\s\-_:]+client)*', '(?i)bugfix([\s\-_:]+client)*']
+          body: ['(?i)fix([\s\-_:]+client)*', '(?i)bugfix([\s\-_:]+client)*']
       - changed-files: ['client/**']
 
 "bugfix: common":
   - all:
       - or:
-          head-branch: ['^fix', '^bug', '^bugfix', 'fix', 'bug', 'bugfix']
-          title: ['(?i)fix[\s\-_:]+common', '(?i)bug[\s\-_:]+common']
-          body: ['(?i)fix[\s\-_:]+common', '(?i)bug[\s\-_:]+common']
+          head-branch: ['^fix', '^bugfix', 'fix', 'bugfix']
+          title: ['(?i)fix([\s\-_:]+common)*', '(?i)bugfix([\s\-_:]+common)*']
+          body: ['(?i)fix([\s\-_:]+common)*', '(?i)bugfix([\s\-_:]+common)*']
       - changed-files: ['common/**']
 
 "bugfix: macros":
   - all:
       - or:
-          head-branch: ['^fix', '^bug', '^bugfix', 'fix', 'bug', 'bugfix']
-          title: ['(?i)fix[\s\-_:]+macro', '(?i)bug[\s\-_:]+macro']
-          body: ['(?i)fix[\s\-_:]+macro', '(?i)bug[\s\-_:]+macro']
+          head-branch: ['^fix', '^bugfix', 'fix', 'bugfix']
+          title: ['(?i)fix([\s\-_:]+macro)*', '(?i)bugfix([\s\-_:]+macro)*']
+          body: ['(?i)fix([\s\-_:]+macro)*', '(?i)bugfix([\s\-_:]+macro)*']
       - changed-files: ['macros/**']
 
 "refactor: server":
   - all:
       - or:
           head-branch: ['^refactor', 'refactor']
-          title: ['(?i)refactor[\s\-_:]+server']
-          body: ['(?i)refactor[\s\-_:]+server']
+          title: ['(?i)refactor([\s\-_:]+server)*']
+          body: ['(?i)refactor([\s\-_:]+server)*']
       - changed-files: ['src/**']
 
 "refactor: client":
   - all:
       - or:
           head-branch: ['^refactor', 'refactor']
-          title: ['(?i)refactor[\s\-_:]+client']
-          body: ['(?i)refactor[\s\-_:]+client']
+          title: ['(?i)refactor([\s\-_:]+client)*']
+          body: ['(?i)refactor([\s\-_:]+client)*']
       - changed-files: ['client/**']
 
 "refactor: common":
   - all:
       - or:
           head-branch: ['^refactor', 'refactor']
-          title: ['(?i)refactor[\s\-_:]+common']
-          body: ['(?i)refactor[\s\-_:]+common']
+          title: ['(?i)refactor([\s\-_:]+common)*']
+          body: ['(?i)refactor([\s\-_:]+common)*']
       - changed-files: ['common/**']
 
 "refactor: macros":
   - all:
       - or:
           head-branch: ['^refactor', 'refactor']
-          title: ['(?i)refactor[\s\-_:]+macro']
-          body: ['(?i)refactor[\s\-_:]+macro']
+          title: ['(?i)refactor([\s\-_:]+macro)*']
+          body: ['(?i)refactor([\s\-_:]+macro)*']
       - changed-files: ['macros/**']
 
 "documentation":

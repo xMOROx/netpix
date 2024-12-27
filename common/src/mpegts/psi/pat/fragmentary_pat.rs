@@ -7,9 +7,9 @@ use crate::mpegts::psi::{
     constants::*, ProgramSpecificInformation, ProgramSpecificInformationHeader, TableId,
 };
 use crate::utils::{BitReader, DataParser, DataValidator};
-use serde::{Deserialize, Serialize};
+use bincode::{Decode, Encode};
 
-#[derive(Serialize, Deserialize, Debug, Clone, Ord, PartialOrd, Eq)]
+#[derive(Decode, Encode, Debug, Clone, Ord, PartialOrd, Eq)]
 pub struct FragmentaryProgramAssociationTable {
     pub header: ProgramSpecificInformationHeader,
     pub transport_stream_id: u16,

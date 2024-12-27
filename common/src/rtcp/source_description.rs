@@ -1,7 +1,7 @@
-use serde::{Deserialize, Serialize};
+use bincode::{Decode, Encode};
 use std::fmt;
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Decode, Encode, Debug, Clone)]
 pub struct SourceDescription {
     pub chunks: Vec<SourceDescriptionChunk>,
 }
@@ -19,7 +19,7 @@ impl SourceDescription {
     }
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Decode, Encode, Debug, Clone)]
 pub struct SourceDescriptionChunk {
     pub source: u32,
     pub items: Vec<SourceDescriptionItem>,
@@ -37,7 +37,7 @@ impl SourceDescriptionChunk {
     }
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Decode, Encode, Debug, Clone)]
 pub struct SourceDescriptionItem {
     pub sdes_type: SdesType,
     pub text: String,
@@ -55,7 +55,7 @@ impl SourceDescriptionItem {
     }
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+#[derive(Decode, Encode, Debug, Clone, PartialEq)]
 pub enum SdesType {
     End,
     Cname,

@@ -1,10 +1,10 @@
 #[cfg(test)]
 mod tests;
 
-use serde::{Deserialize, Serialize};
+use bincode::{Decode, Encode};
 use std::fmt::Display;
 
-#[derive(Serialize, PartialEq, Eq, Deserialize, Debug, Clone, Copy, Ord, PartialOrd, Hash)]
+#[derive(Encode, PartialEq, Eq, Decode, Debug, Clone, Copy, Ord, PartialOrd, Hash)]
 pub enum StreamType {
     Reserved,
     Video111722,

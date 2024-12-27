@@ -3,13 +3,13 @@ mod tests;
 
 use crate::utils::traits::{BitManipulation, DataParser, DataValidator};
 use crate::utils::{BitReader, PesExtensionReader, TimestampReader};
-use serde::{Deserialize, Serialize};
+use bincode::{Decode, Encode};
 
 use super::constants::*;
 use super::enums::PtsDtsFlags;
 use super::trick_mode_control::TrickModeControl;
 
-#[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq)]
+#[derive(Decode, Encode, Debug, Clone, Eq, PartialEq)]
 pub struct OptionalFields {
     pub size: u8,
     pub pts: Option<u64>,
@@ -22,7 +22,7 @@ pub struct OptionalFields {
     pub previous_pes_packet_crc: Option<u16>,
     pub pes_extension_data: Option<PesExtensionData>,
 }
-#[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq)]
+#[derive(Decode, Encode, Debug, Clone, Eq, PartialEq)]
 pub struct PesExtensionData {
     pub size: u8,
     pub pes_private_data_flag: bool,
@@ -45,7 +45,7 @@ pub struct PesExtensionData {
     pub tref: Option<u64>,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq)]
+#[derive(Decode, Encode, Debug, Clone, Eq, PartialEq)]
 pub struct ContextFlags {
     pub pts_dts_flags: u8,
     pub escr_flag: bool,

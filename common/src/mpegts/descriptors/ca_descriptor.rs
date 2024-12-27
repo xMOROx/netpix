@@ -1,7 +1,7 @@
 use crate::implement_descriptor;
 use crate::mpegts::descriptors::{DescriptorHeader, ParsableDescriptor};
 use crate::utils::bits::BitReader;
-use serde::{Deserialize, Serialize};
+use bincode::{Decode, Encode};
 
 const CA_PID_MASK: u8 = 0b0001_1111;
 

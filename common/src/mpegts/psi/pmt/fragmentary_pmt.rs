@@ -5,9 +5,9 @@ use crate::mpegts::psi::pmt::{constants::*, PmtFields};
 use crate::mpegts::psi::psi_buffer::FragmentaryPsi;
 use crate::mpegts::psi::{constants::*, ProgramSpecificInformationHeader};
 use crate::utils::{BitReader, DataParser, DataValidator};
-use serde::{Deserialize, Serialize};
+use bincode::{Decode, Encode};
 
-#[derive(Serialize, Deserialize, Debug, Clone, Ord, PartialOrd, Eq)]
+#[derive(Decode, Encode, Debug, Clone, Ord, PartialOrd, Eq)]
 pub struct FragmentaryProgramMapTable {
     pub header: ProgramSpecificInformationHeader,
     pub fields: PmtFields,

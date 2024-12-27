@@ -1,7 +1,7 @@
 use super::reception_report::ReceptionReport;
-use serde::{Deserialize, Serialize};
+use bincode::{Decode, Encode};
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Decode, Encode, Debug, Clone)]
 pub struct ReceiverReport {
     pub ssrc: u32,
     pub reports: Vec<ReceptionReport>,

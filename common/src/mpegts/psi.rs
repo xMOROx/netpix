@@ -1,4 +1,4 @@
-use serde::{Deserialize, Serialize};
+use bincode::{Decode, Encode};
 
 pub mod constants;
 pub mod pat;
@@ -12,7 +12,7 @@ pub trait ProgramSpecificInformation {
     fn get_table_id(&self) -> TableId;
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, Ord, PartialOrd, Eq)]
+#[derive(Decode, Encode, Debug, Clone, Ord, PartialOrd, Eq)]
 pub struct ProgramSpecificInformationHeader {
     pub table_id: u8,
     pub section_syntax_indicator: bool,
@@ -23,14 +23,14 @@ pub struct ProgramSpecificInformationHeader {
     pub last_section_number: u8,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq)]
+#[derive(Decode, Encode, Debug, Clone, Eq, PartialEq)]
 pub enum PsiTypes {
     PAT(u16), //transport_stream_id
     PMT(u16), // pid value
     NONE,
 }
 
-#[derive(Serialize, PartialEq, Eq, Deserialize, Debug, Clone)]
+#[derive(Encode, PartialEq, Eq, Decode, Debug, Clone)]
 pub enum TableId {
     ProgramAssociationSection,
     ConditionalAccessSection,
