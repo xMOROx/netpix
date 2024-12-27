@@ -51,6 +51,6 @@ jobs:
                 repo: context.repo.repo,
                 title: '📦 Dependency Updates Available',
                 body: formatted,
-                labels: ['dependencies']
+                labels: ['dependencies-outdated']
               });
             }
