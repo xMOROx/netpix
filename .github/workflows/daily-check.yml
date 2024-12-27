@@ -3,6 +3,7 @@ name: Daily Health Check
 on:
   schedule:
     - cron: '0 0 * * *'  # Run daily at midnight UTC
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -23,19 +24,33 @@ jobs:
       
       - name: Check for outdated dependencies
         run: |
-          cargo outdated -R > outdated.txt
+          cargo outdated -R > outdated.txt || true
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.x'
+
+      - name: Parse outdated dependencies
+        run: |
+          python .github/scripts/parse_outdated.py < outdated.txt > formatted_deps.md
       
       - name: Create issue for outdated dependencies
-        if: failure()
         uses: actions/github-script@v6
         with:
           script: |
             const fs = require('fs');
             const outdated = fs.readFileSync('outdated.txt', 'utf8');
-            await github.rest.issues.create({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              title: '📦 Outdated dependencies detected',
-              body: '```\n' + outdated + '\n```',
-              labels: ['dependencies']
-            });
+            
+            // Only process if we have dependencies to check
+            if (outdated.includes('----')) {
+              const formatted = fs.readFileSync('formatted_deps.md', 'utf8');
+              
+              await github.rest.issues.create({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                title: '📦 Dependency Updates Available',
+                body: formatted,
+                labels: ['dependencies']
+              });
+            }
