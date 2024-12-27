@@ -71,7 +71,7 @@ jobs:
                 
                 // Create checklist
                 const checklistBody = `
-                ## Pull Request Checklist
+              ## Pull Request Checklist
               - [ ] Tests added/updated
               - [ ] Code follows project style
               - [ ] CI checks passed
