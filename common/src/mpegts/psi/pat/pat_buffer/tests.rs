@@ -1,6 +1,7 @@
 use super::*;
 use crate::mpegts::psi::pat::ProgramAssociationItem;
 use crate::mpegts::psi::psi_buffer::FragmentaryPsi;
+use pretty_assertions::assert_eq;
 
 #[test]
 fn test_pat_buffer_with_one_fragment() {

@@ -1,5 +1,6 @@
 use super::*;
 use crate::utils::{BitReader, TimestampReader};
+use pretty_assertions::assert_eq;
 
 // Test timestamp reading using TimestampReader
 #[test]

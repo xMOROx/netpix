@@ -1,4 +1,5 @@
 use super::*;
+use pretty_assertions::assert_eq;
 
 fn create_test_buffer(num_fragments: usize) -> Vec<u8> {
     assert!(num_fragments > 0 && num_fragments <= MAX_FRAGMENTS);
