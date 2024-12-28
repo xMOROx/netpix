@@ -14,15 +14,22 @@ type PatternRule struct {
 }
 
 func (r *PatternRule) Evaluate(ctx *PRContext) MatchResult {
-	text := strings.ToLower(r.field(ctx))
-	for _, p := range r.patterns {
-		if p.MatchString(text) {
-			return NewMatchResult(true, r.ruleType,
-				fmt.Sprintf("Pattern '%s' matched text: %s", p.String(), text))
+	texts := []string{
+		r.field(ctx),
+		strings.ToLower(r.field(ctx)),
+	}
+
+	for _, text := range texts {
+		for _, p := range r.patterns {
+			if p.MatchString(text) {
+				return NewMatchResult(true, r.ruleType,
+					fmt.Sprintf("Pattern '%s' matched text: %s", p.String(), text))
+			}
 		}
 	}
+
 	return NewMatchResult(false, r.ruleType,
-		fmt.Sprintf("No patterns matched text: %s", text))
+		fmt.Sprintf("No patterns matched text: %s", texts[0]))
 }
 
 type FilePatternRule struct {
@@ -30,22 +37,28 @@ type FilePatternRule struct {
 }
 
 func (r *FilePatternRule) Evaluate(ctx *PRContext) MatchResult {
-	matched := make([]string, 0)
+	matchedFiles := make([]string, 0)
 	result := NewMatchResult(false, "changed-files", "")
 
 	for _, file := range ctx.ChangedFiles {
 		for _, pattern := range r.patterns {
-			if ok, _ := filepath.Match(pattern, file); ok {
-				matched = append(matched, file)
+			pattern = strings.ReplaceAll(pattern, "**", "*")
+			isMatched, err := filepath.Match(pattern, file)
+			if err != nil {
+				isMatched = pattern == file
+			}
+			if isMatched {
+				matchedFiles = append(matchedFiles, file)
 				result.Description += fmt.Sprintf("File %s matched pattern %s\n", file, pattern)
+				break
 			}
 		}
 	}
 
-	result.Matched = len(matched) > 0
-	result.MatchedFiles = matched
+	result.Matched = len(matchedFiles) > 0
+	result.MatchedFiles = matchedFiles
 	if !result.Matched {
-		result.Description = fmt.Sprintf("No files matched patterns: %v", r.patterns)
+		result.Description = fmt.Sprintf("No files matched patterns: %v\nFiles checked: %v", r.patterns, ctx.ChangedFiles)
 	}
 	return result
 }

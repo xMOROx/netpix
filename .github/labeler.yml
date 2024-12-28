@@ -4,7 +4,7 @@
           head-branch: ['^feature', '^feat']
           title: ['(feature|feat)(\s*[-:_]\s*.+)?', '(feature|feat):.*']
           body: ['(feature|feat)(\s*[-:_]\s*.+)?', '(feature|feat):.*']
-      - changed-files: ['src/**']
+      - changed-files: ['src/**/*']
 
 "feature: client":
   - all:
@@ -12,7 +12,7 @@
           head-branch: ['^feature', '^feat']
           title: ['(feature|feat)(\s*[-:_]\s*.+)?', '(feature|feat):.*']
           body: ['(feature|feat)(\s*[-:_]\s*.+)?', '(feature|feat):.*']
-      - changed-files: ['client/**']
+      - changed-files: ['client/**/*']
 
 "feature: common":
   - all:
@@ -20,7 +20,7 @@
           head-branch: ['^feature', '^feat']
           title: ['(feature|feat)(\s*[-:_]\s*.+)?', '(feature|feat):.*']
           body: ['(feature|feat)(\s*[-:_]\s*.+)?', '(feature|feat):.*']
-      - changed-files: ['common/**']
+      - changed-files: ['common/**/*']
 
 "feature: macros":
   - all:
@@ -28,7 +28,7 @@
           head-branch: ['^feature', '^feat']
           title: ['(feature|feat)(\s*[-:_]\s*.+)?', '(feature|feat):.*']
           body: ['(feature|feat)(\s*[-:_]\s*.+)?', '(feature|feat):.*']
-      - changed-files: ['macros/**']
+      - changed-files: ['macros/**/*']
 
 "bugfix: server":
   - all:
@@ -36,7 +36,7 @@
           head-branch: ['^fix', '^bugfix']
           title: ['(fix|bugfix)(\s*[-:_]\s*.+)?', '(fix|bugfix):.*']
           body: ['(fix|bugfix)(\s*[-:_]\s*.+)?', '(fix|bugfix):.*']
-      - changed-files: ['src/**']
+      - changed-files: ['src/**/*']
 
 "bugfix: client":
   - all:
@@ -44,7 +44,7 @@
           head-branch: ['^fix', '^bugfix']
           title: ['(fix|bugfix)(\s*[-:_]\s*.+)?', '(fix|bugfix):.*']
           body: ['(fix|bugfix)(\s*[-:_]\s*.+)?', '(fix|bugfix):.*']
-      - changed-files: ['client/**']
+      - changed-files: ['client/**/*']
 
 "bugfix: common":
   - all:
@@ -52,7 +52,7 @@
           head-branch: ['^fix', '^bugfix']
           title: ['(fix|bugfix)(\s*[-:_]\s*.+)?', '(fix|bugfix):.*']
           body: ['(fix|bugfix)(\s*[-:_]\s*.+)?', '(fix|bugfix):.*']
-      - changed-files: ['common/**']
+      - changed-files: ['common/**/*']
 
 "bugfix: macros":
   - all:
@@ -60,7 +60,7 @@
           head-branch: ['^fix', '^bugfix']
           title: ['(fix|bugfix)(\s*[-:_]\s*.+)?', '(fix|bugfix):.*']
           body: ['(fix|bugfix)(\s*[-:_]\s*.+)?', '(fix|bugfix):.*']
-      - changed-files: ['macros/**']
+      - changed-files: ['macros/**/*']
 
 "refactor: server":
   - all:
@@ -68,7 +68,7 @@
           head-branch: ['^refactor']
           title: ['refactor(\s*[-:_]\s*.+)?', 'refactor:.*']
           body: ['refactor(\s*[-:_]\s*.+)?', 'refactor:.*']
-      - changed-files: ['src/**']
+      - changed-files: ['src/**/*']
 
 "refactor: client":
   - all:
@@ -76,7 +76,7 @@
           head-branch: ['^refactor']
           title: ['refactor(\s*[-:_]\s*.+)?', 'refactor:.*']
           body: ['refactor(\s*[-:_]\s*.+)?', 'refactor:.*']
-      - changed-files: ['client/**']
+      - changed-files: ['client/**/*']
 
 "refactor: common":
   - all:
@@ -84,7 +84,7 @@
           head-branch: ['^refactor']
           title: ['refactor(\s*[-:_]\s*.+)?', 'refactor:.*']
           body: ['refactor(\s*[-:_]\s*.+)?', 'refactor:.*']
-      - changed-files: ['common/**']
+      - changed-files: ['common/**/*']
 
 "refactor: macros":
   - all:
@@ -92,7 +92,7 @@
           head-branch: ['^refactor']
           title: ['refactor(\s*[-:_]\s*.+)?', 'refactor:.*']
           body: ['refactor(\s*[-:_]\s*.+)?', 'refactor:.*']
-      - changed-files: ['macros/**']
+      - changed-files: ['macros/**/*']
 
 "documentation":
   - any:
@@ -108,7 +108,7 @@
           head-branch: ['^ci', '^cd', '^cicd']
           title: ['(ci|cd|cicd)(\s*[-:_]\s*.+)?', '(ci|cd|cicd):.*']
           body: ['(ci|cd|cicd)(\s*[-:_]\s*.+)?', '(ci|cd|cicd):.*']
-      - changed-files: ['.github/workflows/**'] 
+      - changed-files: ['.github/workflows/**/*'] 
 
 "chore":
   - any:
@@ -117,10 +117,10 @@
           title: ['chore(\s*[-:_]\s*.+)?', 'chore:.*']
           body: ['chore(\s*[-:_]\s*.+)?', 'chore:.*']
       - changed-files: 
-        - '.github/**'          
+        - '.github/**/*'          
         - '.gitignore'          
         - '.editorconfig'       
-        - 'scripts/**'          
+        - 'scripts/**/*'          
         - '**/Cargo.toml'       
         - '**/Cargo.lock'       
         - '**/*.yml'

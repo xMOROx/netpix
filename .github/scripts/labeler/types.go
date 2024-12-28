@@ -3,7 +3,6 @@ package labeler
 import (
 	"fmt"
 	"regexp"
-	"strings"
 )
 
 type PRContext struct {
@@ -63,7 +62,6 @@ func (r *RuleRegistry) Build(ruleType string, config map[string]any) (Rule, erro
 func compilePatterns(patterns []string) ([]*regexp.Regexp, error) {
 	compiled := make([]*regexp.Regexp, 0, len(patterns))
 	for _, p := range patterns {
-		p = strings.ToLower(p)
 		rx, err := regexp.Compile(p)
 		if err != nil {
 			return nil, err
