@@ -23,7 +23,6 @@ type MatchResult struct {
 	Description  string         `json:"description,omitempty"`
 }
 
-// Helper function to create a new MatchResult with debug info
 func NewMatchResult(matched bool, ruleType string, description string) MatchResult {
 	return MatchResult{
 		Matched:     matched,
@@ -64,8 +63,8 @@ func (r *RuleRegistry) Build(ruleType string, config map[string]any) (Rule, erro
 func compilePatterns(patterns []string) ([]*regexp.Regexp, error) {
 	compiled := make([]*regexp.Regexp, 0, len(patterns))
 	for _, p := range patterns {
-		p = strings.ReplaceAll(p, "(?i)", "")
-		rx, err := regexp.Compile("(?i)" + p)
+		p = strings.ToLower(p)
+		rx, err := regexp.Compile(p)
 		if err != nil {
 			return nil, err
 		}

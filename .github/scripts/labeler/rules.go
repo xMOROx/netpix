@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"path/filepath"
 	"regexp"
+	"strings"
 )
 
 type PatternRule struct {
@@ -13,7 +14,7 @@ type PatternRule struct {
 }
 
 func (r *PatternRule) Evaluate(ctx *PRContext) MatchResult {
-	text := r.field(ctx)
+	text := strings.ToLower(r.field(ctx))
 	for _, p := range r.patterns {
 		if p.MatchString(text) {
 			return NewMatchResult(true, r.ruleType,
