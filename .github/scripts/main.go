@@ -54,6 +54,9 @@ func main() {
 
 	if *debug {
 		log.SetFlags(log.Lshortfile | log.LstdFlags)
+		log.Println("Debug mode enabled")
+		log.Printf("Loading PR data from: %s", *prFile)
+		log.Printf("Loading rules from: %s", *rulesFile)
 	}
 
 	registry := labeler.NewRuleRegistry()
@@ -69,14 +72,25 @@ func main() {
 	if err != nil {
 		log.Fatalf("Failed to load PR data: %v", err)
 	}
+	if *debug {
+		log.Printf("Loaded PR data: title=%q, branch=%q, files=%d",
+			prData.Title, prData.Branch, len(prData.ChangedFiles))
+	}
 
 	rules, err := loadRules(*rulesFile)
 	if err != nil {
 		log.Fatalf("Failed to load rules: %v", err)
 	}
+	if *debug {
+		log.Printf("Loaded %d rules", len(rules))
+	}
 
 	results := make(map[string]labeler.MatchResult)
 	for label, ruleConfig := range rules {
+		if *debug {
+			log.Printf("Processing rule for label %q", label)
+		}
+
 		rule, err := parseRule(registry, ruleConfig)
 		if err != nil {
 			log.Printf("Failed to parse rule for label %s: %v", label, err)
@@ -84,9 +98,29 @@ func main() {
 		}
 
 		result := rule.Evaluate(prData)
+		if *debug {
+			log.Printf("Rule evaluation for %q: matched=%v", label, result.Matched)
+			switch debugInfo := result.Debug.(type) {
+			case string:
+				log.Printf("Debug info for %q: %s", label, debugInfo)
+			case []string:
+				log.Printf("Debug info for %q: %v", label, debugInfo)
+			case map[string]interface{}:
+				log.Printf("Debug info for %q: %+v", label, debugInfo)
+			default:
+				if result.Debug != nil {
+					log.Printf("Debug info for %q: %v", label, result.Debug)
+				}
+			}
+		}
+
 		if result.Matched {
 			results[label] = result
 		}
+	}
+
+	if *debug {
+		log.Printf("Matched labels: %v", getMatchedLabels(results))
 	}
 
 	output := map[string]any{
@@ -97,6 +131,9 @@ func main() {
 	if prData.Files != nil {
 		fileAnalysis := analyzeFiles(prData.Files)
 		output["file_analysis"] = fileAnalysis
+		if *debug {
+			log.Printf("File analysis: %+v", fileAnalysis)
+		}
 	}
 
 	json.NewEncoder(os.Stdout).Encode(output)
