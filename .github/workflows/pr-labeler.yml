@@ -97,13 +97,24 @@ jobs:
       - name: Run labeler script
         id: labeler
         run: |
+          echo "=== Starting labeler script ==="
+          echo "Running with debug mode enabled"
+          
           # Run the compiled binary
           ./pr-labeler --pr pr_data.json --rules .github/labeler.yml --debug > labels_output.json
           
+          echo "=== Labeler Output Summary ==="
           echo "Labels to be applied:"
           jq -r '.labels[]' labels_output.json | while read label; do
             echo "  - $label"
           done
+          
+          echo "=== Debug Information ==="
+          echo "Full debug output:"
+          jq -r '.debugInfo' labels_output.json
+          
+          echo "=== File Analysis ==="
+          jq -r '.file_analysis' labels_output.json
           
           # Store the labels for the next step - format as JSON array
           echo "labels=$(jq -c '.labels' labels_output.json)" >> $GITHUB_OUTPUT
@@ -120,6 +131,7 @@ jobs:
           script: |
             const fs = require('fs');
             try {
+              console.log('Starting label application...');
               if (!fs.existsSync('labels_output.json')) {
                 console.log('No labels output file found');
                 return;
@@ -135,6 +147,7 @@ jobs:
               console.log('Parsed output:', output);
               
               if (output && output.labels && output.labels.length > 0) {
+                console.log('Found labels to apply:', output.labels);
                 const labels = output.labels.map(l => l.trim());
                 console.log('Applying labels:', labels);
                 await github.rest.issues.addLabels({
@@ -143,11 +156,12 @@ jobs:
                   issue_number: context.issue.number,
                   labels: labels
                 });
+                console.log('Labels applied successfully');
               } else {
                 console.log('No labels to apply');
               }
             } catch (error) {
-              console.error('Error processing labels:', error);
+              console.error('Error details:', error);
               console.log('File content:', fs.readFileSync('labels_output.json', 'utf8'));
             }
 
