@@ -37,6 +37,7 @@ func (b *BranchRuleBuilder) Build(config map[string]any) (Rule, error) {
 	return &PatternRule{
 		patterns: compiled,
 		field:    func(ctx *PRContext) string { return ctx.Branch },
+		ruleType: "head-branch",
 	}, nil
 }
 
@@ -56,6 +57,7 @@ func (b *TitleRuleBuilder) Build(config map[string]any) (Rule, error) {
 	return &PatternRule{
 		patterns: compiled,
 		field:    func(ctx *PRContext) string { return ctx.Title },
+		ruleType: "title",
 	}, nil
 }
 
@@ -75,6 +77,7 @@ func (b *BodyRuleBuilder) Build(config map[string]any) (Rule, error) {
 	return &PatternRule{
 		patterns: compiled,
 		field:    func(ctx *PRContext) string { return ctx.Body },
+		ruleType: "body",
 	}, nil
 }
 
@@ -147,6 +150,7 @@ func (b *CompositeRuleBuilder) Build(config map[string]any) (Rule, error) {
 	return &CompositeRule{
 		rules:      rules,
 		requireAll: b.RequireAll,
+		ruleType:   ruleType,
 	}, nil
 }
 
@@ -181,5 +185,6 @@ func (b *OrRuleBuilder) Build(config map[string]any) (Rule, error) {
 	return &CompositeRule{
 		rules:      rules,
 		requireAll: false,
+		ruleType:   "or",
 	}, nil
 }

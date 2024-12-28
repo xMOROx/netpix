@@ -15,9 +15,21 @@ type PRContext struct {
 }
 
 type MatchResult struct {
-	Matched      bool     `json:"matched"`
-	MatchedFiles []string `json:"matched_files,omitempty"`
-	Debug        any      `json:"debug,omitempty"`
+	Matched      bool           `json:"matched"`
+	MatchedFiles []string       `json:"matched_files,omitempty"`
+	Debug        any            `json:"debug,omitempty"`
+	RuleType     string         `json:"rule_type,omitempty"`
+	SubResults   []*MatchResult `json:"sub_results,omitempty"`
+	Description  string         `json:"description,omitempty"`
+}
+
+// Helper function to create a new MatchResult with debug info
+func NewMatchResult(matched bool, ruleType string, description string) MatchResult {
+	return MatchResult{
+		Matched:     matched,
+		RuleType:    ruleType,
+		Description: description,
+	}
 }
 
 type Rule interface {
