@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"path/filepath"
 	"regexp"
+	"strings"
 )
 
 type PatternRule struct {
@@ -13,15 +14,23 @@ type PatternRule struct {
 }
 
 func (r *PatternRule) Evaluate(ctx *PRContext) MatchResult {
-	text := r.field(ctx)
-	for _, p := range r.patterns {
-		if p.MatchString(text) {
-			return NewMatchResult(true, r.ruleType,
-				fmt.Sprintf("Pattern '%s' matched text: %s", p.String(), text))
+	texts := []string{
+		r.field(ctx),
+		strings.ToLower(r.field(ctx)),
+	}
+
+	for _, text := range texts {
+		for _, p := range r.patterns {
+			if p.MatchString(text) {
+				return NewMatchResult(true, r.ruleType,
+					fmt.Sprintf("[MATCHED] Rule type: %s, Pattern '%s' matched text: %s", r.ruleType, p.String(), text))
+			}
 		}
 	}
+
 	return NewMatchResult(false, r.ruleType,
-		fmt.Sprintf("No patterns matched text: %s", text))
+		fmt.Sprintf("[NOT MATCHED] Rule type: %s, No patterns matched. Text: %s, Patterns: %v",
+			r.ruleType, texts[0], r.patterns))
 }
 
 type FilePatternRule struct {
@@ -29,23 +38,32 @@ type FilePatternRule struct {
 }
 
 func (r *FilePatternRule) Evaluate(ctx *PRContext) MatchResult {
-	matched := make([]string, 0)
+	matchedFiles := make([]string, 0)
 	result := NewMatchResult(false, "changed-files", "")
+	var matchDetails strings.Builder
+
+	matchDetails.WriteString(fmt.Sprintf("Checking files against patterns: %v\n", r.patterns))
 
 	for _, file := range ctx.ChangedFiles {
 		for _, pattern := range r.patterns {
-			if ok, _ := filepath.Match(pattern, file); ok {
-				matched = append(matched, file)
-				result.Description += fmt.Sprintf("File %s matched pattern %s\n", file, pattern)
+			pattern = strings.ReplaceAll(pattern, "**", "*")
+			isMatched, err := filepath.Match(pattern, file)
+			if err != nil {
+				isMatched = pattern == file
+			}
+			if isMatched {
+				matchedFiles = append(matchedFiles, file)
+				matchDetails.WriteString(fmt.Sprintf("[MATCHED] File %s matched pattern %s\n", file, pattern))
+				break
+			} else {
+				matchDetails.WriteString(fmt.Sprintf("[NOT MATCHED] File %s did not match pattern %s\n", file, pattern))
 			}
 		}
 	}
 
-	result.Matched = len(matched) > 0
-	result.MatchedFiles = matched
-	if !result.Matched {
-		result.Description = fmt.Sprintf("No files matched patterns: %v", r.patterns)
-	}
+	result.Matched = len(matchedFiles) > 0
+	result.MatchedFiles = matchedFiles
+	result.Description = matchDetails.String()
 	return result
 }
 
@@ -63,39 +81,49 @@ func (r *CompositeRule) Evaluate(ctx *PRContext) MatchResult {
 }
 
 func (r *CompositeRule) evaluateAll(ctx *PRContext) MatchResult {
-	result := NewMatchResult(true, r.ruleType, "Evaluating ALL rules")
+	result := NewMatchResult(true, r.ruleType, fmt.Sprintf("\n=== Evaluating ALL rules ===\n"))
 	result.SubResults = make([]*MatchResult, 0)
+	var details strings.Builder
 
-	for _, rule := range r.rules {
+	for i, rule := range r.rules {
 		subResult := rule.Evaluate(ctx)
 		result.SubResults = append(result.SubResults, &subResult)
+		details.WriteString(fmt.Sprintf("Rule #%d (%s): %s\n", i+1, subResult.RuleType, subResult.Description))
+
 		if !subResult.Matched {
 			result.Matched = false
-			result.Description = "Not all rules matched"
+			details.WriteString("=== ALL rules evaluation failed ===\n")
+			result.Description = details.String()
 			return result
 		}
 		result.MatchedFiles = append(result.MatchedFiles, subResult.MatchedFiles...)
 	}
 
-	result.Description = "All rules matched successfully"
+	details.WriteString("=== ALL rules matched successfully ===\n")
+	result.Description = details.String()
 	return result
 }
 
 func (r *CompositeRule) evaluateAny(ctx *PRContext) MatchResult {
-	result := NewMatchResult(false, r.ruleType, "Evaluating ANY rules")
+	result := NewMatchResult(false, r.ruleType, fmt.Sprintf("\n=== Evaluating ANY rules ===\n"))
 	result.SubResults = make([]*MatchResult, 0)
+	var details strings.Builder
 
-	for _, rule := range r.rules {
+	for i, rule := range r.rules {
 		subResult := rule.Evaluate(ctx)
 		result.SubResults = append(result.SubResults, &subResult)
+		details.WriteString(fmt.Sprintf("Rule #%d (%s): %s\n", i+1, subResult.RuleType, subResult.Description))
+
 		if subResult.Matched {
 			result.Matched = true
-			result.Description = "At least one rule matched"
 			result.MatchedFiles = subResult.MatchedFiles
+			details.WriteString("=== At least one rule matched ===\n")
+			result.Description = details.String()
 			return result
 		}
 	}
 
-	result.Description = "No rules matched"
+	details.WriteString("=== No rules matched ===\n")
+	result.Description = details.String()
 	return result
 }

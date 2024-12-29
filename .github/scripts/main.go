@@ -75,6 +75,10 @@ func main() {
 	if *debug {
 		log.Printf("Loaded PR data: title=%q, branch=%q, files=%d",
 			prData.Title, prData.Branch, len(prData.ChangedFiles))
+		log.Printf("PR Title: %q", prData.Title)
+		log.Printf("PR Branch: %q", prData.Branch)
+		log.Printf("PR Body: %q", prData.Body)
+		log.Printf("Changed files: %v", prData.ChangedFiles)
 	}
 
 	rules, err := loadRules(*rulesFile)
