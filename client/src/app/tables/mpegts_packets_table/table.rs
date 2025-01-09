@@ -14,6 +14,7 @@ use crate::{
     impl_table_base,
     streams::{RefStreams, Streams},
 };
+use egui::RichText;
 use egui_extras::{Column, TableBody, TableBuilder, TableRow};
 use ewebsock::WsSender;
 use netpix_common::mpegts::{
@@ -21,7 +22,6 @@ use netpix_common::mpegts::{
     psi::pmt::stream_types::get_stream_type_category,
 };
 use std::{any::Any, cell::Ref};
-use egui::RichText;
 use web_time::Duration;
 
 declare_table_struct!(MpegTsPacketsTable);

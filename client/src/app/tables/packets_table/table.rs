@@ -12,15 +12,14 @@ use crate::{
     impl_table_base,
     streams::RefStreams,
 };
+use egui::RichText;
 use egui_extras::{Column, TableBody, TableBuilder, TableRow};
 use ewebsock::{WsMessage, WsSender};
 use netpix_common::{
     packet::{Packet, SessionProtocol},
     Request,
 };
-
 use std::any::Any;
-use egui::RichText;
 
 declare_table_struct!(PacketsTable);
 
