@@ -2,7 +2,7 @@ use super::{descriptor::*, filters::*, types::*};
 use crate::{
     app::{
         tables::mpegts_info_table::table_body::build_table_body, FilterHelpContent, FilterInput,
-        TableBase, TableConfig, TABLE_HEADER_TEXT_SIZE
+        TableBase, TableConfig, TABLE_HEADER_TEXT_SIZE,
     },
     declare_table, declare_table_struct, define_column,
     filter_system::FilterExpression,
