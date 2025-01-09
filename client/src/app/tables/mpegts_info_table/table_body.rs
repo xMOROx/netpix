@@ -97,7 +97,15 @@ pub fn build_table_body(
         row.col(|ui| {
             let label = match key.pid {
                 PIDTable::ProgramAssociation => key.pid.to_string(),
-                PIDTable::PID(pid) => format!("Program map ({})", pid),
+                PIDTable::PID(_) => String::from("Program map"),
+                _ => String::default(),
+            };
+            ui.label(label);
+        });
+        row.col(|ui| {
+            let label = match key.pid {
+                PIDTable::ProgramAssociation => String::from("0"),
+                PIDTable::PID(pid) => pid.to_string(),
                 _ => String::default(),
             };
             ui.label(label);

@@ -1,7 +1,10 @@
 use super::filters::parse_filter;
 use crate::filter_system::FilterExpression;
 use crate::{
-    app::{common::*, tables::rtcp_packets_table::*, FilterHelpContent, FilterInput},
+    app::{
+        common::*, tables::rtcp_packets_table::*, FilterHelpContent, FilterInput,
+        TABLE_HEADER_TEXT_SIZE,
+    },
     declare_table, declare_table_struct, define_column, impl_table_base,
     streams::RefStreams,
     utils::ntp_to_string,
@@ -37,7 +40,8 @@ impl_table_base!(
 
         for (label, desc) in headers {
             header.col(|ui| {
-                ui.heading(label).on_hover_text(desc);
+                ui.label(RichText::new(label.to_string()).size(TABLE_HEADER_TEXT_SIZE).strong())
+                    .on_hover_text(desc.to_string());
             });
         }
     }

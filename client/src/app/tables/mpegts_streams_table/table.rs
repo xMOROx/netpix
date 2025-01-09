@@ -5,7 +5,7 @@ use super::{
 use crate::{
     app::{
         common::{TableBase, TableConfig},
-        FilterHelpContent, FilterInput,
+        FilterHelpContent, FilterInput, TABLE_HEADER_TEXT_SIZE,
     },
     declare_table, declare_table_struct, define_column,
     filter_system::FilterExpression,
@@ -14,7 +14,7 @@ use crate::{
         mpegts_stream::substream::MpegtsSubStream, stream_statistics::StreamStatistics, RefStreams,
     },
 };
-use egui::Window;
+use egui::{RichText, Window};
 use egui_extras::{Column, TableBody, TableBuilder, TableRow};
 use ewebsock::WsSender;
 use netpix_common::mpegts::psi::pmt::stream_types::{stream_type_into_unique_letter, StreamType};
@@ -71,8 +71,8 @@ impl_table_base!(
             ("Source", "Source IP address and port"),
             ("Destination", "Destination IP address and port"),
             (
-                "Number of fragments",
-                "Number of fragments in mpegts stream",
+                "Number of packets",
+                "Number of packets in MPEG-TS stream",
             ),
             (
                 "Duration",
@@ -83,12 +83,12 @@ impl_table_base!(
                 "Sum of packet sizes (IP header included) divided by stream's duration",
             ),
             (
-                "Mean mpegts bitrate",
-                "Sum of fragment sizes (mpegts only) divided by stream's duration",
+                "Mean MPEG-TS bitrate",
+                "Sum of packet sizes (MPEG-TS only) divided by stream's duration",
             ),
             (
-                "Mean fragment rate",
-                "Number of fragments divided by stream's duration in seconds",
+                "Mean packet rate",
+                "Number of packets divided by stream's duration in seconds",
             ),
             (
                 "Bitrate history",
@@ -98,7 +98,8 @@ impl_table_base!(
 
         for (label, desc) in headers {
             header.col(|ui| {
-                ui.heading(label.to_string()).on_hover_text(desc);
+                ui.label(RichText::new(label.to_string()).size(TABLE_HEADER_TEXT_SIZE).strong())
+                    .on_hover_text(desc.to_string());
             });
         }
 
@@ -186,12 +187,12 @@ declare_table!(MpegTsStreamsTable, FilterType, {
     columns(
         column(Some(80.0), 80.0, Some(80.0), false, true),
         column(Some(80.0), 80.0, Some(80.0), false, true),
-        column(Some(140.0), 140.0, Some(155.0), false, true),
-        column(Some(140.0), 140.0, Some(155.0), false, true),
+        column(Some(120.0), 120.0, Some(135.0), false, true),
+        column(Some(120.0), 120.0, Some(135.0), false, true),
         column(Some(97.0), 97.0, Some(112.0), false, true),
         column(Some(75.0), 75.0, Some(90.0), false, true),
         column(Some(80.0), 80.0, Some(95.0), false, true),
-        column(Some(75.0), 75.0, Some(90.0), false, true),
+        column(Some(115.0), 115.0, Some(120.0), false, true),
         column(Some(130.0), 130.0, Some(145.0), false, true),
         column(None, 130.0, None, false, false),
     )

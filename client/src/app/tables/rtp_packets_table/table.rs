@@ -1,6 +1,9 @@
 use super::filters::parse_filter;
 use crate::{
-    app::{common::*, tables::rtp_packets_table::RtpFilterContext, FilterHelpContent, FilterInput},
+    app::{
+        common::*, tables::rtp_packets_table::RtpFilterContext, FilterHelpContent, FilterInput,
+        TABLE_HEADER_TEXT_SIZE,
+    },
     declare_table, declare_table_struct, define_column,
     filter_system::FilterExpression,
     impl_table_base,
@@ -57,7 +60,8 @@ impl_table_base!(
 
         for (label, desc) in headers {
             header.col(|ui| {
-                ui.heading(label).on_hover_text(desc);
+                ui.label(RichText::new(label.to_string()).size(TABLE_HEADER_TEXT_SIZE).strong())
+                    .on_hover_text(desc.to_string());
             });
         }
     }

@@ -5,20 +5,20 @@ use super::{
 use crate::{
     app::{
         common::{TableBase, TableConfig},
-        FilterHelpContent, FilterInput,
+        FilterHelpContent, FilterInput, TABLE_HEADER_TEXT_SIZE,
     },
     declare_table, declare_table_struct, define_column,
     filter_system::FilterExpression,
     impl_table_base,
     streams::RefStreams,
 };
+use egui::RichText;
 use egui_extras::{Column, TableBody, TableBuilder, TableRow};
 use ewebsock::{WsMessage, WsSender};
 use netpix_common::{
     packet::{Packet, SessionProtocol},
     Request,
 };
-
 use std::any::Any;
 
 declare_table_struct!(PacketsTable);
@@ -54,7 +54,7 @@ impl_table_base!(
 
         for header_text in headers {
             header.col(|ui| {
-                ui.strong(header_text);
+                ui.label(RichText::new(header_text.to_string()).size(TABLE_HEADER_TEXT_SIZE).strong());
             });
         }
     }

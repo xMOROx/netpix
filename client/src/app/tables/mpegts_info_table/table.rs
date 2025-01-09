@@ -2,13 +2,14 @@ use super::{descriptor::*, filters::*, types::*};
 use crate::{
     app::{
         tables::mpegts_info_table::table_body::build_table_body, FilterHelpContent, FilterInput,
-        TableBase, TableConfig,
+        TableBase, TableConfig, TABLE_HEADER_TEXT_SIZE,
     },
     declare_table, declare_table_struct, define_column,
     filter_system::FilterExpression,
     impl_table_base,
     streams::RefStreams,
 };
+use egui::RichText;
 use egui_extras::{Column, TableBody, TableBuilder, TableRow};
 use ewebsock::WsSender;
 use netpix_common::mpegts::header::PIDTable;
@@ -53,14 +54,15 @@ impl_table_base!(
     build_header: |self, header| {
         let labels = [
             ("Stream alias", "Stream alias"),
-            ("Type", "Type of mpegts packet"),
-            ("Packet count", "Number of packets in mpegts packet"),
-            ("Addition information", "Additional information"),
+            ("Type", "Type of MPEG-TS packet"),
+            ("PID", "PID number"),
+            ("Packet count", "Number of packets the information was built from"),
+            ("Additional information", "Additional information"),
         ];
 
         labels.iter().for_each(|(label, desc)| {
             header.col(|ui| {
-                ui.heading(label.to_string())
+                ui.label(RichText::new(label.to_string()).size(TABLE_HEADER_TEXT_SIZE).strong())
                     .on_hover_text(desc.to_string());
             });
         });
@@ -116,6 +118,7 @@ declare_table!(MpegTsInformationTable, FilterType, {
     columns(
         column(Some(100.0), 100.0, None, false, true),
         column(Some(150.0), 150.0, None, false, true),
+        column(Some(100.0), 100.0, None, false, true),
         column(Some(100.0), 100.0, None, false, true),
         column(None, 800.0, None, true, true),
     )

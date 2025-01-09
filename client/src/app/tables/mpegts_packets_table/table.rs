@@ -7,13 +7,14 @@ use super::{
 use crate::{
     app::{
         common::TableConfig, tables::mpegts_packets_table::display::category_from_stream_type,
-        FilterHelpContent, FilterInput, TableBase,
+        FilterHelpContent, FilterInput, TableBase, TABLE_HEADER_TEXT_SIZE,
     },
     declare_table, declare_table_struct, define_column,
     filter_system::FilterExpression,
     impl_table_base,
     streams::{RefStreams, Streams},
 };
+use egui::RichText;
 use egui_extras::{Column, TableBody, TableBuilder, TableRow};
 use ewebsock::WsSender;
 use netpix_common::mpegts::{
@@ -90,7 +91,7 @@ impl_table_base!(
 
         for header_text in headers {
             header.col(|ui| {
-                ui.strong(header_text);
+                ui.label(RichText::new(header_text.to_string()).size(TABLE_HEADER_TEXT_SIZE).strong());
             });
         }
     }
