@@ -65,8 +65,6 @@ impl_table_base!(
             header.col(|ui| {
                 ui.label(RichText::new(label.to_string()).size(TABLE_HEADER_TEXT_SIZE).strong())
                     .on_hover_text(desc.to_string());
-                // ui.heading(label.to_string())
-                //     .on_hover_text(desc.to_string());
             });
         });
     }
