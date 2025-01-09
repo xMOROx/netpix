@@ -12,6 +12,7 @@ use egui_extras::{Column, TableBody, TableBuilder, TableRow};
 use ewebsock::WsSender;
 use netpix_common::packet::SessionPacket;
 use std::{any::Any, collections::HashMap};
+use crate::app::TABLE_HEADER_TEXT_SIZE;
 
 declare_table_struct!(RtpPacketsTable);
 
@@ -57,7 +58,8 @@ impl_table_base!(
 
         for (label, desc) in headers {
             header.col(|ui| {
-                ui.heading(label).on_hover_text(desc);
+                ui.label(RichText::new(label.to_string()).size(TABLE_HEADER_TEXT_SIZE).strong())
+                    .on_hover_text(desc.to_string());
             });
         }
     }

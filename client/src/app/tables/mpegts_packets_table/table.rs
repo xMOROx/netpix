@@ -21,7 +21,9 @@ use netpix_common::mpegts::{
     psi::pmt::stream_types::get_stream_type_category,
 };
 use std::{any::Any, cell::Ref};
+use egui::RichText;
 use web_time::Duration;
+use crate::app::TABLE_HEADER_TEXT_SIZE;
 
 declare_table_struct!(MpegTsPacketsTable);
 
@@ -90,7 +92,7 @@ impl_table_base!(
 
         for header_text in headers {
             header.col(|ui| {
-                ui.strong(header_text);
+                ui.label(RichText::new(header_text.to_string()).size(TABLE_HEADER_TEXT_SIZE).strong());
             });
         }
     }

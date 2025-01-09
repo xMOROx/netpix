@@ -32,3 +32,4 @@ pub const SECTION_BOTTOM_MARGIN: f32 = 8.0;
 pub const SECTION_HEADER_COLOR: Color32 = Color32::from_rgb(153, 109, 0); // Dark orange
 pub const SOURCE_KEY: &str = "source";
 pub const TAB_KEY: &str = "tab";
+pub const TABLE_HEADER_TEXT_SIZE: f32 = 15.0;

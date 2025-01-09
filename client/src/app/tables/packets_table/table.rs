@@ -20,6 +20,8 @@ use netpix_common::{
 };
 
 use std::any::Any;
+use egui::RichText;
+use crate::app::TABLE_HEADER_TEXT_SIZE;
 
 declare_table_struct!(PacketsTable);
 
@@ -54,7 +56,7 @@ impl_table_base!(
 
         for header_text in headers {
             header.col(|ui| {
-                ui.strong(header_text);
+                ui.label(RichText::new(header_text.to_string()).size(TABLE_HEADER_TEXT_SIZE).strong());
             });
         }
     }

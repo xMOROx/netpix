@@ -14,6 +14,8 @@ use ewebsock::WsSender;
 use netpix_common::mpegts::header::PIDTable;
 use std::any::Any;
 use std::collections::BTreeMap;
+use egui::RichText;
+use crate::app::TABLE_HEADER_TEXT_SIZE;
 
 declare_table_struct!(
     MpegTsInformationTable,
@@ -53,15 +55,18 @@ impl_table_base!(
     build_header: |self, header| {
         let labels = [
             ("Stream alias", "Stream alias"),
-            ("Type", "Type of mpegts packet"),
-            ("Packet count", "Number of packets in mpegts packet"),
-            ("Addition information", "Additional information"),
+            ("Type", "Type of MPEG-TS packet"),
+            ("PID", "PID number"),
+            ("Packet count", "Number of packets the information was built from"),
+            ("Additional information", "Additional information"),
         ];
 
         labels.iter().for_each(|(label, desc)| {
             header.col(|ui| {
-                ui.heading(label.to_string())
+                ui.label(RichText::new(label.to_string()).size(TABLE_HEADER_TEXT_SIZE).strong())
                     .on_hover_text(desc.to_string());
+                // ui.heading(label.to_string())
+                //     .on_hover_text(desc.to_string());
             });
         });
     }
@@ -116,6 +121,7 @@ declare_table!(MpegTsInformationTable, FilterType, {
     columns(
         column(Some(100.0), 100.0, None, false, true),
         column(Some(150.0), 150.0, None, false, true),
+        column(Some(100.0), 100.0, None, false, true),
         column(Some(100.0), 100.0, None, false, true),
         column(None, 800.0, None, true, true),
     )

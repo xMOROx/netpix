@@ -16,6 +16,7 @@ use egui_plot::{Line, Plot, PlotPoints};
 use ewebsock::{WsMessage, WsSender};
 use netpix_common::{Request, RtpStreamKey};
 use std::any::Any;
+use crate::app::TABLE_HEADER_TEXT_SIZE;
 
 declare_table_struct!(RtpStreamsTable,
     chosen_key: Option<RtpStreamKey>,
@@ -96,7 +97,8 @@ impl_table_base!(
 
         for (label, desc) in headers {
             header.col(|ui| {
-                ui.heading(label).on_hover_text(desc);
+                ui.label(RichText::new(label.to_string()).size(TABLE_HEADER_TEXT_SIZE).strong())
+                    .on_hover_text(desc.to_string());
             });
         }
     }
