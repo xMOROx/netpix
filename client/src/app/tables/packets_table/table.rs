@@ -5,7 +5,7 @@ use super::{
 use crate::{
     app::{
         common::{TableBase, TableConfig},
-        FilterHelpContent, FilterInput,
+        FilterHelpContent, FilterInput, TABLE_HEADER_TEXT_SIZE
     },
     declare_table, declare_table_struct, define_column,
     filter_system::FilterExpression,
@@ -21,7 +21,6 @@ use netpix_common::{
 
 use std::any::Any;
 use egui::RichText;
-use crate::app::TABLE_HEADER_TEXT_SIZE;
 
 declare_table_struct!(PacketsTable);
 

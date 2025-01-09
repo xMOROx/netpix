@@ -1,7 +1,7 @@
 use super::filters::parse_filter;
 use crate::filter_system::FilterExpression;
 use crate::{
-    app::{common::*, tables::rtcp_packets_table::*, FilterHelpContent, FilterInput},
+    app::{common::*, tables::rtcp_packets_table::*, FilterHelpContent, FilterInput, TABLE_HEADER_TEXT_SIZE},
     declare_table, declare_table_struct, define_column, impl_table_base,
     streams::RefStreams,
     utils::ntp_to_string,
@@ -11,7 +11,6 @@ use egui_extras::{Column, TableBody, TableBuilder, TableRow};
 use ewebsock::WsSender;
 use netpix_common::{packet::SessionPacket, rtcp::*, RtcpPacket};
 use std::any::Any;
-use crate::app::TABLE_HEADER_TEXT_SIZE;
 
 declare_table_struct!(RtcpPacketsTable);
 

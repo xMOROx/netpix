@@ -7,7 +7,7 @@ use super::{
 use crate::{
     app::{
         common::TableConfig, tables::mpegts_packets_table::display::category_from_stream_type,
-        FilterHelpContent, FilterInput, TableBase,
+        FilterHelpContent, FilterInput, TableBase, TABLE_HEADER_TEXT_SIZE
     },
     declare_table, declare_table_struct, define_column,
     filter_system::FilterExpression,
@@ -23,7 +23,6 @@ use netpix_common::mpegts::{
 use std::{any::Any, cell::Ref};
 use egui::RichText;
 use web_time::Duration;
-use crate::app::TABLE_HEADER_TEXT_SIZE;
 
 declare_table_struct!(MpegTsPacketsTable);
 

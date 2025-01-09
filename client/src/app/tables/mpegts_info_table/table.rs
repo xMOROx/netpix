@@ -2,7 +2,7 @@ use super::{descriptor::*, filters::*, types::*};
 use crate::{
     app::{
         tables::mpegts_info_table::table_body::build_table_body, FilterHelpContent, FilterInput,
-        TableBase, TableConfig,
+        TableBase, TableConfig, TABLE_HEADER_TEXT_SIZE
     },
     declare_table, declare_table_struct, define_column,
     filter_system::FilterExpression,
@@ -15,7 +15,6 @@ use netpix_common::mpegts::header::PIDTable;
 use std::any::Any;
 use std::collections::BTreeMap;
 use egui::RichText;
-use crate::app::TABLE_HEADER_TEXT_SIZE;
 
 declare_table_struct!(
     MpegTsInformationTable,

@@ -2,7 +2,7 @@ use crate::{
     app::{
         common::*,
         tables::rtp_streams_table::{filters::*, types::*},
-        FilterHelpContent, FilterInput,
+        FilterHelpContent, FilterInput, TABLE_HEADER_TEXT_SIZE
     },
     declare_table, declare_table_struct, define_column,
     filter_system::FilterExpression,
@@ -16,7 +16,6 @@ use egui_plot::{Line, Plot, PlotPoints};
 use ewebsock::{WsMessage, WsSender};
 use netpix_common::{Request, RtpStreamKey};
 use std::any::Any;
-use crate::app::TABLE_HEADER_TEXT_SIZE;
 
 declare_table_struct!(RtpStreamsTable,
     chosen_key: Option<RtpStreamKey>,
