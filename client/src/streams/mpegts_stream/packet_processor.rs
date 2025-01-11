@@ -154,14 +154,36 @@ impl MpegtsPacketProcessor {
     ) {
         let cutoff = packet_info.time.saturating_sub(Duration::from_secs(1));
 
-        let last_second_packets = existing_packets
+        let last_second_packets: Vec<_> = existing_packets
             .iter()
             .rev()
-            .take_while(|pack| pack.time > cutoff);
+            .take_while(|pack| pack.time > cutoff)
+            .collect();
 
-        packet_info.packet_rate = last_second_packets.clone().count() + 1;
-        packet_info.bitrate =
-            last_second_packets.map(|pack| pack.bytes).sum::<usize>() * 8 + packet_info.bytes * 8;
+        let window_duration = if last_second_packets.is_empty() {
+            Duration::from_secs(1)
+        } else {
+            packet_info.time.saturating_sub(
+                last_second_packets
+                    .last()
+                    .map(|p| p.time)
+                    .unwrap_or(packet_info.time),
+            )
+        };
+
+        let total_bytes: usize = last_second_packets
+            .iter()
+            .map(|pack| pack.bytes)
+            .sum::<usize>()
+            + packet_info.bytes;
+
+        // Normalize to bits per second
+        packet_info.packet_rate = last_second_packets.len() + 1;
+        packet_info.bitrate = if window_duration.as_secs_f64() > 0.0 {
+            (total_bytes * 8) as f64 / window_duration.as_secs_f64()
+        } else {
+            0.0
+        } as usize;
     }
 
     pub fn process_substreams(

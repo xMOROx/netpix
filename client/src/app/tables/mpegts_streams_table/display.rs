@@ -28,6 +28,8 @@ pub fn build_bitrate_plot(ui: &mut egui::Ui, stream: &MpegtsSubStream) {
             })
             .set_margin_fraction(Vec2::new(0.1, 0.1))
             .allow_scroll(false)
+            .x_axis_label("Fragment ID")
+            .y_axis_label("Bitrate (kbps)")
             .show(ui, |plot_ui| {
                 plot_ui.line(line);
             });
