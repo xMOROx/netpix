@@ -49,12 +49,6 @@ impl BufferOperations for PesPacketPayload {
     }
 
     fn is_complete(&self) -> bool {
-        println!(
-            "data.len() = {}, REQUIRED_FIELDS_SIZE = {}, packet_length = {}",
-            self.data.len(),
-            REQUIRED_FIELDS_SIZE,
-            self.packet_length
-        );
         self.is_completable
             && (self.data.len() - REQUIRED_FIELDS_SIZE) == self.packet_length as usize
     }
