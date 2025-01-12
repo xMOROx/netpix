@@ -206,7 +206,10 @@ impl_table_base!(
                         fragment
                             .payload
                             .as_ref()
-                            .map_or(0, |payload| payload.data.len())
+                            .map_or(0, |payload| {
+                                payload.size
+                            }
+                        )
                     })
                     .sum();
                 ui.label(payload_size.to_string());
