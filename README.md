@@ -4,8 +4,6 @@
 
 RTP/MPEG-TS streams analysis and visualization tool.
 
-_Work in progress..._
-
 ## Installation
 
 1. Install Rust
