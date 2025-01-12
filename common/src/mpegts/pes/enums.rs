@@ -124,9 +124,9 @@ impl From<u8> for StreamType {
     }
 }
 
-impl Into<u8> for StreamType {
-    fn into(self) -> u8 {
-        match self {
+impl From<StreamType> for u8 {
+    fn from(val: StreamType) -> Self {
+        match val {
             StreamType::ProgramStreamMap => 0xBC,
             StreamType::PrivateStream1 => 0xBD,
             StreamType::PaddingStream => 0xBE,
