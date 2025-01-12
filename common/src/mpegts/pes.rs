@@ -16,8 +16,8 @@ use std::cmp::PartialEq;
 pub struct PacketizedElementaryStream {
     pub required_fields: RequiredFields,
     pub header: Option<PesHeader>,
-    pub packet_data: Option<Vec<u8>>,
-    pub padding_bytes: Option<Vec<u8>>,
+    // pub packet_data: Option<Vec<u8>>,
+    // pub padding_bytes: Option<Vec<u8>>,
 }
 
 #[derive(Decode, Encode, Debug, Clone, Eq, PartialEq)]
@@ -32,7 +32,18 @@ impl PacketizedElementaryStream {
         if data.len() < REQUIRED_FIELDS_SIZE {
             return None;
         }
-        Self::unmarshall(data)
+
+        let required_fields = Self::unmarshall_required_fields(data)?;
+        let header = if required_fields.stream_id != StreamType::PaddingStream.into() {
+            PesHeader::build(&data[REQUIRED_FIELDS_SIZE..])
+        } else {
+            None
+        };
+
+        Some(Self {
+            required_fields,
+            header,
+        })
     }
 
     pub fn unmarshall_required_fields(data: &[u8]) -> Option<RequiredFields> {
@@ -53,43 +64,43 @@ impl PacketizedElementaryStream {
         })
     }
 
-    fn unmarshall(data: &[u8]) -> Option<Self> {
-        let required_fields = Self::unmarshall_required_fields(data)?;
-        let reader = BitReader::new(data);
+    // fn unmarshall(data: &[u8]) -> Option<Self> {
+    //     let required_fields = Self::unmarshall_required_fields(data)?;
+    //     let reader = BitReader::new(data);
 
-        let (header, packet_data, padding_bytes) = match StreamType::from(required_fields.stream_id)
-        {
-            StreamType::PaddingStream => (None, None, reader.remaining_from(REQUIRED_FIELDS_SIZE)),
-            StreamType::ProgramStreamMap
-            | StreamType::PrivateStream2
-            | StreamType::ECMStream
-            | StreamType::EMMStream
-            | StreamType::ProgramStreamDirectory
-            | StreamType::DSMCCStream
-            | StreamType::H2221TypeE => (None, reader.remaining_from(REQUIRED_FIELDS_SIZE), None),
-            _ => {
-                let header = PesHeader::build(&data[REQUIRED_FIELDS_SIZE..])?;
-                let header_size = header.size;
-                let data_start = REQUIRED_FIELDS_SIZE
-                    + header_size
-                    + Self::number_of_stuffing_bytes(&data[REQUIRED_FIELDS_SIZE + header_size..]);
+    //     let (header, packet_data, padding_bytes) = match StreamType::from(required_fields.stream_id)
+    //     {
+    //         StreamType::PaddingStream => (None, None, reader.remaining_from(REQUIRED_FIELDS_SIZE)),
+    //         StreamType::ProgramStreamMap
+    //         | StreamType::PrivateStream2
+    //         | StreamType::ECMStream
+    //         | StreamType::EMMStream
+    //         | StreamType::ProgramStreamDirectory
+    //         | StreamType::DSMCCStream
+    //         | StreamType::H2221TypeE => (None, reader.remaining_from(REQUIRED_FIELDS_SIZE), None),
+    //         _ => {
+    //             let header = PesHeader::build(&data[REQUIRED_FIELDS_SIZE..])?;
+    //             let header_size = header.size;
+    //             let data_start = REQUIRED_FIELDS_SIZE
+    //                 + header_size
+    //                 + Self::number_of_stuffing_bytes(&data[REQUIRED_FIELDS_SIZE + header_size..]);
 
-                (Some(header), reader.remaining_from(data_start), None)
-            }
-        };
+    //             (Some(header), reader.remaining_from(data_start), None)
+    //         }
+    //     };
 
-        Some(Self {
-            required_fields,
-            header,
-            packet_data,
-            padding_bytes,
-        })
-    }
+    //     Some(Self {
+    //         required_fields,
+    //         header,
+    //         packet_data,
+    //         padding_bytes,
+    //     })
+    // }
 
-    fn number_of_stuffing_bytes(data: &[u8]) -> usize {
-        data.iter()
-            .take(MAXIMUM_NO_OF_STUFFING_BYTES)
-            .take_while(|&&byte| byte == STUFFING_BYTE)
-            .count()
-    }
+    // fn number_of_stuffing_bytes(data: &[u8]) -> usize {
+    //     data.iter()
+    //         .take(MAXIMUM_NO_OF_STUFFING_BYTES)
+    //         .take_while(|&&byte| byte == STUFFING_BYTE)
+    //         .count()
+    // }
 }

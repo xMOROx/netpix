@@ -3,6 +3,7 @@ use crate::streams::{
     mpegts_stream::substream::MpegtsSubStreams,
     stream_statistics::{Bitrate, Bytes, PacketsTime, StreamStatistics},
 };
+use netpix_common::mpegts::{payload::RawPayload, pes::PacketizedElementaryStream};
 use netpix_common::{
     mpegts::psi::psi_buffer::{FragmentaryPsi, PsiBuffer},
     MpegtsPacket, Packet,
@@ -16,6 +17,8 @@ use packet_processor::MpegtsPacketProcessor;
 pub mod packet_info;
 pub mod packet_processor;
 pub mod substream;
+
+const REQUIRED_FIELDS_SIZE: usize = 6;
 
 #[derive(Debug, Clone)]
 pub struct MpegTsStream {
@@ -39,15 +42,48 @@ impl MpegTsStream {
     }
 
     pub fn add_mpegts_packet(&mut self, packet: &Packet, mpegts: &MpegtsPacket) {
+        let filtered_mpegts = MpegtsPacket {
+            number_of_fragments: mpegts.number_of_fragments,
+            fragments: mpegts
+                .fragments
+                .iter()
+                .map(|fragment| {
+                    let mut frag = fragment.clone();
+                    if let Some(_pat) = &self.stream_info.pat {
+                        if self.is_pes_pid(u16::from(fragment.header.pid)) {
+                            if let Some(payload) = &fragment.payload {
+                                if let Some(_pes) = PacketizedElementaryStream::build(&payload.data)
+                                {
+                                    frag.payload.replace(RawPayload {
+                                        data: vec![],
+                                        size: payload.size,
+                                    });
+                                }
+                            }
+                        }
+                    }
+                    frag
+                })
+                .collect(),
+        };
+
         self.packet_processor
             .determine_type(packet, &mut self.stream_info);
-        self.update_mpegts_parameters(MpegTsPacketInfo::new(packet, mpegts));
+        self.update_mpegts_parameters(MpegTsPacketInfo::new(packet, &filtered_mpegts));
         self.packet_processor.process_substreams(
             packet,
             &self.alias,
             &self.stream_info,
             &mut self.substreams,
         );
+    }
+
+    fn is_pes_pid(&self, pid: u16) -> bool {
+        self.stream_info.pmt.values().any(|pmt| {
+            pmt.elementary_streams_info
+                .iter()
+                .any(|es| es.elementary_pid == pid)
+        })
     }
 
     fn update_mpegts_parameters(&mut self, mut mpegts_info: MpegTsPacketInfo) {

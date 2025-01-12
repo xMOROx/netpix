@@ -124,7 +124,11 @@ impl MpegTsStreamInfo {
                 {
                     return 0;
                 }
-                fragment.clone().payload.unwrap().data.len()
+                if let Some(payload) = fragment.payload.clone() {
+                    payload.size
+                } else {
+                    0
+                }
             })
             .sum()
     }

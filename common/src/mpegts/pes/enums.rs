@@ -123,3 +123,33 @@ impl From<u8> for StreamType {
         }
     }
 }
+
+impl From<StreamType> for u8 {
+    fn from(val: StreamType) -> Self {
+        match val {
+            StreamType::ProgramStreamMap => 0xBC,
+            StreamType::PrivateStream1 => 0xBD,
+            StreamType::PaddingStream => 0xBE,
+            StreamType::PrivateStream2 => 0xBF,
+            StreamType::ECMStream => 0xF0,
+            StreamType::EMMStream => 0xF1,
+            StreamType::DSMCCStream => 0xF2,
+            StreamType::ISOIEC13522Stream => 0xF3,
+            StreamType::H2221TypeA => 0xF4,
+            StreamType::H2221TypeB => 0xF5,
+            StreamType::H2221TypeC => 0xF6,
+            StreamType::H2221TypeD => 0xF7,
+            StreamType::H2221TypeE => 0xF8,
+            StreamType::AncillaryStream => 0xF9,
+            StreamType::SLPacketizedStream => 0xFA,
+            StreamType::FlexMuxStream => 0xFB,
+            StreamType::MetadataStream => 0xFC,
+            StreamType::ExtendedStreamId => 0xFD,
+            StreamType::ReservedDataStream => 0xFE,
+            StreamType::ProgramStreamDirectory => 0xFF,
+            StreamType::AudioStream(id) => 0xC0 | id,
+            StreamType::VideoStream(id) => 0xE0 | id,
+            StreamType::Unknown => 0x00,
+        }
+    }
+}

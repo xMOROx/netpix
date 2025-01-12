@@ -158,6 +158,6 @@ impl MpegtsPacket {
         }
 
         let data = buffer[start_index..end_index.min(buffer.len())].to_vec();
-        Some(RawPayload { data })
+        Some(RawPayload { data, size: length })
     }
 }

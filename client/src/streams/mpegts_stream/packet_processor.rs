@@ -4,6 +4,7 @@ use crate::streams::mpegts_stream::{
         MpegtsSubStream, MpegtsSubStreams, SubStreamParameters, SubstreamMpegTsPacketInfo,
     },
 };
+use netpix_common::mpegts::{payload::RawPayload, pes::PacketizedElementaryStream};
 use netpix_common::{
     mpegts::{
         aggregator::MpegtsAggregator,
@@ -19,6 +20,8 @@ use netpix_common::{
     Packet, PacketAssociationTable,
 };
 use std::time::Duration;
+
+const REQUIRED_FIELDS_SIZE: usize = 6;
 
 #[derive(Debug, Clone)]
 pub struct MpegtsPacketProcessor {
@@ -309,9 +312,22 @@ impl MpegtsPacketProcessor {
     }
 
     fn process_fragment_for_substream(context: FragmentProcessingContext) {
-        if context.fragment.header.pid == PIDTable::from(context.es_pid)
-            || context.fragment.header.pid == PIDTable::from(context.pmt_pid)
-        {
+        if context.fragment.header.pid == PIDTable::from(context.es_pid) {
+            // For PES packets, keep only headers
+            let mut fragment = context.fragment.clone();
+            if let Some(payload) = &fragment.payload {
+                if let Some(_pes) = PacketizedElementaryStream::build(&payload.data) {
+                    fragment.payload.replace(RawPayload {
+                        data: vec![],
+                        size: payload.size,
+                    });
+                }
+            }
+
+            context
+                .substream
+                .add_mpegts_fragment(SubstreamMpegTsPacketInfo::new(context.packet, &fragment));
+        } else {
             context
                 .substream
                 .add_mpegts_fragment(SubstreamMpegTsPacketInfo::new(
