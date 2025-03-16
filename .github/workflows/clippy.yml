@@ -73,7 +73,7 @@ jobs:
       
       - name: Store Clippy results
         if: always()
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: clippy-results-${{ matrix.package }}
           path: clippy-results.json
@@ -127,7 +127,7 @@ jobs:
 
       - name: Store formatting results
         if: failure()
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: fmt-diff-${{ matrix.package }}
           path: fmt-diff.txt
