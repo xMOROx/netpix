@@ -38,7 +38,7 @@ jobs:
       
       - name: Store test results
         if: always()
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: test-results-${{ matrix.package }}
           path: ${{ matrix.path }}/target/debug/deps/*.stdout
