@@ -2,7 +2,7 @@
 use mpegts_stream::MpegTsStream;
 use netpix_common::{
     packet::{SessionPacket, TransportProtocol},
-    MpegtsStreamKey, Packet, RtcpPacket, RtpStreamKey,
+    MpegtsStreamKey, Packet, RtcpPacket, RtpStreamKey, StunPacket,
 };
 use packets::Packets;
 use rtpStream::RtpStream;
@@ -121,6 +121,18 @@ fn handle_packet(
                     }
                 }
             }
+        }
+        SessionPacket::Stun(ref stun) => {
+            // Log STUN packet information
+            log::info!(
+                "STUN packet: {} from {} to {}",
+                stun.get_message_type_name(),
+                packet.source_addr,
+                packet.destination_addr
+            );
+            
+            // You could add more STUN-specific handling here
+            // For example, tracking NAT traversal attempts or ICE candidates
         }
         _ => {}
     };

@@ -1,4 +1,4 @@
-use super::{MpegtsPacket, RtcpPacket, RtpPacket};
+use super::{MpegtsPacket, RtcpPacket, RtpPacket, StunPacket};
 use bincode::{Decode, Encode};
 
 use std::net::SocketAddr;
@@ -23,6 +23,7 @@ pub enum SessionProtocol {
     Rtp,
     Rtcp,
     Mpegts,
+    Stun,
 }
 
 impl FromStr for SessionProtocol {
@@ -33,6 +34,7 @@ impl FromStr for SessionProtocol {
             "rtp" => Ok(Self::Rtp),
             "rtcp" => Ok(Self::Rtcp),
             "mpeg-ts" => Ok(Self::Mpegts),
+            "stun" => Ok(Self::Stun),
             _ => Err(()),
         }
     }
@@ -40,7 +42,7 @@ impl FromStr for SessionProtocol {
 
 impl SessionProtocol {
     pub fn all() -> Vec<Self> {
-        vec![Self::Unknown, Self::Rtp, Self::Rtcp, Self::Mpegts]
+        vec![Self::Unknown, Self::Rtp, Self::Rtcp, Self::Mpegts, Self::Stun]
     }
 }
 
@@ -51,6 +53,7 @@ impl fmt::Display for SessionProtocol {
             Self::Rtp => "RTP",
             Self::Rtcp => "RTCP",
             Self::Mpegts => "MPEG-TS",
+            Self::Stun => "STUN",
         };
 
         write!(f, "{}", res)
@@ -80,6 +83,7 @@ pub enum SessionPacket {
     Rtp(RtpPacket),
     Rtcp(Vec<RtcpPacket>),
     Mpegts(MpegtsPacket),
+    Stun(StunPacket),
 }
 
 #[derive(Encode, Decode, Debug, Clone)]
@@ -235,11 +239,18 @@ impl Packet {
 
     pub fn guess_payload(&mut self) {
         // could use port to determine validity
-        // TODO: STUN data, TURN channels, RTCP
+        // TODO: TURN channels
         //
         // also, some UDP ports are used by other protocols
         // see Wireshark -> View -> Internals -> Dissector Table -> UDP port
         if self.transport_protocol != TransportProtocol::Udp {
+            return;
+        }
+
+        // Check for STUN first since it's commonly used for NAT traversal
+        if let Some(stun) = StunPacket::build(self) {
+            self.session_protocol = SessionProtocol::Stun;
+            self.contents = SessionPacket::Stun(stun);
             return;
         }
 
@@ -287,6 +298,13 @@ impl Packet {
                 };
                 self.session_protocol = packet_type;
                 self.contents = SessionPacket::Mpegts(mpegts);
+            }
+            SessionProtocol::Stun => {
+                let Some(stun) = StunPacket::build(self) else {
+                    return;
+                };
+                self.session_protocol = packet_type;
+                self.contents = SessionPacket::Stun(stun);
             }
             SessionProtocol::Unknown => {
                 self.session_protocol = packet_type;
