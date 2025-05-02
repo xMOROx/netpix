@@ -1,5 +1,4 @@
 use bincode::{Decode, Encode};
-use std::net::SocketAddr;
 
 #[derive(Decode, Encode, Debug, Clone)]
 pub struct StunPacket {

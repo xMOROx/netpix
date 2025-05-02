@@ -1,15 +1,7 @@
-use crate::define_filter_context;
-use netpix_common::{packet::SessionPacket, StunPacket};
+use netpix_common::{packet::Packet , StunPacket};
 
-define_filter_context!(StunFilterContext,
-    packet: StunPacket,
-    source_addr: str,
-    destination_addr: str
-);
-
-#[derive(Clone)]
-pub struct PacketInfo<'a> {
-    pub id: u64,
-    pub packet: &'a SessionPacket,
-    pub stun_packet: &'a StunPacket,
-} 
+pub struct StunFilterContext<'a> {
+    pub packet: &'a StunPacket,
+    pub source_addr: &'a str,
+    pub destination_addr: &'a str,
+}
