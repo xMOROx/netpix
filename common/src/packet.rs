@@ -103,64 +103,56 @@ pub struct Packet {
 #[cfg(not(target_arch = "wasm32"))]
 impl Packet {
     pub fn build(raw_packet: &pcap::Packet, id: usize) -> Option<Self> {
-        let ethernet_packet = EthernetPacket::new(raw_packet)?;
-
-        match ethernet_packet.get_ethertype() {
-            EtherTypes::Ipv4 => Self::build_from_ip4(raw_packet, id, &ethernet_packet),
-            EtherTypes::Ipv6 => Self::build_from_ip6(raw_packet, id, &ethernet_packet),
-            _ => None,
+        if Self::is_cooked_capture(raw_packet) {
+            Self::build_from_cooked_capture(raw_packet, id)
+        } else {
+            let ethernet_packet = EthernetPacket::new(raw_packet)?;
+            Self::build_from_ethernet(raw_packet, id, &ethernet_packet)
         }
     }
 
-    fn build_from_transport(
+    fn is_cooked_capture(raw_packet: &pcap::Packet) -> bool {
+        const MIN_COOKED_CAPTURE_LEN: usize = 16;
+        raw_packet.len() >= MIN_COOKED_CAPTURE_LEN && raw_packet.data[0] == 0 && raw_packet.data[1] == 0
+    }
+
+    fn build_from_cooked_capture(raw_packet: &pcap::Packet, id: usize) -> Option<Self> {
+        const PROTOCOL_TYPE_OFFSET: usize = 14;
+        const COOKED_CAPTURE_HEADER_LEN: usize = 16;
+        
+        let protocol_type = u16::from_be_bytes([
+            raw_packet.data[PROTOCOL_TYPE_OFFSET],
+            raw_packet.data[PROTOCOL_TYPE_OFFSET + 1]
+        ]);
+        let ip_data = &raw_packet.data[COOKED_CAPTURE_HEADER_LEN..];
+        
+        let ethernet_packet = Self::create_synthetic_ethernet_packet(protocol_type, ip_data)?;
+        Self::build_from_ethernet(raw_packet, id, &ethernet_packet)
+    }
+
+    fn create_synthetic_ethernet_packet(protocol_type: u16, ip_data: &[u8]) -> Option<EthernetPacket> {
+        const ETHERNET_HEADER_LEN: usize = 14;
+        const ETHERTYPE_OFFSET: usize = 12;
+        
+        let mut eth_data = vec![0u8; ETHERNET_HEADER_LEN + ip_data.len()];
+        eth_data[ETHERTYPE_OFFSET] = (protocol_type >> 8) as u8;
+        eth_data[ETHERTYPE_OFFSET + 1] = protocol_type as u8;
+        eth_data[ETHERNET_HEADER_LEN..].copy_from_slice(ip_data);
+        
+        // Create a new EthernetPacket that owns its data
+        EthernetPacket::owned(eth_data)
+    }
+
+    fn build_from_ethernet(
         raw_packet: &pcap::Packet,
         id: usize,
-        source_addr: std::net::IpAddr,
-        destination_addr: std::net::IpAddr,
-        transport_protocol: TransportProtocol,
-        payload: &[u8],
+        ethernet_packet: &EthernetPacket,
     ) -> Option<Self> {
-        let (source_addr, destination_addr, payload) = match transport_protocol {
-            TransportProtocol::Tcp => {
-                let tcp_packet = TcpPacket::new(payload)?;
-                let source_port = tcp_packet.get_source();
-                let destination_port = tcp_packet.get_destination();
-                let source_addr = SocketAddr::new(source_addr, source_port);
-                let destination_addr = SocketAddr::new(destination_addr, destination_port);
-                let tcp_payload = tcp_packet.payload();
-                if tcp_payload.is_empty() {
-                    (source_addr, destination_addr, payload.to_vec())
-                } else {
-                    (source_addr, destination_addr, tcp_payload.to_vec())
-                }
-            }
-            TransportProtocol::Udp => {
-                let udp_packet = UdpPacket::new(payload)?;
-                let source_port = udp_packet.get_source();
-                let destination_port = udp_packet.get_destination();
-                let source_addr = SocketAddr::new(source_addr, source_port);
-                let destination_addr = SocketAddr::new(destination_addr, destination_port);
-                let udp_payload = udp_packet.payload();
-                if udp_payload.is_empty() {
-                    (source_addr, destination_addr, payload.to_vec())
-                } else {
-                    (source_addr, destination_addr, udp_payload.to_vec())
-                }
-            }
-        };
-
-        Some(Self {
-            payload: Some(payload),
-            id,
-            length: raw_packet.header.len - 14,
-            timestamp: get_duration(raw_packet),
-            source_addr,
-            destination_addr,
-            transport_protocol,
-            session_protocol: SessionProtocol::Unknown,
-            contents: SessionPacket::Unknown,
-            creation_time: SystemTime::now(),
-        })
+        match ethernet_packet.get_ethertype() {
+            EtherTypes::Ipv4 => Self::build_from_ip4(raw_packet, id, ethernet_packet),
+            EtherTypes::Ipv6 => Self::build_from_ip6(raw_packet, id, ethernet_packet),
+            _ => None,
+        }
     }
 
     fn build_from_ip4(
@@ -235,6 +227,57 @@ impl Packet {
             transport_protocol,
             ip_payload,
         )
+    }
+
+    fn build_from_transport(
+        raw_packet: &pcap::Packet,
+        id: usize,
+        source_addr: std::net::IpAddr,
+        destination_addr: std::net::IpAddr,
+        transport_protocol: TransportProtocol,
+        payload: &[u8],
+    ) -> Option<Self> {
+        let (source_addr, destination_addr, payload) = match transport_protocol {
+            TransportProtocol::Tcp => {
+                let tcp_packet = TcpPacket::new(payload)?;
+                let source_port = tcp_packet.get_source();
+                let destination_port = tcp_packet.get_destination();
+                let source_addr = SocketAddr::new(source_addr, source_port);
+                let destination_addr = SocketAddr::new(destination_addr, destination_port);
+                let tcp_payload = tcp_packet.payload();
+                if tcp_payload.is_empty() {
+                    (source_addr, destination_addr, payload.to_vec())
+                } else {
+                    (source_addr, destination_addr, tcp_payload.to_vec())
+                }
+            }
+            TransportProtocol::Udp => {
+                let udp_packet = UdpPacket::new(payload)?;
+                let source_port = udp_packet.get_source();
+                let destination_port = udp_packet.get_destination();
+                let source_addr = SocketAddr::new(source_addr, source_port);
+                let destination_addr = SocketAddr::new(destination_addr, destination_port);
+                let udp_payload = udp_packet.payload();
+                if udp_payload.is_empty() {
+                    (source_addr, destination_addr, payload.to_vec())
+                } else {
+                    (source_addr, destination_addr, udp_payload.to_vec())
+                }
+            }
+        };
+
+        Some(Self {
+            payload: Some(payload),
+            id,
+            length: raw_packet.header.len - 14,
+            timestamp: get_duration(raw_packet),
+            source_addr,
+            destination_addr,
+            transport_protocol,
+            session_protocol: SessionProtocol::Unknown,
+            contents: SessionPacket::Unknown,
+            creation_time: SystemTime::now(),
+        })
     }
 
     pub fn guess_payload(&mut self) {
