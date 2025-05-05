@@ -7,12 +7,14 @@ use netpix_common::{
 use packets::Packets;
 use rtpStream::RtpStream;
 use std::{cell::RefCell, collections::HashMap, net::SocketAddr, rc::Rc};
+use crate::streams::rtcp_stream::RtcpStream;
 
 pub mod mpegts_stream;
 mod packets;
 #[allow(non_snake_case)]
 pub mod rtpStream;
 pub mod stream_statistics;
+pub mod rtcp_stream;
 
 pub type RefStreams = Rc<RefCell<Streams>>;
 
@@ -21,6 +23,7 @@ pub struct Streams {
     pub packets: Packets,
     pub rtp_streams: HashMap<RtpStreamKey, RtpStream>,
     pub mpeg_ts_streams: HashMap<MpegtsStreamKey, MpegTsStream>,
+    pub rtcp_streams: HashMap<RtpStreamKey, RtcpStream>
 }
 
 impl Streams {
@@ -28,13 +31,14 @@ impl Streams {
         self.packets.clear();
         self.rtp_streams.clear();
         self.mpeg_ts_streams.clear();
+        self.rtcp_streams.clear();
     }
 
     pub fn add_packet(&mut self, packet: Packet) {
         let is_new = self.packets.is_new(&packet);
 
         if is_new {
-            handle_packet(&mut self.rtp_streams, &mut self.mpeg_ts_streams, &packet);
+            handle_packet(&mut self.rtp_streams, &mut self.mpeg_ts_streams,&mut self.rtcp_streams, &packet);
             self.packets.add_packet(packet);
         } else {
             // if the packet is not new (its id is smaller that the last packet's id)
@@ -49,14 +53,17 @@ impl Streams {
     fn recalculate(&mut self) {
         let mut new_rtp_streams = HashMap::new();
         let mut new_mpegts_streams = HashMap::new();
+        let mut new_rtcp_streams = HashMap::new();
 
         self.packets.values().for_each(|packet| {
-            handle_packet(&mut new_rtp_streams, &mut new_mpegts_streams, packet)
+            handle_packet(&mut new_rtp_streams, &mut new_mpegts_streams, &mut new_rtcp_streams, packet)
         });
 
         self.rtp_streams = new_rtp_streams;
         self.mpeg_ts_streams = new_mpegts_streams;
+        self.rtcp_streams = new_rtcp_streams;
     }
+
 }
 
 // this function need to take streams as an argument as opposed to methods on `Streams`
@@ -64,6 +71,7 @@ impl Streams {
 fn handle_packet(
     rtp_streams: &mut HashMap<RtpStreamKey, RtpStream>,
     mpegts_streams: &mut HashMap<MpegtsStreamKey, MpegTsStream>,
+    rtcp_streams:  &mut HashMap<RtpStreamKey, RtcpStream>,
     packet: &Packet,
 ) {
     match packet.contents {
@@ -118,6 +126,15 @@ fn handle_packet(
                     );
                     if let Some(stream) = maybe_stream {
                         stream.add_rtcp_packet(packet.id, packet.timestamp, pack);
+                    }
+
+                    let key_same_port = (packet.source_addr, packet.destination_addr, packet.transport_protocol, ssrc);
+                    if let Some(stream) = rtcp_streams.get_mut(&key_same_port){
+                        stream.add_rtcp_packet(packet.id, packet.timestamp, pack);
+                    } else {
+                        let mut new_stream = RtcpStream::new(ssrc, packet);
+                        new_stream.add_rtcp_packet(packet.id, packet.timestamp, pack);
+                        rtcp_streams.insert(key_same_port, new_stream);
                     }
                 }
             }
