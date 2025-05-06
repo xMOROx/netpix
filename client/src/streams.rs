@@ -7,6 +7,7 @@ use netpix_common::{
 use packets::Packets;
 use rtpStream::RtpStream;
 use std::{cell::RefCell, collections::HashMap, net::SocketAddr, rc::Rc};
+use netpix_common::rtcp::ReceptionReport;
 use crate::streams::rtcp_stream::RtcpStream;
 
 pub mod mpegts_stream;
@@ -108,8 +109,17 @@ fn handle_packet(
         SessionPacket::Rtcp(ref packs) => {
             for pack in packs {
                 let ssrcs = match pack {
-                    RtcpPacket::SenderReport(sr) => vec![sr.ssrc],
-                    RtcpPacket::ReceiverReport(rr) => vec![rr.ssrc],
+                    RtcpPacket::SenderReport(sr) => {
+                        insert_or_update_rtcp_stream(rtcp_streams, sr.ssrc, packet, pack);
+                        update_rtcp_streams_with_rr(rtcp_streams,packet,&sr.reports);
+                        vec![sr.ssrc]
+                    },
+                    RtcpPacket::ReceiverReport(rr) =>{
+                    //     insert_or_update_rtcp_stream(rtcp_streams, rr.ssrc, packet, pack);
+                    //
+                    //     update_rtcp_streams_with_rr(rtcp_streams,packet,&rr.reports);
+                        vec![rr.ssrc]
+                    } ,
                     RtcpPacket::SourceDescription(sd) => {
                         sd.chunks.iter().map(|chunk| chunk.source).collect()
                     }
@@ -127,15 +137,6 @@ fn handle_packet(
                     if let Some(stream) = maybe_stream {
                         stream.add_rtcp_packet(packet.id, packet.timestamp, pack);
                     }
-
-                    let key_same_port = (packet.source_addr, packet.destination_addr, packet.transport_protocol, ssrc);
-                    if let Some(stream) = rtcp_streams.get_mut(&key_same_port){
-                        stream.add_rtcp_packet(packet.id, packet.timestamp, pack);
-                    } else {
-                        let mut new_stream = RtcpStream::new(ssrc, packet);
-                        new_stream.add_rtcp_packet(packet.id, packet.timestamp, pack);
-                        rtcp_streams.insert(key_same_port, new_stream);
-                    }
                 }
             }
         }
@@ -143,13 +144,45 @@ fn handle_packet(
     };
 }
 
-fn get_rtcp_stream(
-    streams: &mut HashMap<RtpStreamKey, RtpStream>,
+fn insert_or_update_rtcp_stream(
+    rtcp_streams: &mut HashMap<RtpStreamKey, RtcpStream>,
+    ssrc: u32,
+    packet: &Packet,
+    pack: &RtcpPacket,
+) {
+    let key_same_port = (
+        packet.source_addr,
+        packet.destination_addr,
+        packet.transport_protocol,
+        ssrc,
+    );
+
+    if let Some(stream) = rtcp_streams.get_mut(&key_same_port) {
+        stream.update_with_sr(pack);
+    } else {
+        let mut new_stream = RtcpStream::new(ssrc, packet);
+        new_stream.update_with_sr(pack);
+        rtcp_streams.insert(key_same_port, new_stream);
+    }
+}
+
+
+fn update_rtcp_streams_with_rr(streams_arg: &mut HashMap<RtpStreamKey, RtcpStream>, pkt: &Packet, reception_reports: &Vec<ReceptionReport>) {
+    for report in reception_reports.iter() {
+        let key_same_port = (pkt.source_addr, pkt.destination_addr, pkt.transport_protocol, report.ssrc);
+        if let Some(stream) = streams_arg.get_mut(&key_same_port) {
+            stream.update_with_rr(pkt.timestamp, report);
+        }
+    }
+}
+
+fn get_rtcp_stream<T>(
+    streams: &mut HashMap<RtpStreamKey, T>,
     mut source_addr: SocketAddr,
     mut destination_addr: SocketAddr,
     protocol: TransportProtocol,
     ssrc: u32,
-) -> Option<&mut RtpStream> {
+) -> Option<&mut T> {
     let key_same_port = (source_addr, destination_addr, protocol, ssrc);
     if streams.contains_key(&key_same_port) {
         streams.get_mut(&key_same_port)
