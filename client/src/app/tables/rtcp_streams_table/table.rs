@@ -8,17 +8,18 @@ use crate::{
     },
     declare_table, declare_table_struct, define_column, impl_table_base,
     streams::RefStreams,
-    utils::ntp_to_string,
+    utils::ntp_to_string
 };
 use egui::{RichText, Ui};
 use egui_extras::{Column, TableBody, TableBuilder, TableRow};
 use ewebsock::WsSender;
 use netpix_common::{packet::SessionPacket, rtcp::*, RtcpPacket};
 use std::any::Any;
-use egui_plot::{Line, Plot, PlotPoints};
+use eframe::emath::Vec2;
+use egui_plot::{Line, Plot, PlotPoint, PlotPoints};
 use rustc_hash::FxHashMap;
 use log::info;
-
+use crate::utils::{f64_to_ntp, ntp_to_f64};
 
 declare_table_struct!(RtcpStreamsTable);
 
@@ -38,8 +39,6 @@ impl_table_base!(
     // The `build_header` block is now in the expected position
     build_header: |self, header| {
 
-        info!("RTCPStreamsTable: Building Header");
-
         let headers = [
             ("SSRC", "Synchronization Source Identifier (hex)"),
             ("Cumulative Lost", "Total number of packets lost (from Receiver Reports)"),
@@ -56,8 +55,6 @@ impl_table_base!(
     }
     ; // Separator
     build_table_body: |self, body| {
-        info!("RTCPStreamsTable: Building Table Body");
-
         let streams = self.streams.borrow();
         let filtered_streams: Vec<_> = streams
             .rtcp_streams
@@ -87,8 +84,6 @@ impl_table_base!(
 
     body.rows(row_height, filtered_streams.len(), |mut row| {
         let id = row.index();
-        // Use .get() safely, although in this context unwrap is likely fine
-        // as we checked filtered_streams.is_empty()
         if let Some((_key, stream_data)) = filtered_streams.get(id) {
 
             row.col(|ui| { ui.label(format!("0x{:08X}", stream_data.ssrc)); });
@@ -97,33 +92,53 @@ impl_table_base!(
                     ui.label(lost.to_string());
                 } else { ui.label("-"); }
             });
-            row.col(|ui| { ui.label(format!("{:.1}", stream_data.current_avg_bitrate_bps / 1000.0)); }); // Using .1 for kbps
-            row.col(|ui| {
-                // Ensure there's data to plot
-                if !stream_data.loss_history.is_empty() {
-                    let line = Line::new(PlotPoints::Owned(stream_data.loss_history.clone())); // Clone data for the plot
+            row.col(|ui| { ui.label(format!("{:.1}", stream_data.current_avg_bitrate_bps / 1000.0)); });
 
-                    // Create a small plot (sparkline style)
-                    Plot::new(format!("loss_plot_{}", stream_data.ssrc)) // Unique ID per row
-                        .height(ui.available_height()) // Use available cell height
-                        .width(100.0) // Set a fixed width or make it dynamic
-                        .show_axes([false, false]) // Hide axes
-                        .show_grid(false) // Hide grid
-                        .show_background(false) // Hide background
-                        .allow_drag(false)
-                        .allow_zoom(false)
-                        .allow_scroll(false)
-                        .allow_boxed_zoom(false)
-                        .show(ui, |plot_ui| { // Add the line to the plot
-                            plot_ui.line(line);
-                        });
-                } else {
-                    ui.label("-"); // Show placeholder if no history
-                }
+            row.col(|ui| {
+                ui.vertical_centered_justified(|ui| {
+                    let points: Vec<PlotPoint> = stream_data
+                    .bitrate_history
+                    .iter()
+                    .map(|(ntp, bitrate)| {
+                        // Transform y into log10 domain:
+                        PlotPoint::new(ntp_to_f64(*ntp), (*bitrate as f64).log10())
+                    })
+                    .collect();
+                    let line = Line::new(PlotPoints::Owned(points));
+                    Plot::new(format!(
+                        "{}{}{}",
+                        stream_data.ssrc, stream_data.source_addr, stream_data.destination_addr
+                    ))
+                    .show_background(false)
+                    .show_axes([true, true])
+                    .x_axis_formatter(|mark,_range| {
+                        format!("{}",ntp_to_string(f64_to_ntp(mark.value)))
+                    })
+                    .y_axis_formatter(|mark, _range| {
+                        let real_bps = 10f64.powf(mark.value);
+                        format!("{:.0}kbits", real_bps / 1_000.0)
+                    })
+                    .label_formatter(|_name, pt| {
+                        let real_bps = 10f64.powf(pt.y);
+                        format!(
+                            "time: {}\navg. bitrate = {:.3}kbits",
+                            ntp_to_string(f64_to_ntp(pt.x)),
+                            real_bps / 1_000.0
+                        )
+                    })
+                    .set_margin_fraction(Vec2::new(0.1, 0.1))
+                    .allow_scroll(false)
+                    .allow_drag(false)
+                    .allow_zoom(false)
+                    .show(ui, |plot_ui| {
+                        plot_ui.line(line);
+                    })
+                    .response;
+                    ui.add_space(7.0);
+                });
             });
         } else {
-             // Log if somehow we couldn't get the stream data for a valid index
-             log::info!("Error getting stream data at index {}", id);
+             info!("Error getting stream data at index {}", id);
         }
     });
 
@@ -134,7 +149,7 @@ impl_table_base!(
 
 // Use the specific FilterExpression type from this table's filters module
 declare_table!(RtcpStreamsTable, FilterType, {
-    height(30.0);
+    height(60.0);
     striped(true);
     resizable(true);
     stick_to_bottom(true);
@@ -142,14 +157,13 @@ declare_table!(RtcpStreamsTable, FilterType, {
         column(Some(120.0), 120.0, None, false, true), // SSRC
         column(Some(150.0), 150.0, None, false, true), // Cumulative Lost
         column(Some(150.0), 150.0, None, false, true), // Avg Bitrate
-        column(None, 200.0, None, false, false),       // Plots
+        column(None, 600.0, None, false, false),       // Plots
     )
 });
 
 impl RtcpStreamsTable {
     // This function correctly uses the stream-specific filter logic
     fn stream_matches_filter(&self, stream_data: &RtcpStreamFilterContext) -> bool {
-        info!("I AM ALIVE!");
         if self.filter_input.get_filter().is_empty() {
             return true;
         }
@@ -157,7 +171,6 @@ impl RtcpStreamsTable {
         parse_filter(self.filter_input.get_filter())
             .map(|filter| {
                 let matches = filter.matches(stream_data);
-                log::info!("Filtering stream SSRC 0x{:08X}: Filter result: {}", stream_data.stream.ssrc, matches);
                 matches
             })
             .unwrap_or(true) // Treat parse errors as matching (show the stream)
