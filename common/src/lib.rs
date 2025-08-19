@@ -17,9 +17,9 @@ pub mod mpegts;
 pub mod packet;
 pub mod rtcp;
 pub mod rtp;
-pub mod stun;
 pub mod sdp;
 mod stream_keys;
+pub mod stun;
 pub mod utils;
 
 pub use stream_keys::{MpegtsStreamKey, PacketAssociationTable, RtpStreamKey};
@@ -129,7 +129,13 @@ impl FromStr for SessionProtocol {
 
 impl SessionProtocol {
     pub fn all() -> Vec<Self> {
-        vec![Self::Unknown, Self::Rtp, Self::Rtcp, Self::Mpegts, Self::Stun]
+        vec![
+            Self::Unknown,
+            Self::Rtp,
+            Self::Rtcp,
+            Self::Mpegts,
+            Self::Stun,
+        ]
     }
 }
 

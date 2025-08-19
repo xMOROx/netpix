@@ -42,7 +42,13 @@ impl FromStr for SessionProtocol {
 
 impl SessionProtocol {
     pub fn all() -> Vec<Self> {
-        vec![Self::Unknown, Self::Rtp, Self::Rtcp, Self::Mpegts, Self::Stun]
+        vec![
+            Self::Unknown,
+            Self::Rtp,
+            Self::Rtcp,
+            Self::Mpegts,
+            Self::Stun,
+        ]
     }
 }
 
@@ -113,32 +119,37 @@ impl Packet {
 
     fn is_cooked_capture(raw_packet: &pcap::Packet) -> bool {
         const MIN_COOKED_CAPTURE_LEN: usize = 16;
-        raw_packet.len() >= MIN_COOKED_CAPTURE_LEN && raw_packet.data[0] == 0 && raw_packet.data[1] == 0
+        raw_packet.len() >= MIN_COOKED_CAPTURE_LEN
+            && raw_packet.data[0] == 0
+            && raw_packet.data[1] == 0
     }
 
     fn build_from_cooked_capture(raw_packet: &pcap::Packet, id: usize) -> Option<Self> {
         const PROTOCOL_TYPE_OFFSET: usize = 14;
         const COOKED_CAPTURE_HEADER_LEN: usize = 16;
-        
+
         let protocol_type = u16::from_be_bytes([
             raw_packet.data[PROTOCOL_TYPE_OFFSET],
-            raw_packet.data[PROTOCOL_TYPE_OFFSET + 1]
+            raw_packet.data[PROTOCOL_TYPE_OFFSET + 1],
         ]);
         let ip_data = &raw_packet.data[COOKED_CAPTURE_HEADER_LEN..];
-        
+
         let ethernet_packet = Self::create_synthetic_ethernet_packet(protocol_type, ip_data)?;
         Self::build_from_ethernet(raw_packet, id, &ethernet_packet)
     }
 
-    fn create_synthetic_ethernet_packet(protocol_type: u16, ip_data: &[u8]) -> Option<EthernetPacket> {
+    fn create_synthetic_ethernet_packet(
+        protocol_type: u16,
+        ip_data: &[u8],
+    ) -> Option<EthernetPacket> {
         const ETHERNET_HEADER_LEN: usize = 14;
         const ETHERTYPE_OFFSET: usize = 12;
-        
+
         let mut eth_data = vec![0u8; ETHERNET_HEADER_LEN + ip_data.len()];
         eth_data[ETHERTYPE_OFFSET] = (protocol_type >> 8) as u8;
         eth_data[ETHERTYPE_OFFSET + 1] = protocol_type as u8;
         eth_data[ETHERNET_HEADER_LEN..].copy_from_slice(ip_data);
-        
+
         // Create a new EthernetPacket that owns its data
         EthernetPacket::owned(eth_data)
     }
@@ -290,7 +301,6 @@ impl Packet {
             return;
         }
 
-        // Check for STUN first since it's commonly used for NAT traversal
         if let Some(stun) = StunPacket::build(self) {
             self.session_protocol = SessionProtocol::Stun;
             self.contents = SessionPacket::Stun(stun);

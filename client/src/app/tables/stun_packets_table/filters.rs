@@ -21,7 +21,6 @@
 //! ## STUN-specific Filters
 //! - `type:value` - Matches STUN message type (e.g., binding, allocate)
 //! - `transaction:value` - Matches STUN transaction ID
-//! - `magic:value` - Matches STUN magic cookie value
 //! - `length:value` - Matches STUN message length
 //!
 //! # Examples
@@ -50,7 +49,6 @@ declare_filter_type! {
         Destination(String),
         Type(String),
         Transaction(String),
-        Magic(String),
         Length(ComparisonFilter<usize>)
     }
 }
@@ -99,16 +97,8 @@ impl<'a> FilterExpression<'a> for FilterType {
                     .collect::<String>();
                 tx_id.contains(value)
             }
-            FilterType::Magic(value) => {
-                if value.is_empty() {
-                    return true;
-                }
-                // Convert magic cookie to hex string for comparison
-                format!("{:08x}", ctx.packet.magic_cookie).contains(value)
-            }
             FilterType::Length(filter) => {
-                let size = ctx.packet.message_length;
-                let size = usize::from(size);
+                let size = ctx.packet.message_length as usize;
                 match filter {
                     ComparisonFilter::GreaterThan(val) => size> *val,
                     ComparisonFilter::GreaterOrEqualThan(val) => size >= *val,
@@ -131,7 +121,6 @@ impl FilterParser for FilterType {
             "dest" => Ok(FilterType::Destination(value.to_string())),
             "type" => Ok(FilterType::Type(value.to_string())),
             "transaction" => Ok(FilterType::Transaction(value.to_string())),
-            "magic" => Ok(FilterType::Magic(value.to_string())),
             "length" => ComparisonFilter::parse(value)
                 .map(FilterType::Length)
                 .ok_or_else(|| {
@@ -149,7 +138,6 @@ impl FilterParser for FilterType {
                  - dest: Destination IP filter\n\
                  - type: STUN message type filter\n\
                  - transaction: Transaction ID filter\n\
-                 - magic: Magic cookie filter\n\
                  - length: Message length filter",
                 unknown
             ))),

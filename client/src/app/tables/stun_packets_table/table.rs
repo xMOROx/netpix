@@ -25,11 +25,9 @@ impl_table_base!(
         .filter("dest", "Filter by destination IP address")
         .filter("type", "Filter by STUN message type")
         .filter("transaction", "Filter by transaction ID")
-        .filter("magic", "Filter by magic cookie")
         .filter("length", "Filter by message length")
         .example("source:10.0.0 AND type:binding")
         .example("(dest:192.168 OR dest:10.0.0) AND NOT type:allocate")
-        .example("magic:2112A442 AND length:>100")
         .build(),
     "stun_packets", "STUN Packets"
     ;
@@ -41,7 +39,6 @@ impl_table_base!(
             ("Destination", "Destination IP address and port"),
             ("Type", "STUN message type (e.g., binding, allocate)"),
             ("Transaction ID", "STUN transaction identifier"),
-            ("Magic Cookie", "STUN magic cookie value"),
             ("Length", "STUN message length"),
             ("Attributes", "STUN message attributes"),
         ];
@@ -128,27 +125,15 @@ impl_table_base!(
                 ui.label(tx_id);
             });
 
-            // Magic Cookie column
-            row.col(|ui| {
-                ui.label(format!("{:08x}", stun_packet.magic_cookie));
-            });
-
             // Length column
             row.col(|ui| {
                 ui.label(stun_packet.message_length.to_string());
             });
 
+            log::info!("STUN Packet: {:?}", stun_packet);
             // Attributes column
             row.col(|ui| {
-                let mut attributes = String::new();
-                for attr in &stun_packet.attributes {
-                    attributes.push_str(&format!(
-                        "{} ({} bytes)\n",
-                        stun_packet.get_attribute_type_name(attr.attribute_type),
-                        attr.length
-                    ));
-                }
-                ui.label(attributes);
+                ui.label(stun_packet.get_attributes_type_name());
             });
 
         });
@@ -167,7 +152,6 @@ declare_table!(StunPacketsTable, FilterType, {
         column(None, 130.0, None, false, true),
         column(None, 120.0, None, false, true),
         column(None, 200.0, None, false, true),
-        column(None, 100.0, None, false, true),
         column(None, 80.0, None, false, true),
         column(None, 200.0, None, false, true),
     )
