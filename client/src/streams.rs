@@ -123,7 +123,7 @@ fn handle_packet(
             }
         }
         SessionPacket::Stun(ref stun) => {
-            log::Debug!(
+            log::info!(
                 "STUN packet: {} from {} to {}",
                 stun.get_message_type_name(),
                 packet.source_addr,
