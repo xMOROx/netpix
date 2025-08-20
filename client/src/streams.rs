@@ -123,14 +123,13 @@ fn handle_packet(
             }
         }
         SessionPacket::Stun(ref stun) => {
-            // Log STUN packet information
-            log::info!(
+            log::Debug!(
                 "STUN packet: {} from {} to {}",
                 stun.get_message_type_name(),
                 packet.source_addr,
                 packet.destination_addr
             );
-            
+
             // You could add more STUN-specific handling here
             // For example, tracking NAT traversal attempts or ICE candidates
         }
