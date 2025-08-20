@@ -46,6 +46,11 @@ jobs:
           key: clippy-${{ runner.os }}-${{ steps.lockfile.outputs.hash }}
           restore-keys: |
             clippy-${{ runner.os }}-
+
+      - name: Ensure Clippy component
+        run: |
+          TOOLCHAIN="$(rustup show active-toolchain | awk '{print $1}')"
+          rustup component add clippy --toolchain "$TOOLCHAIN"
       
       - name: Install libpcap
         run: sudo apt-get install libpcap-dev
