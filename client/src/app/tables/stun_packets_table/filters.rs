@@ -84,14 +84,19 @@ impl<'a> FilterExpression<'a> for FilterType {
                 if value.is_empty() {
                     return true;
                 }
-                ctx.packet.get_message_type_name().to_lowercase().contains(value)
+                ctx.packet
+                    .get_message_type_name()
+                    .to_lowercase()
+                    .contains(value)
             }
             FilterType::Transaction(value) => {
                 if value.is_empty() {
                     return true;
                 }
                 // Convert transaction ID bytes to hex string for comparison
-                let tx_id = ctx.packet.transaction_id
+                let tx_id = ctx
+                    .packet
+                    .transaction_id
                     .iter()
                     .map(|b| format!("{:02x}", b))
                     .collect::<String>();
@@ -100,7 +105,7 @@ impl<'a> FilterExpression<'a> for FilterType {
             FilterType::Length(filter) => {
                 let size = ctx.packet.message_length as usize;
                 match filter {
-                    ComparisonFilter::GreaterThan(val) => size> *val,
+                    ComparisonFilter::GreaterThan(val) => size > *val,
                     ComparisonFilter::GreaterOrEqualThan(val) => size >= *val,
                     ComparisonFilter::LessThan(val) => size < *val,
                     ComparisonFilter::LessOrEqualThan(val) => size <= *val,
@@ -143,4 +148,4 @@ impl FilterParser for FilterType {
             ))),
         }
     }
-} 
+}

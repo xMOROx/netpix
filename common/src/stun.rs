@@ -22,7 +22,7 @@ impl From<&stun::message::Message> for StunPacket {
     fn from(msg: &stun::message::Message) -> Self {
         let message_type = MessageType::new(msg.typ.value());
         let message_length = msg.length;
-        let transaction_id = msg.transaction_id.clone().0;
+        let transaction_id = msg.transaction_id.0;
         let attributes = msg.attributes.0.iter().map(StunAttribute::from).collect();
 
         Self {

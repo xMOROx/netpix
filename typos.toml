@@ -1,11 +1,12 @@
+[default]
+extend-ignore-re = [
+    ".*typ[^eo].*"
+]
+
 [type.txt]
 extend-glob = ["*.txt"]
 check-file = false
 
 [type.pcap]
 extend-glob = ["*.pcap", "*.pcapng"]
-check-file = false
-
-[type.rs]
-extend-glob = ["common/src/stun/stun_attribute.rs"]
 check-file = false
