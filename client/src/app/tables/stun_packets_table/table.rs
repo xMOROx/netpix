@@ -130,10 +130,9 @@ impl_table_base!(
                 ui.label(stun_packet.message_length.to_string());
             });
 
-            log::info!("STUN Packet: {:?}", stun_packet);
             // Attributes column
             row.col(|ui| {
-                ui.label(stun_packet.get_attributes_type_name());
+                ui.label(stun_packet.get_attributes_as_string());
             });
 
         });

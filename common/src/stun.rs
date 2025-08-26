@@ -39,12 +39,12 @@ impl StunPacket {
         self.message_type.as_string()
     }
 
-    pub fn get_attributes_type_name(&self) -> String {
+    pub fn get_attributes_as_string(&self) -> String {
         self.attributes
             .iter()
-            .map(|attr| attr.get_type_name())
+            .map(|attr| attr.as_string_with_txid(&self.transaction_id))
             .collect::<Vec<String>>()
-            .join(", ")
+            .join(",\n")
     }
 }
 
