@@ -23,7 +23,7 @@ impl StunAttribute {
     pub fn as_string(&self) -> String {
         let value = self.get_value();
         if value.is_empty() {
-            format!("{}", self.get_type_name())
+            self.get_type_name().to_string()
         } else {
             format!("{}: {}", self.get_type_name(), value)
         }
@@ -72,7 +72,7 @@ impl StunAttribute {
     pub fn as_string_with_txid(&self, txid: &[u8; 12]) -> String {
         let value = self.get_value_with_txid(txid);
         if value.is_empty() {
-            format!("{}", self.get_type_name())
+            self.get_type_name().to_string()
         } else {
             format!("{}: {}", self.get_type_name(), value)
         }
@@ -120,7 +120,8 @@ impl StunAttribute {
                 .value
                 .iter()
                 .map(|b| format!("{:02x}", b))
-                .collect::<String>(),
+                .collect::<Vec<_>>()
+                .join(" "),
         }
     }
 
