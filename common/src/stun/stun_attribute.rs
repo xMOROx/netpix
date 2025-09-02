@@ -20,8 +20,8 @@ impl From<&stun::attributes::RawAttribute> for StunAttribute {
 }
 
 impl StunAttribute {
-    pub fn as_string(&self) -> String {
-        let value = self.get_value();
+    pub fn as_string_with_txid(&self, txid: &[u8; 12]) -> String {
+        let value = self.get_value_with_txid(txid);
         if value.is_empty() {
             self.get_type_name().to_string()
         } else {
@@ -69,18 +69,9 @@ impl StunAttribute {
 
         s.to_string()
     }
-    pub fn as_string_with_txid(&self, txid: &[u8; 12]) -> String {
-        let value = self.get_value_with_txid(txid);
-        if value.is_empty() {
-            self.get_type_name().to_string()
-        } else {
-            format!("{}: {}", self.get_type_name(), value)
-        }
-    }
 
     pub fn get_value_with_txid(&self, txid: &[u8; 12]) -> String {
         match self.attribute_type {
-            // Delegate to the existing branches but use helpers and txid where needed.
             ATTR_USERNAME | ATTR_REALM | ATTR_NONCE | ATTR_SOFTWARE => {
                 if let Ok(str_value) = std::str::from_utf8(&self.value) {
                     str_value.to_string()
@@ -116,6 +107,8 @@ impl StunAttribute {
                     _ => "<unknown family>".to_string(),
                 }
             }
+            ATTR_DATA => format!("{} bytes", self.value.len()),
+            // if data
             _ => self
                 .value
                 .iter()
@@ -124,15 +117,8 @@ impl StunAttribute {
                 .join(" "),
         }
     }
-
-    // Keep old get_value() for compatibility, but prefer get_value_with_txid in call-sites.
-    pub fn get_value(&self) -> String {
-        // Best effort without transaction ID; IPv6 XOR decoding may be incorrect.
-        self.get_value_with_txid(&[0u8; 12])
-    }
 }
 
-// Small helpers to reduce duplication and ensure proper bounds checks.
 fn parse_address_v4(v: &[u8]) -> Option<(Ipv4Addr, u16)> {
     if v.len() < 8 {
         return None;

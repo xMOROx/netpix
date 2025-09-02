@@ -34,20 +34,6 @@ impl From<&stun::message::Message> for StunPacket {
     }
 }
 
-impl StunPacket {
-    pub fn get_message_type_name(&self) -> String {
-        self.message_type.as_string()
-    }
-
-    pub fn get_attributes_as_string(&self) -> String {
-        self.attributes
-            .iter()
-            .map(|attr| attr.as_string_with_txid(&self.transaction_id))
-            .collect::<Vec<String>>()
-            .join(",\n")
-    }
-}
-
 #[cfg(not(target_arch = "wasm32"))]
 impl StunPacket {
     pub fn build(packet: &super::Packet) -> Option<Self> {

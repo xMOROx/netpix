@@ -53,7 +53,7 @@ impl Tab {
                 MpegTsSection::iter().map(Self::MpegTsSection).collect(),
             ),
             (
-                "🗼 STUN".to_string(),
+                "🗼 ICE".to_string(),
                 StunSection::iter().map(Self::StunSection).collect(),
             ),
         ]

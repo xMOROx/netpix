@@ -12,11 +12,11 @@ pub const CLASS_ERROR_RESPONSE: MessageClass = MessageClass(0x03); // 0b11
 impl MessageClass {
     pub fn as_string(&self) -> String {
         let s = match *self {
-            CLASS_REQUEST => "request",
-            CLASS_INDICATION => "indication",
-            CLASS_SUCCESS_RESPONSE => "success response",
-            CLASS_ERROR_RESPONSE => "error response",
-            _ => "unknown message class",
+            CLASS_REQUEST => "Request",
+            CLASS_INDICATION => "Indication",
+            CLASS_SUCCESS_RESPONSE => "Success Response",
+            CLASS_ERROR_RESPONSE => "Error Response",
+            _ => "Unknown Message Class",
         };
 
         s.to_string()
@@ -29,10 +29,10 @@ mod tests {
 
     #[test]
     fn test_message_class_as_string() {
-        assert_eq!(CLASS_REQUEST.as_string(), "request");
-        assert_eq!(CLASS_INDICATION.as_string(), "indication");
-        assert_eq!(CLASS_SUCCESS_RESPONSE.as_string(), "success response");
-        assert_eq!(CLASS_ERROR_RESPONSE.as_string(), "error response");
-        assert_eq!(MessageClass(0x04).as_string(), "unknown message class");
+        assert_eq!(CLASS_REQUEST.as_string(), "Request");
+        assert_eq!(CLASS_INDICATION.as_string(), "Indication");
+        assert_eq!(CLASS_SUCCESS_RESPONSE.as_string(), "Success Response");
+        assert_eq!(CLASS_ERROR_RESPONSE.as_string(), "Error Response");
+        assert_eq!(MessageClass(0x04).as_string(), "Unknown Message Class");
     }
 }

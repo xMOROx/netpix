@@ -85,7 +85,8 @@ impl<'a> FilterExpression<'a> for FilterType {
                     return true;
                 }
                 ctx.packet
-                    .get_message_type_name()
+                    .message_type
+                    .as_string()
                     .to_lowercase()
                     .contains(value)
             }

@@ -14,6 +14,7 @@ use egui::RichText;
 use egui_extras::{Column, TableBody, TableBuilder, TableRow};
 use ewebsock::WsSender;
 use netpix_common::packet::SessionPacket;
+use std::fmt::Write as _;
 use std::{any::Any, collections::HashMap};
 
 declare_table_struct!(StunPacketsTable);
@@ -74,70 +75,123 @@ impl_table_base!(
             .collect();
 
         let first_ts = filtered_packets.first().map(|p| p.timestamp).unwrap_or_default();
+        let rows_heights: Vec<f32> = filtered_packets
+            .iter()
+            .map(|packet| match &packet.contents {
+            SessionPacket::Stun(sp) => 20.0 + (sp.attributes.len().max(1) as f32 * 14.0),
+            _ => 30.0,
+            })
+            .collect();
 
-        body.rows(self.config.row_height, filtered_packets.len(), |mut row| {
+        body.heterogeneous_rows(rows_heights.into_iter(), |mut row| {
             let packet = &filtered_packets[row.index()];
-
             let SessionPacket::Stun(ref stun_packet) = packet.contents else {
-                return;
+            return;
             };
 
-            let ctx = StunFilterContext {
-                packet: stun_packet,
-                source_addr: &packet.source_addr.to_string(),
-                destination_addr: &packet.destination_addr.to_string(),
-            };
+            let src = packet.source_addr.to_string();
+            let dst = packet.destination_addr.to_string();
 
-            if !self.packet_matches_filter(&ctx) {
-                return;
+            // ID
+            row.col(|ui| {
+            ui.label(RichText::new(packet.id.to_string()).monospace());
+            });
+
+            // Time (relative to the first visible packet)
+            row.col(|ui| {
+            let timestamp = packet.timestamp - first_ts;
+            let txt = format!("{:.4} s", timestamp.as_secs_f64());
+            ui.label(RichText::new(txt).monospace())
+                .on_hover_text("Time since first visible STUN packet");
+            });
+
+            // Source
+            row.col(|ui| {
+            ui.horizontal(|ui| {
+                ui.label(
+                RichText::new(&src)
+                    .monospace()
+                    .color(Color32::from_rgb(80, 170, 255)),
+                );
+                if ui.small_button("Copy").on_hover_text("Copy source address").clicked() {
+                ui.output_mut(|o| o.copied_text = src.clone());
+                }
+            });
+            });
+
+            // Destination
+            row.col(|ui| {
+            ui.horizontal(|ui| {
+                ui.label(
+                RichText::new(&dst)
+                    .monospace()
+                    .color(Color32::from_rgb(255, 140, 100)),
+                );
+                if ui.small_button("Copy").on_hover_text("Copy destination address").clicked() {
+                ui.output_mut(|o| o.copied_text = dst.clone());
+                }
+            });
+            });
+
+            // Type (color-coded)
+            row.col(|ui| {
+            let t = stun_packet.message_type.as_string();
+            let lower = t.to_lowercase();
+            let color = if lower.contains("bind") {
+                Color32::from_rgb(120, 200, 120)
+            } else if lower.contains("alloc") {
+                Color32::from_rgb(200, 160, 120)
+            } else if lower.contains("refresh") {
+                Color32::from_rgb(120, 180, 200)
+            } else if lower.contains("channel") {
+                Color32::from_rgb(200, 120, 180)
+            } else {
+                Color32::LIGHT_GRAY
+            };
+            ui.label(RichText::new(t).strong().color(color));
+            });
+
+            // Transaction ID (grouped hex + copy)
+            row.col(|ui| {
+            let mut tx = String::with_capacity(stun_packet.transaction_id.len() * 3);
+            for (i, b) in stun_packet.transaction_id.iter().enumerate() {
+                let _ = write!(&mut tx, "{:02x}", b);
+                if i % 2 == 1 && i + 1 != stun_packet.transaction_id.len() {
+                tx.push(' ');
+                }
             }
-
-            // ID column
-            row.col(|ui| {
-                ui.label(packet.id.to_string());
+            ui.horizontal(|ui| {
+                ui.label(RichText::new(&tx).monospace());
+                if ui.small_button("Copy").on_hover_text("Copy transaction ID").clicked() {
+                ui.output_mut(|o| o.copied_text = tx.clone());
+                }
+            });
             });
 
-            // Time column
+            // Length
             row.col(|ui| {
-                let timestamp = packet.timestamp - first_ts;
-                ui.label(format!("{:.4}", timestamp.as_secs_f64()));
+            ui.label(RichText::new(stun_packet.message_length.to_string()).monospace());
             });
 
-            // Source/Destination columns
+            // Attributes (each on its own line, monospace, bullet-prefixed)
             row.col(|ui| {
-                ui.label(packet.source_addr.to_string());
+            ui.vertical(|ui| {
+                if stun_packet.attributes.is_empty() {
+                ui.label(
+                    RichText::new("(no attributes)")
+                    .italics()
+                    .color(Color32::GRAY),
+                );
+                } else {
+                for attr in stun_packet.attributes.iter() {
+                    let line = attr.as_string_with_txid(&stun_packet.transaction_id);
+                    ui.label(RichText::new(format!("• {}", line)).monospace());
+                }
+                }
             });
-            row.col(|ui| {
-                ui.label(packet.destination_addr.to_string());
-            });
-
-            // STUN-specific columns
-            row.col(|ui| {
-                ui.label(stun_packet.get_message_type_name());
-            });
-
-            // Transaction ID column
-            row.col(|ui| {
-                let tx_id = stun_packet.transaction_id
-                    .iter()
-                    .map(|b| format!("{:02x}", b))
-                    .collect::<String>();
-                ui.label(tx_id);
-            });
-
-            // Length column
-            row.col(|ui| {
-                ui.label(stun_packet.message_length.to_string());
-            });
-
-            // Attributes column
-            row.col(|ui| {
-                ui.label(stun_packet.get_attributes_as_string());
-            });
-
         });
-    }
-);
+    });
+});
 
 declare_table!(StunPacketsTable, FilterType, {
     height(30.0);

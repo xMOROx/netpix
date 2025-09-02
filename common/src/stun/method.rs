@@ -23,17 +23,19 @@ impl Method {
 
         let s = match *self {
             METHOD_BINDING => "Binding",
-            METHOD_ALLOCATE => "Allocate",
-            METHOD_REFRESH => "Refresh",
-            METHOD_SEND => "Send",
-            METHOD_DATA => "Data",
-            METHOD_CREATE_PERMISSION => "CreatePermission",
-            METHOD_CHANNEL_BIND => "ChannelBind",
+
+            // RFC 5766
+            METHOD_ALLOCATE => "Allocate(TURN)",
+            METHOD_REFRESH => "Refresh(TURN)",
+            METHOD_SEND => "Send(TURN)",
+            METHOD_DATA => "Data(TURN)",
+            METHOD_CREATE_PERMISSION => "CreatePermission(TURN)",
+            METHOD_CHANNEL_BIND => "ChannelBind(TURN)",
 
             // RFC 6062.
-            METHOD_CONNECT => "Connect",
-            METHOD_CONNECTION_BIND => "ConnectionBind",
-            METHOD_CONNECTION_ATTEMPT => "ConnectionAttempt",
+            METHOD_CONNECT => "Connect(TURN)",
+            METHOD_CONNECTION_BIND => "ConnectionBind(TURN)",
+            METHOD_CONNECTION_ATTEMPT => "ConnectionAttempt(TURN)",
             _ => unknown.as_str(),
         };
 
@@ -48,15 +50,23 @@ mod tests {
     #[test]
     fn test_method_as_string() {
         assert_eq!(METHOD_BINDING.as_string(), "Binding");
-        assert_eq!(METHOD_ALLOCATE.as_string(), "Allocate");
-        assert_eq!(METHOD_REFRESH.as_string(), "Refresh");
-        assert_eq!(METHOD_SEND.as_string(), "Send");
-        assert_eq!(METHOD_DATA.as_string(), "Data");
-        assert_eq!(METHOD_CREATE_PERMISSION.as_string(), "CreatePermission");
-        assert_eq!(METHOD_CHANNEL_BIND.as_string(), "ChannelBind");
-        assert_eq!(METHOD_CONNECT.as_string(), "Connect");
-        assert_eq!(METHOD_CONNECTION_BIND.as_string(), "ConnectionBind");
-        assert_eq!(METHOD_CONNECTION_ATTEMPT.as_string(), "ConnectionAttempt");
+
+        assert_eq!(METHOD_ALLOCATE.as_string(), "Allocate(TURN)");
+        assert_eq!(METHOD_REFRESH.as_string(), "Refresh(TURN)");
+        assert_eq!(METHOD_SEND.as_string(), "Send(TURN)");
+        assert_eq!(METHOD_DATA.as_string(), "Data(TURN)");
+        assert_eq!(
+            METHOD_CREATE_PERMISSION.as_string(),
+            "CreatePermission(TURN)"
+        );
+
+        assert_eq!(METHOD_CHANNEL_BIND.as_string(), "ChannelBind(TURN)");
+        assert_eq!(METHOD_CONNECT.as_string(), "Connect(TURN)");
+        assert_eq!(METHOD_CONNECTION_BIND.as_string(), "ConnectionBind(TURN)");
+        assert_eq!(
+            METHOD_CONNECTION_ATTEMPT.as_string(),
+            "ConnectionAttempt(TURN)"
+        );
         assert_eq!(Method(0x1234).as_string(), "0x1234");
     }
 }
