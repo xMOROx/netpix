@@ -33,7 +33,6 @@
 //! Complex filters:
 //! - `source:10.0.0 AND type:binding` - Binding requests from specific network
 //! - `(dest:192.168 OR dest:10.0.0) AND NOT type:allocate` - Non-allocate messages to specific networks
-//! - `magic:2112A442 AND length:>100` - Large STUN messages with specific magic cookie
 
 use crate::{
     app::tables::stun_packets_table::StunFilterContext,

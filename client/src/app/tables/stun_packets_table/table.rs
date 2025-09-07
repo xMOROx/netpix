@@ -107,30 +107,20 @@ impl_table_base!(
 
             // Source
             row.col(|ui| {
-            ui.horizontal(|ui| {
-                ui.label(
+            ui.label(
                 RichText::new(&src)
-                    .monospace()
-                    .color(Color32::from_rgb(80, 170, 255)),
-                );
-                if ui.small_button("Copy").on_hover_text("Copy source address").clicked() {
-                ui.output_mut(|o| o.copied_text = src.clone());
-                }
-            });
+                .monospace()
+                .color(Color32::from_rgb(80, 170, 255)),
+            );
             });
 
             // Destination
             row.col(|ui| {
-            ui.horizontal(|ui| {
-                ui.label(
+            ui.label(
                 RichText::new(&dst)
-                    .monospace()
-                    .color(Color32::from_rgb(255, 140, 100)),
-                );
-                if ui.small_button("Copy").on_hover_text("Copy destination address").clicked() {
-                ui.output_mut(|o| o.copied_text = dst.clone());
-                }
-            });
+                .monospace()
+                .color(Color32::from_rgb(255, 140, 100)),
+            );
             });
 
             // Type (color-coded)
@@ -151,7 +141,7 @@ impl_table_base!(
             ui.label(RichText::new(t).strong().color(color));
             });
 
-            // Transaction ID (grouped hex + copy)
+            // Transaction ID (grouped hex)
             row.col(|ui| {
             let mut tx = String::with_capacity(stun_packet.transaction_id.len() * 3);
             for (i, b) in stun_packet.transaction_id.iter().enumerate() {
@@ -160,12 +150,7 @@ impl_table_base!(
                 tx.push(' ');
                 }
             }
-            ui.horizontal(|ui| {
-                ui.label(RichText::new(&tx).monospace());
-                if ui.small_button("Copy").on_hover_text("Copy transaction ID").clicked() {
-                ui.output_mut(|o| o.copied_text = tx.clone());
-                }
-            });
+            ui.label(RichText::new(&tx).monospace());
             });
 
             // Length
