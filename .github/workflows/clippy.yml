@@ -31,6 +31,11 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: clippy
+
+      - name: Ensure Clippy component
+        run: |
+          TOOLCHAIN="$(rustup show active-toolchain | awk '{print $1}')"
+          rustup component add clippy --toolchain "$TOOLCHAIN"
       
       - name: Generate lockfile hash
         run: echo "${{ hashFiles('**/Cargo.lock') }}"
@@ -98,6 +103,11 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: rustfmt
+
+      - name: Ensure Rustfmt component
+        run: |
+          TOOLCHAIN="$(rustup show active-toolchain | awk '{print $1}')"
+          rustup component add rustfmt --toolchain "$TOOLCHAIN"
       
       - name: Generate lockfile hash
         run: echo "${{ hashFiles('**/Cargo.lock') }}"
