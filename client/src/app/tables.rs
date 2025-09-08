@@ -5,6 +5,7 @@ pub mod packets_table;
 pub mod rtcp_packets_table;
 pub mod rtp_packets_table;
 pub mod rtp_streams_table;
+pub mod turn_channel_table;
 
 pub use mpegts_info_table::*;
 pub use mpegts_packets_table::*;
@@ -13,3 +14,4 @@ pub use packets_table::*;
 pub use rtcp_packets_table::*;
 pub use rtp_packets_table::*;
 pub use rtp_streams_table::*;
+pub use turn_channel_table::*;
