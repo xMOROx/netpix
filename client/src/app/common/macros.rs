@@ -203,7 +203,10 @@ macro_rules! declare_table {
     }) => {
         impl $table {
             fn build_table(&mut self, ui: &mut egui::Ui) {
+                ui.set_width(ui.available_width());
+                let width_bucket: i32 = ((ui.available_width() as i32) / 64) * 64;
                 let mut builder = TableBuilder::new(ui)
+                    .id_salt((self.table_id(), width_bucket))
                     .striped($(($striped))?)
                     .resizable($(($resizable))?)
                     .stick_to_bottom($(($stick_to_bottom))?);

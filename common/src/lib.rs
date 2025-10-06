@@ -8,7 +8,9 @@ use std::fmt;
 pub use crate::mpegts::MpegtsPacket;
 pub use crate::rtcp::RtcpPacket;
 pub use crate::rtp::RtpPacket;
+pub use crate::stun::StunPacket;
 pub use packet::Packet;
+pub use packet::SessionProtocol;
 pub use sdp::Sdp;
 
 pub mod mpegts;
@@ -17,6 +19,7 @@ pub mod rtcp;
 pub mod rtp;
 pub mod sdp;
 mod stream_keys;
+pub mod stun;
 pub mod utils;
 
 pub use stream_keys::{MpegtsStreamKey, PacketAssociationTable, RtpStreamKey};
