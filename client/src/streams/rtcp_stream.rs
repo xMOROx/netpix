@@ -44,39 +44,32 @@ impl RtcpStream {
     }
 
     pub fn update_with_sr(&mut self, packet: &RtcpPacket) {
-        match packet {
-            RtcpPacket::SenderReport(report) => {
-                if report.ssrc == self.ssrc {
-                    let current_event_time_duration = ntp_to_unix_time(report.ntp_time);
+        if let RtcpPacket::SenderReport(report) = packet {
+            if report.ssrc == self.ssrc {
+                let current_event_time_duration = ntp_to_unix_time(report.ntp_time);
 
-                    if let (Some(last_event_time_duration), Some(last_octets)) =
-                        (self.last_sr_timestamp, self.last_sr_octet_count)
+                if let (Some(last_event_time_duration), Some(last_octets)) =
+                    (self.last_sr_timestamp, self.last_sr_octet_count)
+                {
+                    if let Some(delta_duration) =
+                        current_event_time_duration.checked_sub(&last_event_time_duration)
                     {
-                        // Calculate the difference in time from the last report
-                        if let Some(delta_duration) =
-                            current_event_time_duration.checked_sub(&last_event_time_duration)
-                        {
-                            let delta_time_secs =
-                                delta_duration.num_microseconds().unwrap_or(0) as f64 / 1_000_000.0;
+                        let delta_time_secs =
+                            delta_duration.num_microseconds().unwrap_or(0) as f64 / 1_000_000.0;
 
-                            // Only calculate bitrate if a positive amount of time has actually passed.
-                            if delta_time_secs > 0.0 {
-                                // Use wrapping subtraction for octet count to handle potential u32 wrap-around.
-                                let delta_octets = report.octet_count.wrapping_sub(last_octets);
+                        if delta_time_secs > 0.0 {
+                            let delta_octets = report.octet_count.wrapping_sub(last_octets);
 
-                                // Calculate bitrate: (delta_bytes * 8 bits/byte) / delta_seconds
-                                let bitrate_bps = (delta_octets as f64 * 8.0) / delta_time_secs;
-                                self.current_avg_bitrate_bps = bitrate_bps;
+                            let bitrate_bps = (delta_octets as f64 * 8.0) / delta_time_secs;
+                            self.current_avg_bitrate_bps = bitrate_bps;
 
-                                self.bitrate_history.push((report.ntp_time, bitrate_bps));
-                            }
+                            self.bitrate_history.push((report.ntp_time, bitrate_bps));
                         }
                     }
-                    self.last_sr_timestamp = Some(current_event_time_duration);
-                    self.last_sr_octet_count = Some(report.octet_count);
                 }
+                self.last_sr_timestamp = Some(current_event_time_duration);
+                self.last_sr_octet_count = Some(report.octet_count);
             }
-            _ => {}
         }
     }
 

@@ -178,7 +178,7 @@ fn insert_or_update_rtcp_stream(
 fn update_rtcp_streams_with_rr(
     streams_arg: &mut HashMap<RtpStreamKey, RtcpStream>,
     pkt: &Packet,
-    reception_reports: &Vec<ReceptionReport>,
+    reception_reports: &[ReceptionReport],
 ) {
     for report in reception_reports.iter() {
         let key_same_port = (
