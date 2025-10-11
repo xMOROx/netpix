@@ -3,6 +3,7 @@ mod client;
 pub mod config;
 mod constants;
 mod handler;
+mod sslkey;
 
 use crate::sniffer::Sniffer;
 use config::Config;
@@ -15,6 +16,10 @@ use netpix_macros::{
 
 pub async fn run(sniffers: HashMap<String, Sniffer>, config: Config) {
     let clients = setup_clients!();
+
+    let ssl_key_path = std::env::var("SSLKEYLOGFILE").ok();
+     let _ssl_key_store = sslkey::start_ssl_key_watcher(ssl_key_path);
+
     let source_to_packets = setup_packet_handlers!((sniffers, clients, config));
     let sender_clients = clients.clone();
 
