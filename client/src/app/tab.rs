@@ -10,6 +10,7 @@ pub enum Tab {
     Packets,
     RtpSection(RtpSection),
     MpegTsSection(MpegTsSection),
+    IceSection(IceSection),
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -24,6 +25,11 @@ pub enum MpegTsSection {
     Packets,
     Streams,
     Information,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum IceSection {
+    TurnChannelData,
 }
 
 impl Tab {
@@ -45,6 +51,10 @@ impl Tab {
                 "📺 MPEG-TS".to_string(),
                 MpegTsSection::iter().map(Self::MpegTsSection).collect(),
             ),
+            (
+                "📡 ICE".to_string(),
+                IceSection::iter().map(Self::IceSection).collect(),
+            ),
         ]
     }
 
@@ -59,6 +69,7 @@ impl Tab {
             Self::Packets => "📦 Packets".to_string(),
             Self::RtpSection(section) => section.display_name(),
             Self::MpegTsSection(section) => section.display_name(),
+            Self::IceSection(section) => section.display_name(),
         }
     }
 
@@ -76,6 +87,9 @@ impl Tab {
                 MpegTsSection::Streams => "mpegts_streams",
                 MpegTsSection::Information => "mpegts_info",
             },
+            Tab::IceSection(section) => match section {
+                IceSection::TurnChannelData => "turn_channel_data",
+            },
         }
     }
 }
@@ -86,6 +100,7 @@ impl fmt::Display for Tab {
             Self::Packets => write!(f, "📦 Packets"),
             Self::RtpSection(section) => section.fmt(f),
             Self::MpegTsSection(section) => section.fmt(f),
+            Self::IceSection(section) => section.fmt(f),
         }
     }
 }
@@ -132,5 +147,23 @@ impl Section for MpegTsSection {
 
     fn display_name(&self) -> String {
         self.to_string()
+    }
+}
+
+impl Section for IceSection {
+    fn iter() -> impl Iterator<Item = Self> {
+        [Self::TurnChannelData].into_iter()
+    }
+
+    fn display_name(&self) -> String {
+        match self {
+            Self::TurnChannelData => "🔄 📡 TURN Channel Data".to_string(),
+        }
+    }
+}
+
+impl fmt::Display for IceSection {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.display_name())
     }
 }

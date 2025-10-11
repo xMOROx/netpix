@@ -4,10 +4,12 @@ use bincode::{
     Decode, Encode,
 };
 use std::fmt;
+use std::str::FromStr;
 
 pub use crate::mpegts::MpegtsPacket;
 pub use crate::rtcp::RtcpPacket;
 pub use crate::rtp::RtpPacket;
+pub use crate::turn::ChannelData;
 pub use packet::Packet;
 pub use sdp::Sdp;
 
@@ -17,6 +19,7 @@ pub mod rtcp;
 pub mod rtp;
 pub mod sdp;
 mod stream_keys;
+pub mod turn;
 pub mod utils;
 
 pub use stream_keys::{MpegtsStreamKey, PacketAssociationTable, RtpStreamKey};
@@ -98,5 +101,54 @@ impl Response {
 
     pub fn encode(&self) -> Result<Vec<u8>, EncodeError> {
         bincode::encode_to_vec(self, config::standard())
+    }
+}
+
+#[derive(Encode, Decode, PartialEq, Debug, Copy, Clone)]
+pub enum SessionProtocol {
+    Unknown,
+    Rtp,
+    Rtcp,
+    Mpegts,
+    Turn,
+}
+
+impl FromStr for SessionProtocol {
+    type Err = ();
+    fn from_str(p0: &str) -> Result<Self, Self::Err> {
+        match p0.to_lowercase().as_str() {
+            "unknown" => Ok(Self::Unknown),
+            "rtp" => Ok(Self::Rtp),
+            "rtcp" => Ok(Self::Rtcp),
+            "mpeg-ts" => Ok(Self::Mpegts),
+            "turn" => Ok(Self::Turn),
+            _ => Err(()),
+        }
+    }
+}
+
+impl SessionProtocol {
+    pub fn all() -> Vec<Self> {
+        vec![
+            Self::Unknown,
+            Self::Rtp,
+            Self::Rtcp,
+            Self::Mpegts,
+            Self::Turn,
+        ]
+    }
+}
+
+impl fmt::Display for SessionProtocol {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let res = match self {
+            Self::Unknown => "Unknown",
+            Self::Rtp => "RTP",
+            Self::Rtcp => "RTCP",
+            Self::Mpegts => "MPEG-TS",
+            Self::Turn => "TURN",
+        };
+
+        write!(f, "{}", res)
     }
 }
