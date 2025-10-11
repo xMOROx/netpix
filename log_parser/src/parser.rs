@@ -62,8 +62,6 @@ impl Parser {
         for (i, packet) in self.packets.iter_mut().enumerate() {
             packet.id = i;
         }
-
-        save_packets_human("debug.txt".as_ref(), &*self.packets).expect("TODO: panic message");
         
         Ok(())
     }
