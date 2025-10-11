@@ -12,7 +12,7 @@ use super::{
     tab::Tab,
     tables::{
         MpegTsInformationTable, MpegTsPacketsTable, MpegTsStreamsTable, PacketsTable,
-        RtcpPacketsTable, RtpPacketsTable, RtpStreamsTable,
+        RtcpPacketsTable, RtcpStreamsTable, RtpPacketsTable, RtpStreamsTable,
     },
     ui_components::types::{AppBottomBar, AppSidePanel, AppTopBar},
     SOURCE_KEY, TAB_KEY,
@@ -72,6 +72,7 @@ impl App {
         table_registry.register::<PacketsTable>(streams.clone(), ws_sender.clone());
         table_registry.register::<RtpPacketsTable>(streams.clone(), ws_sender.clone());
         table_registry.register::<RtcpPacketsTable>(streams.clone(), ws_sender.clone());
+        table_registry.register::<RtcpStreamsTable>(streams.clone(), ws_sender.clone());
         table_registry.register::<RtpStreamsTable>(streams.clone(), ws_sender.clone());
         table_registry.register::<MpegTsPacketsTable>(streams.clone(), ws_sender.clone());
         table_registry.register::<MpegTsStreamsTable>(streams.clone(), ws_sender.clone());
