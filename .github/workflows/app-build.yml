@@ -94,7 +94,8 @@ jobs:
       
       - name: Install dependencies
         run: |
-          sudo apt-get install libpcap-dev
+          sudo apt-get update
+          sudo apt-get install -y libpcap-dev protobuf-compiler
           cargo binstall --no-confirm --version ~0.21.4 trunk
       
       - name: Build client (WASM)
