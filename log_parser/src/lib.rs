@@ -1,5 +1,5 @@
-pub mod parser;
 mod bitstream;
+pub mod parser;
 mod types;
 
 // webrtc.rtclog2

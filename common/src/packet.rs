@@ -4,7 +4,7 @@ use bincode::{Decode, Encode};
 use std::net::SocketAddr;
 use std::str::FromStr;
 use std::time::Duration;
-use std::{fmt, time::SystemTime};
+use std::{fmt, io::Write, time::SystemTime};
 
 #[cfg(not(target_arch = "wasm32"))]
 use pnet_packet::{
@@ -80,54 +80,6 @@ pub enum SessionPacket {
     Rtp(RtpPacket),
     Rtcp(Vec<RtcpPacket>),
     Mpegts(MpegtsPacket),
-}
-
-use std::io::Write;
-
-impl fmt::Display for Packet {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        // Example: timestamp in ms, source->dest, length, id, protocols
-        let ts_ms = self
-            .timestamp
-            .as_secs()
-            .saturating_mul(1000)
-            .saturating_add(self.timestamp.subsec_millis() as u64);
-        let creation_ms = match self.creation_time.duration_since(std::time::UNIX_EPOCH) {
-            Ok(dur) => dur
-                .as_secs()
-                .saturating_mul(1000)
-                .saturating_add(dur.subsec_millis() as u64),
-            Err(_) => 0,
-        };
-        // payload length only? printing raw bytes might not be human-friendly:
-        let payload_info = match &self.payload {
-            Some(bytes) => format!("{} bytes", bytes.len()),
-            None => "None".to_string(),
-        };
-        write!(
-            f,
-            "id={} ts_ms={} creation_ms={} len={} src={} dst={} proto={:?}/{:?} contents={:?} payload={}",
-            self.id,
-            ts_ms,
-            creation_ms,
-            self.length,
-            self.source_addr,
-            self.destination_addr,
-            self.transport_protocol,
-            self.session_protocol,
-            self.contents,
-            payload_info
-        )
-    }
-}
-
-// Then saving:
-pub fn save_packets_human(path: &std::path::Path, packets: &[Packet]) -> std::io::Result<()> {
-    let mut file = std::fs::File::create(path)?;
-    for pkt in packets {
-        writeln!(file, "{}", pkt)?;
-    }
-    Ok(())
 }
 
 #[derive(Encode, Decode, Debug, Clone)]
@@ -342,8 +294,52 @@ impl Packet {
             }
         }
     }
+
+    pub fn save_human(path: &std::path::Path, packets: &[Packet]) -> std::io::Result<()> {
+        let mut file = std::fs::File::create(path)?;
+        for pkt in packets {
+            writeln!(file, "{}", pkt)?;
+        }
+        Ok(())
+    }
 }
 
+impl fmt::Display for Packet {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        // Example: timestamp in ms, source->dest, length, id, protocols
+        let ts_ms = self
+            .timestamp
+            .as_secs()
+            .saturating_mul(1000)
+            .saturating_add(self.timestamp.subsec_millis() as u64);
+        let creation_ms = match self.creation_time.duration_since(std::time::UNIX_EPOCH) {
+            Ok(dur) => dur
+                .as_secs()
+                .saturating_mul(1000)
+                .saturating_add(dur.subsec_millis() as u64),
+            Err(_) => 0,
+        };
+        // payload length only? printing raw bytes might not be human-friendly:
+        let payload_info = match &self.payload {
+            Some(bytes) => format!("{} bytes", bytes.len()),
+            None => "None".to_string(),
+        };
+        write!(
+            f,
+            "id={} ts_ms={} creation_ms={} len={} src={} dst={} proto={:?}/{:?} contents={:?} payload={}",
+            self.id,
+            ts_ms,
+            creation_ms,
+            self.length,
+            self.source_addr,
+            self.destination_addr,
+            self.transport_protocol,
+            self.session_protocol,
+            self.contents,
+            payload_info
+        )
+    }
+}
 #[cfg(not(target_arch = "wasm32"))]
 fn is_rtp(packet: &RtpPacket) -> bool {
     if packet.version != 2 {

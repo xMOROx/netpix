@@ -14,9 +14,9 @@ pub struct LogRtcpPacket {
     pub type_: RtcpPacketType,
 }
 
-impl LogRtcpPacket {
-    pub fn from_incoming(packet: IncomingRtcpPackets) -> LogRtcpPacket {
-        LogRtcpPacket{
+impl From<IncomingRtcpPackets> for LogRtcpPacket {
+    fn from(packet: IncomingRtcpPackets) -> Self {
+        LogRtcpPacket {
             timestamp_ms: packet.timestamp_ms,
             raw_packet: packet.raw_packet,
             number_of_deltas: packet.number_of_deltas,
@@ -25,9 +25,11 @@ impl LogRtcpPacket {
             type_: RtcpPacketType::Incoming,
         }
     }
+}
 
-    pub fn from_outgoing(packet: OutgoingRtcpPackets) -> LogRtcpPacket {
-        LogRtcpPacket{
+impl From<OutgoingRtcpPackets> for LogRtcpPacket {
+    fn from(packet: OutgoingRtcpPackets) -> Self {
+        LogRtcpPacket {
             timestamp_ms: packet.timestamp_ms,
             raw_packet: packet.raw_packet,
             number_of_deltas: packet.number_of_deltas,

@@ -1,7 +1,7 @@
 use futures_util::StreamExt;
+use log_parser::parser::Parser;
 use netpix_common::{Packet, Source};
 use pcap::{Capture, PacketCodec, PacketStream};
-use log_parser::parser::Parser;
 
 #[derive(Debug)]
 pub enum Error {
@@ -67,20 +67,22 @@ struct LogStream {
 
 impl LogStream {
     pub fn new(packets: Vec<Packet>) -> Self {
-        Self { packets,cursor: 0usize }
+        Self {
+            packets,
+            cursor: 0usize,
+        }
     }
     pub fn next(&mut self) -> Option<Result<Result<Packet, Error>, pcap::Error>> {
         if self.cursor < self.packets.len() {
             let pkt = self.packets[self.cursor].clone();
             self.cursor += 1;
-            
+
             Some(Ok(Ok(pkt)))
         } else {
             None
         }
     }
 }
-
 
 enum CaptureType {
     Offline(OfflineStream),
@@ -131,14 +133,16 @@ impl Sniffer {
             source: Source::Interface(format!("{} {}", device, if promisc { "👁️" } else { "" })),
         })
     }
-    
+
     pub fn from_logs(file: &str) -> Result<Self, Error> {
         let mut parser = Parser::new(Vec::new());
-        parser.decode_from_file(file.to_string()).expect("Failed to decode from log file");
-        
+        parser
+            .decode_from_file(file.to_string())
+            .expect("Failed to decode from log file");
+
         let log_stream = LogStream::new(parser.packets);
-        
-        Ok(Self{
+
+        Ok(Self {
             capture: CaptureType::RtcLogging(log_stream),
             source: Source::Interface(file.to_string()),
         })

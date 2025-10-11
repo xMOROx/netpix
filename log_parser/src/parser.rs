@@ -1,74 +1,66 @@
+use crate::bitstream::{BlobDecoder, FixedLengthDeltaDecoder};
+use crate::types::{LogRtcpPacket, RtcpPacketType};
+use crate::webrtc::rtclog2::EventStream;
+use netpix_common::packet::{Packet, SessionPacket, SessionProtocol, TransportProtocol};
+use prost::{DecodeError, Message};
 use std::fs::File;
 use std::io::Read;
 use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 use std::time::{Duration, SystemTime};
-use prost::{DecodeError, Message};
-use crate::types::{LogRtcpPacket, RtcpPacketType};
-use netpix_common::packet::{save_packets_human, Packet, SessionPacket, SessionProtocol, TransportProtocol};
-use crate::bitstream::{BlobDecoder, FixedLengthDeltaDecoder};
-use crate::webrtc::rtclog2::EventStream;
 
-
-
-pub struct Parser{
-    pub packets : Vec<Packet>,
-    id: usize
+pub struct Parser {
+    pub packets: Vec<Packet>,
 }
 
 impl Parser {
-    pub fn new(packets : Vec<Packet>) -> Parser {
-        Parser{
-            packets,
-            id: 0,
-        }
+    pub fn new(packets: Vec<Packet>) -> Parser {
+        Parser { packets }
     }
-    
-    pub fn decode_from_file(&mut self,file : String) -> Result<(), DecodeError> {
+
+    pub fn decode_from_file(&mut self, file: String) -> Result<(), DecodeError> {
         let Ok(mut file) = File::open(file) else {
             return Err(DecodeError::new("File not found"));
         };
         let mut buf = Vec::new();
-        let Ok(_) =  file.read_to_end(&mut buf) else {
+        let Ok(_) = file.read_to_end(&mut buf) else {
             return Err(DecodeError::new("File could not be read"));
         };
         let event_stream: EventStream = Message::decode(&*buf)?;
         let inc_packets: Vec<LogRtcpPacket> = event_stream
             .incoming_rtcp_packets
             .into_iter()
-            .map(LogRtcpPacket::from_incoming)
+            .map(Into::into)
             .collect();
-        
+
         match self.parse_rtcp_packets(inc_packets) {
             Ok(()) => {}
             Err(e) => return Err(e),
         }
-        
 
-        let out_packets: Vec<LogRtcpPacket> = 
-                event_stream
-                .outgoing_rtcp_packets
-                .into_iter()
-                .map(LogRtcpPacket::from_outgoing)
+        let out_packets: Vec<LogRtcpPacket> = event_stream
+            .outgoing_rtcp_packets
+            .into_iter()
+            .map(Into::into)
             .collect();
-        
 
-        match self.parse_rtcp_packets(out_packets){
+        match self.parse_rtcp_packets(out_packets) {
             Ok(()) => {}
             Err(e) => return Err(e),
         };
-        
+
         self.packets.sort_by_key(|p| p.timestamp);
 
         for (i, packet) in self.packets.iter_mut().enumerate() {
             packet.id = i;
         }
 
-        save_packets_human("debug.txt".as_ref(), &*self.packets).expect("TODO: panic message");
-        
         Ok(())
     }
 
-    pub fn parse_rtcp_packets(&mut self, rtcp_packets: Vec<LogRtcpPacket>) -> Result<(), DecodeError> {
+    pub fn parse_rtcp_packets(
+        &mut self,
+        rtcp_packets: Vec<LogRtcpPacket>,
+    ) -> Result<(), DecodeError> {
         let inc_addr = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 8080);
         let out_addr = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 2)), 8080);
 
@@ -101,7 +93,9 @@ impl Parser {
                 ) {
                     Ok(decoder) => decoder,
                     Err(_) => {
-                        eprintln!("Warning: Could not create timestamp decoder. Skipping packet group.");
+                        eprintln!(
+                            "Warning: Could not create timestamp decoder. Skipping packet group."
+                        );
                         break 'packet_group;
                     }
                 };
@@ -109,7 +103,9 @@ impl Parser {
                 let timestamps = match timestamp_decoder.decode() {
                     Ok(values) => values,
                     Err(_) => {
-                        eprintln!("Warning: Timestamps could not be decoded. Skipping packet group.");
+                        eprintln!(
+                            "Warning: Timestamps could not be decoded. Skipping packet group."
+                        );
                         break 'packet_group;
                     }
                 };
@@ -118,7 +114,9 @@ impl Parser {
                 let blobs = match blob_decoder.decode() {
                     Ok(decoded_blobs) => decoded_blobs,
                     Err(_) => {
-                        eprintln!("Warning: RTCP blobs could not be decoded. Skipping packet group.");
+                        eprintln!(
+                            "Warning: RTCP blobs could not be decoded. Skipping packet group."
+                        );
                         break 'packet_group;
                     }
                 };
@@ -126,7 +124,6 @@ impl Parser {
                 let timestamp = Duration::from_millis(packets.timestamp_ms.unwrap() as u64);
                 let payload = packets.raw_packet.unwrap();
                 let length = payload.len();
-
 
                 let (source_addr, destination_addr) = match packets.type_ {
                     RtcpPacketType::Outgoing => (out_addr, inc_addr),
@@ -173,5 +170,3 @@ impl Parser {
         Ok(())
     }
 }
-
-

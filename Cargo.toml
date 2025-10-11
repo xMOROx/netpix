@@ -29,9 +29,6 @@ bincode = "=2.0.0-rc.3"
 bon = "3.3.0"
 flate2 = "1.0.35"
 
-#[workspace]
-#members = ["log_parser",]
-
 [profile.release]
 opt-level = 3
 

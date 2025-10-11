@@ -12,10 +12,6 @@ readme = false
 name = "log_parser"
 path = "src/lib.rs"
 
-[[bin]]
-name = "rtcp_parser"       # whatever you like
-path = "src/main.rs"
-
 [dependencies]
 prost = "0.13"
 prost-types = "0.13"
