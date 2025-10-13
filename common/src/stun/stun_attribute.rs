@@ -108,7 +108,6 @@ impl StunAttribute {
                 }
             }
             ATTR_DATA => format!("{} bytes", self.value.len()),
-            // if data
             _ => self
                 .value
                 .iter()
@@ -179,7 +178,7 @@ fn parse_xor_address_v6(v: &[u8], txid: &[u8; 12]) -> Option<(Ipv6Addr, u16)> {
     Some((ip, port))
 }
 
-/// Attributes from comprehension-required range (0x0000-0x7FFF.
+/// Attributes from comprehension-required range 0x0000-0x7FFF.
 pub const ATTR_MAPPED_ADDRESS: u16 = 0x0001; // MAPPED-ADDRESS
 pub const ATTR_USERNAME: u16 = 0x0006; // USERNAME
 pub const ATTR_MESSAGE_INTEGRITY: u16 = 0x0008; // MESSAGE-INTEGRITY
@@ -189,7 +188,7 @@ pub const ATTR_REALM: u16 = 0x0014; // REALM
 pub const ATTR_NONCE: u16 = 0x0015; // NONCE
 pub const ATTR_XORMAPPED_ADDRESS: u16 = 0x0020; // XOR-MAPPED-ADDRESS
 
-/// Attributes from comprehension-optional range (0x8000-0xFFFF.
+/// Attributes from comprehension-optional range 0x8000-0xFFFF.
 pub const ATTR_SOFTWARE: u16 = 0x8022; // SOFTWARE
 pub const ATTR_ALTERNATE_SERVER: u16 = 0x8023; // ALTERNATE-SERVER
 pub const ATTR_FINGERPRINT: u16 = 0x8028; // FINGERPRINT
