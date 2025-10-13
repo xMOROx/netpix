@@ -609,6 +609,7 @@ fn build_stream_points(
                 on_hover.push_str("\nOther rtcp\n");
                 on_hover.push_str("------------------------\n");
             }
+            _ => {}
         };
         let x = rtcp_info.time.as_secs_f64() - first_packet.timestamp.as_secs_f64();
         let y = if let Some(last_position) = points_x_and_y_top.last() {

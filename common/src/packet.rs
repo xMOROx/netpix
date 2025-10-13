@@ -397,6 +397,10 @@ fn is_rtcp(packets: &[RtcpPacket]) -> bool {
             | RtcpPacket::ReceiverReport(_)
             | RtcpPacket::Goodbye(_)
             | RtcpPacket::PayloadSpecificFeedback
+            | RtcpPacket::ReceiverEstimatedMaximumBitrate(_)
+            | RtcpPacket::FullIntraRequest(_)
+            | RtcpPacket::PictureLossIndication(_)
+            | RtcpPacket::SliceLossIndication(_)
     ) {
         return false;
     }
