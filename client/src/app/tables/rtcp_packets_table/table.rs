@@ -172,6 +172,10 @@ fn build_packet(ui: &mut Ui, packet: &RtcpPacket) {
         RtcpPacket::ReceiverReport(report) => build_receiver_report(ui, report),
         RtcpPacket::SourceDescription(desc) => build_source_description(ui, desc),
         RtcpPacket::Goodbye(bye) => build_goodbye(ui, bye),
+        RtcpPacket::PictureLossIndication(pli) => build_picture_loss_indication(ui,pli),
+        RtcpPacket::ReceiverEstimatedMaximumBitrate(remb) => build_receiver_estimated_maximum_bitrate(ui,remb),
+        RtcpPacket::SliceLossIndication(sli) => build_slice_loss_indication(ui,sli),
+        RtcpPacket::FullIntraRequest(fir) => build_full_intra_request(ui, fir),
         _ => {
             ui.label("Unsupported");
         }
@@ -274,6 +278,66 @@ fn build_goodbye(ui: &mut Ui, bye: &Goodbye) {
     build_label(ui, "Reason:", bye.reason.clone());
 }
 
+fn build_picture_loss_indication(ui: &mut Ui, pli: &PictureLossIndication) {
+    build_label(ui, "Sender SSRC:", format!("{:x}", pli.sender_ssrc));
+    build_label(ui, "Media SSRC:", format!("{:x}", pli.media_ssrc));
+}
+
+fn build_receiver_estimated_maximum_bitrate(ui: &mut Ui, remb: &ReceiverEstimatedMaximumBitrate) {
+    build_label(ui, "Sender SSRC:", format!("{:x}", remb.sender_ssrc));
+    let kbps = remb.bitrate / 1000.0;
+    build_label(ui, "Bitrate:", format!("{:.2} kbps", kbps));
+    let ssrcs = remb
+        .ssrcs
+        .iter()
+        .map(|s| format!("{:x}", s))
+        .collect::<Vec<_>>()
+        .join(", ");
+    build_label(ui, "SSRCs:", ssrcs);
+}
+
+fn build_slice_loss_indication(ui: &mut Ui, sli: &SliceLossIndication) {
+    build_label(ui, "Sender SSRC:", format!("{:x}", sli.sender_ssrc));
+    build_label(ui, "Media SSRC:", format!("{:x}", sli.media_ssrc));
+
+    if sli.sli_entries.is_empty() {
+        ui.label(RichText::new("No SLI entries").strong());
+    } else {
+        ui.separator();
+        let mut first = true;
+        ui.horizontal(|ui| {
+            for e in &sli.sli_entries {
+                if !first { ui.separator(); } else { first = false; }
+                ui.vertical(|ui| {
+                    build_label(ui, "First macroblock:", e.first.to_string());
+                    build_label(ui, "Number of macroblocks:", e.number.to_string());
+                    build_label(ui, "Picture ID:", e.picture.to_string());
+                });
+            }
+        });
+    }
+}
+
+fn build_full_intra_request(ui: &mut Ui, fir: &FullIntraRequest) {
+    build_label(ui, "Sender SSRC:", format!("{:x}", fir.sender_ssrc));
+    build_label(ui, "Media SSRC:", format!("{:x}", fir.media_ssrc));
+
+    if fir.fir.is_empty() {
+        ui.label(RichText::new("No FIR entries").strong());
+    } else {
+        ui.separator();
+        let mut first = true;
+        ui.horizontal(|ui| {
+            for entry in &fir.fir {
+                if !first { ui.separator(); } else { first = false; }
+                ui.vertical(|ui| {
+                    build_label(ui, "SSRC:", format!("{:x}", entry.ssrc));
+                    build_label(ui, "Sequence number:", entry.sequence_number.to_string());
+                });
+            }
+        });
+    }
+}
 fn build_label(ui: &mut Ui, bold: impl Into<String>, normal: impl Into<String>) {
     let source_label = RichText::new(bold.into()).strong();
     ui.horizontal(|ui| {
