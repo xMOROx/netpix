@@ -2,6 +2,10 @@ use bincode::{Decode, Encode};
 pub use goodbye::Goodbye;
 pub use receiver_report::ReceiverReport;
 pub use reception_report::ReceptionReport;
+pub use full_intra_request::FullIntraRequest;
+pub use picture_loss_indication::PictureLossIndication;
+pub use receiver_estimated_maximum_bitrate::ReceiverEstimatedMaximumBitrate;
+pub use slice_loss_indication::SliceLossIndication;
 pub use sender_report::SenderReport;
 pub use source_description::SourceDescription;
 
@@ -10,6 +14,12 @@ pub mod receiver_report;
 pub mod reception_report;
 pub mod sender_report;
 pub mod source_description;
+pub mod picture_loss_indication;
+pub mod receiver_estimated_maximum_bitrate;
+pub mod slice_loss_indication;
+pub mod sli_entry;
+pub mod fir_entry;
+pub mod full_intra_request;
 
 #[derive(Decode, Encode, Debug, Clone)]
 pub enum RtcpPacket {
@@ -17,6 +27,10 @@ pub enum RtcpPacket {
     ReceiverReport(receiver_report::ReceiverReport),
     SourceDescription(source_description::SourceDescription),
     Goodbye(goodbye::Goodbye),
+    PictureLossIndication(picture_loss_indication::PictureLossIndication),
+    ReceiverEstimatedMaximumBitrate(receiver_estimated_maximum_bitrate::ReceiverEstimatedMaximumBitrate),
+    SliceLossIndication(slice_loss_indication::SliceLossIndication),
+    FullIntraRequest(full_intra_request::FullIntraRequest),
     ApplicationDefined,
     PayloadSpecificFeedback,
     TransportSpecificFeedback,
@@ -33,6 +47,10 @@ impl RtcpPacket {
             ReceiverReport(_) => "Receiver Report",
             SourceDescription(_) => "Source Description",
             Goodbye(_) => "Goodbye",
+            PictureLossIndication(_) => "Picture Loss Indication",
+            ReceiverEstimatedMaximumBitrate(_) => "Receiver Estimated Maximum Bitrate",
+            SliceLossIndication(_) => "Slice Loss Indication",
+            FullIntraRequest(_) => "Full Intra Request",
             ApplicationDefined => "Application Defined",
             PayloadSpecificFeedback => "Payload-specific Feedback",
             TransportSpecificFeedback => "Transport-specific Feedback",
@@ -91,6 +109,22 @@ impl RtcpPacket {
 
         if let Some(pack) = packet.downcast_ref::<SourceDescription>() {
             return RtcpPacket::SourceDescription(source_description::SourceDescription::new(pack));
+        }
+
+        if let Some(pack) = packet.downcast_ref::<rtcp::payload_feedbacks::picture_loss_indication::PictureLossIndication>() {
+            return RtcpPacket::PictureLossIndication(picture_loss_indication::PictureLossIndication::new(pack));
+        }
+
+        if let Some(pack) = packet.downcast_ref::<rtcp::payload_feedbacks::full_intra_request::FullIntraRequest>() {
+            return RtcpPacket::FullIntraRequest(full_intra_request::FullIntraRequest::new(pack));
+        }
+
+        if let Some(pack) = packet.downcast_ref::<rtcp::payload_feedbacks::receiver_estimated_maximum_bitrate::ReceiverEstimatedMaximumBitrate>() {
+            return RtcpPacket::ReceiverEstimatedMaximumBitrate(receiver_estimated_maximum_bitrate::ReceiverEstimatedMaximumBitrate::new(pack));
+        }
+
+        if let Some(pack) = packet.downcast_ref::<rtcp::payload_feedbacks::slice_loss_indication::SliceLossIndication>() {
+            return RtcpPacket::SliceLossIndication(slice_loss_indication::SliceLossIndication::new(pack));
         }
 
         RtcpPacket::Other
