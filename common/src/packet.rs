@@ -1,4 +1,4 @@
-use super::{MpegtsPacket, RtcpPacket, RtpPacket};
+use super::{MpegtsPacket, RtcpPacket, RtpPacket, StunPacket};
 use bincode::{Decode, Encode};
 
 use std::net::SocketAddr;
@@ -23,6 +23,7 @@ pub enum SessionProtocol {
     Rtp,
     Rtcp,
     Mpegts,
+    Stun,
 }
 
 impl FromStr for SessionProtocol {
@@ -33,6 +34,7 @@ impl FromStr for SessionProtocol {
             "rtp" => Ok(Self::Rtp),
             "rtcp" => Ok(Self::Rtcp),
             "mpeg-ts" => Ok(Self::Mpegts),
+            "stun" => Ok(Self::Stun),
             _ => Err(()),
         }
     }
@@ -40,7 +42,13 @@ impl FromStr for SessionProtocol {
 
 impl SessionProtocol {
     pub fn all() -> Vec<Self> {
-        vec![Self::Unknown, Self::Rtp, Self::Rtcp, Self::Mpegts]
+        vec![
+            Self::Unknown,
+            Self::Rtp,
+            Self::Rtcp,
+            Self::Mpegts,
+            Self::Stun,
+        ]
     }
 }
 
@@ -51,6 +59,7 @@ impl fmt::Display for SessionProtocol {
             Self::Rtp => "RTP",
             Self::Rtcp => "RTCP",
             Self::Mpegts => "MPEG-TS",
+            Self::Stun => "STUN",
         };
 
         write!(f, "{}", res)
@@ -80,6 +89,7 @@ pub enum SessionPacket {
     Rtp(RtpPacket),
     Rtcp(Vec<RtcpPacket>),
     Mpegts(MpegtsPacket),
+    Stun(StunPacket),
 }
 
 #[derive(Encode, Decode, Debug, Clone)]
@@ -100,63 +110,19 @@ pub struct Packet {
 impl Packet {
     pub fn build(raw_packet: &pcap::Packet, id: usize) -> Option<Self> {
         let ethernet_packet = EthernetPacket::new(raw_packet)?;
-
-        match ethernet_packet.get_ethertype() {
-            EtherTypes::Ipv4 => Self::build_from_ip4(raw_packet, id, &ethernet_packet),
-            EtherTypes::Ipv6 => Self::build_from_ip6(raw_packet, id, &ethernet_packet),
-            _ => None,
-        }
+        Self::build_from_ethernet(raw_packet, id, &ethernet_packet)
     }
 
-    fn build_from_transport(
+    fn build_from_ethernet(
         raw_packet: &pcap::Packet,
         id: usize,
-        source_addr: std::net::IpAddr,
-        destination_addr: std::net::IpAddr,
-        transport_protocol: TransportProtocol,
-        payload: &[u8],
+        ethernet_packet: &EthernetPacket,
     ) -> Option<Self> {
-        let (source_addr, destination_addr, payload) = match transport_protocol {
-            TransportProtocol::Tcp => {
-                let tcp_packet = TcpPacket::new(payload)?;
-                let source_port = tcp_packet.get_source();
-                let destination_port = tcp_packet.get_destination();
-                let source_addr = SocketAddr::new(source_addr, source_port);
-                let destination_addr = SocketAddr::new(destination_addr, destination_port);
-                let tcp_payload = tcp_packet.payload();
-                if tcp_payload.is_empty() {
-                    (source_addr, destination_addr, payload.to_vec())
-                } else {
-                    (source_addr, destination_addr, tcp_payload.to_vec())
-                }
-            }
-            TransportProtocol::Udp => {
-                let udp_packet = UdpPacket::new(payload)?;
-                let source_port = udp_packet.get_source();
-                let destination_port = udp_packet.get_destination();
-                let source_addr = SocketAddr::new(source_addr, source_port);
-                let destination_addr = SocketAddr::new(destination_addr, destination_port);
-                let udp_payload = udp_packet.payload();
-                if udp_payload.is_empty() {
-                    (source_addr, destination_addr, payload.to_vec())
-                } else {
-                    (source_addr, destination_addr, udp_payload.to_vec())
-                }
-            }
-        };
-
-        Some(Self {
-            payload: Some(payload),
-            id,
-            length: raw_packet.header.len - 14,
-            timestamp: get_duration(raw_packet),
-            source_addr,
-            destination_addr,
-            transport_protocol,
-            session_protocol: SessionProtocol::Unknown,
-            contents: SessionPacket::Unknown,
-            creation_time: SystemTime::now(),
-        })
+        match ethernet_packet.get_ethertype() {
+            EtherTypes::Ipv4 => Self::build_from_ip4(raw_packet, id, ethernet_packet),
+            EtherTypes::Ipv6 => Self::build_from_ip6(raw_packet, id, ethernet_packet),
+            _ => None,
+        }
     }
 
     fn build_from_ip4(
@@ -233,13 +199,70 @@ impl Packet {
         )
     }
 
+    fn build_from_transport(
+        raw_packet: &pcap::Packet,
+        id: usize,
+        source_addr: std::net::IpAddr,
+        destination_addr: std::net::IpAddr,
+        transport_protocol: TransportProtocol,
+        payload: &[u8],
+    ) -> Option<Self> {
+        let (source_addr, destination_addr, payload) = match transport_protocol {
+            TransportProtocol::Tcp => {
+                let tcp_packet = TcpPacket::new(payload)?;
+                let source_port = tcp_packet.get_source();
+                let destination_port = tcp_packet.get_destination();
+                let source_addr = SocketAddr::new(source_addr, source_port);
+                let destination_addr = SocketAddr::new(destination_addr, destination_port);
+                let tcp_payload = tcp_packet.payload();
+                if tcp_payload.is_empty() {
+                    (source_addr, destination_addr, payload.to_vec())
+                } else {
+                    (source_addr, destination_addr, tcp_payload.to_vec())
+                }
+            }
+            TransportProtocol::Udp => {
+                let udp_packet = UdpPacket::new(payload)?;
+                let source_port = udp_packet.get_source();
+                let destination_port = udp_packet.get_destination();
+                let source_addr = SocketAddr::new(source_addr, source_port);
+                let destination_addr = SocketAddr::new(destination_addr, destination_port);
+                let udp_payload = udp_packet.payload();
+                if udp_payload.is_empty() {
+                    (source_addr, destination_addr, payload.to_vec())
+                } else {
+                    (source_addr, destination_addr, udp_payload.to_vec())
+                }
+            }
+        };
+
+        Some(Self {
+            payload: Some(payload),
+            id,
+            length: raw_packet.header.len - 14,
+            timestamp: get_duration(raw_packet),
+            source_addr,
+            destination_addr,
+            transport_protocol,
+            session_protocol: SessionProtocol::Unknown,
+            contents: SessionPacket::Unknown,
+            creation_time: SystemTime::now(),
+        })
+    }
+
     pub fn guess_payload(&mut self) {
         // could use port to determine validity
-        // TODO: STUN data, TURN channels, RTCP
+        // TODO: TURN channels
         //
         // also, some UDP ports are used by other protocols
         // see Wireshark -> View -> Internals -> Dissector Table -> UDP port
         if self.transport_protocol != TransportProtocol::Udp {
+            return;
+        }
+
+        if let Some(stun) = StunPacket::build(self) {
+            self.session_protocol = SessionProtocol::Stun;
+            self.contents = SessionPacket::Stun(stun);
             return;
         }
 
@@ -287,6 +310,13 @@ impl Packet {
                 };
                 self.session_protocol = packet_type;
                 self.contents = SessionPacket::Mpegts(mpegts);
+            }
+            SessionProtocol::Stun => {
+                let Some(stun) = StunPacket::build(self) else {
+                    return;
+                };
+                self.session_protocol = packet_type;
+                self.contents = SessionPacket::Stun(stun);
             }
             SessionProtocol::Unknown => {
                 self.session_protocol = packet_type;
