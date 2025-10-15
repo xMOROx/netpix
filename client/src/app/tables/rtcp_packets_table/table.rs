@@ -120,7 +120,7 @@ declare_table!(RtcpPacketsTable, FilterType, {
         column(Some(70.0), 70.0, None, false, true),
         column(Some(150.0), 150.0, None, false, true),
         column(Some(150.0), 150.0, None, false, true),
-        column(Some(170.0), 170.0, None, false, true),
+        column(Some(250.0), 250.0, None, false, true),
         column(None, 200.0, None, false, true),
     )
 });
@@ -160,6 +160,25 @@ fn get_row_height(packet: &RtcpPacket) -> f32 {
             0 => 4.7,
             _ => 11.0,
         },
+        RtcpPacket::PictureLossIndication(_) => 2.0,
+        RtcpPacket::ReceiverEstimatedMaximumBitrate(remb) => match remb.ssrcs.len() {
+            0 => 2.0,
+            _ => 3.0
+        },
+        RtcpPacket::SliceLossIndication(sli) => {
+            if sli.sli_entries.is_empty() {
+                3.0
+            } else {
+                6.0
+            }
+        }
+        RtcpPacket::FullIntraRequest(fir) => {
+            if fir.fir.is_empty() {
+                3.0
+            } else {
+                5.0
+            }
+        }
         _ => 1.0,
     };
 
@@ -293,7 +312,9 @@ fn build_receiver_estimated_maximum_bitrate(ui: &mut Ui, remb: &ReceiverEstimate
         .map(|s| format!("{:x}", s))
         .collect::<Vec<_>>()
         .join(", ");
-    build_label(ui, "SSRCs:", ssrcs);
+    if !ssrcs.is_empty() {
+        build_label(ui, "SSRCs:", ssrcs);
+    }
 }
 
 fn build_slice_loss_indication(ui: &mut Ui, sli: &SliceLossIndication) {
