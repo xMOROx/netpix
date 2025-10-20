@@ -19,7 +19,7 @@
 //! - `dest:value` - Matches destination IP address containing the value
 //!
 //! ## Protocol Filters
-//! - `proto:value` or `protocol:value` - Matches transport or session protocol name
+//! - `log_parser:value` or `protocol:value` - Matches transport or session protocol name
 //! - `type:value` - Matches specific session protocol (RTP, RTCP, etc.)
 //!
 //! ## Size Filters
@@ -33,15 +33,15 @@
 //!
 //! Simple filters:
 //! - `source:192.168` - Matches packets from addresses containing "192.168"
-//! - `proto:udp` - Matches UDP packets
+//! - `log_parser:udp` - Matches UDP packets
 //! - `type:rtp` - Matches RTP packets
 //! - `length:>100` - Matches packets larger than 100 bytes
 //!
 //! Complex filters:
-//! - `proto:udp AND length:>100` - UDP packets larger than 100 bytes
+//! - `log_parser:udp AND length:>100` - UDP packets larger than 100 bytes
 //! - `source:10.0.0 OR source:192.168` - Packets from specific networks
 //! - `(type:rtp OR type:rtcp) AND NOT dest:10.0.0.1` - RTP/RTCP packets not going to specific host
-//! - `proto:tcp AND length:>=1500` - TCP packets with maximum size
+//! - `log_parser:tcp AND length:>=1500` - TCP packets with maximum size
 
 use crate::{
     declare_filter_type,
@@ -152,17 +152,17 @@ impl FilterParser for FilterType {
                     ))
                 }),
 
-            "proto" | "protocol" => (!value.is_empty())
+            "log_parser" | "protocol" => (!value.is_empty())
                 .then(|| value.to_lowercase())
                 .map(FilterType::Protocol)
                 .ok_or_else(|| {
                     ParseError::InvalidSyntax(
                         "Invalid protocol filter format.\nAvailable filters:\n\
-                         - proto:udp (UDP protocol)\n\
-                         - proto:tcp (TCP protocol)\n\
-                         - proto:rtp (RTP protocol)\n\
-                         - proto:rtcp (RTCP protocol)\n
-                         - proto:mpeg-ts (MPEG Transport Stream)"
+                         - log_parser:udp (UDP protocol)\n\
+                         - log_parser:tcp (TCP protocol)\n\
+                         - log_parser:rtp (RTP protocol)\n\
+                         - log_parser:rtcp (RTCP protocol)\n
+                         - log_parser:mpeg-ts (MPEG Transport Stream)"
                             .into(),
                     )
                 }),
@@ -195,7 +195,7 @@ impl FilterParser for FilterType {
                 "Unknown filter type.\nAvailable filters:\n\
                 - source: Match source IP (e.g., source:192.168)\n\
                 - dest: Match destination IP (e.g., dest:10.0.0)\n\
-                - proto/protocol: Match protocol (e.g., proto:udp)\n\
+                - log_parser/protocol: Match protocol (e.g., log_parser:udp)\n\
                 - length: Match packet size (e.g., length:>100)\n\
                 - type: Match session type (e.g., type:rtp)"
                     .to_string(),

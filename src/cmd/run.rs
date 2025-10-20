@@ -19,6 +19,9 @@ pub struct Run {
     /// Network interfaces to capture the packets from
     #[arg(short, long, num_args = 1..)]
     interfaces: Vec<String>,
+    /// rtc_event_log files to capture packets from
+    #[arg(short = 'l', long = "log-files", num_args = 1..)]
+    log_files: Vec<String>,
     /// Capture filter string in Wireshark/tcpdump syntax, applies to all sources
     #[arg(short, long, default_value_t = String::new())]
     capture: String,
@@ -56,6 +59,7 @@ impl Run {
         let mut interface_sniffers = get_sniffers(self.interfaces, |dev| {
             Sniffer::from_device(dev, self.promisc)
         });
+        let log_sniffers = get_sniffers(self.log_files, Sniffer::from_logs);
 
         let file_res = apply_filters(&mut file_sniffers, &self.capture);
         let interface_res = apply_filters(&mut interface_sniffers, &live_filter);
@@ -68,6 +72,7 @@ impl Run {
         let sniffers: HashMap<_, _> = file_sniffers
             .into_iter()
             .chain(interface_sniffers)
+            .chain(log_sniffers)
             .collect();
 
         if sniffers.is_empty() {

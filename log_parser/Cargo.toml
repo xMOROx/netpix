@@ -1,0 +1,21 @@
+[package]
+name = "netpix_log_parser"
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+description = "Crate for parsing rtc_event_log format"
+homepage = "https://github.com/xMOROx/netpix"
+repository = "https://github.com/xMOROx/netpix"
+readme = false
+
+[lib]
+name = "log_parser"
+path = "src/lib.rs"
+
+[dependencies]
+prost = "0.13"
+prost-types = "0.13"
+netpix_common = { path = "../common", version = "0.5.0" }
+
+[build-dependencies]
+prost-build = "0.13.5"
