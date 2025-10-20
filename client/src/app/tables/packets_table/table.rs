@@ -29,15 +29,15 @@ impl_table_base!(
         .filter("source:<ip>", "Filter by source IP address")
         .filter("dest:<ip>", "Filter by destination IP address")
         .filter(
-            "proto:<protocol> or protocol:<protocol>",
+            "log_parser:<protocol> or protocol:<protocol>",
             "Filter by protocol (TCP, UDP, RTP, RTCP, MPEG-TS)",
         )
         .filter("type:<protocol>", "Filter by protocol type")
         .filter("length:<op><size>", "Filter by packet size")
-        .example("source:192.168 AND proto:udp")
+        .example("source:192.168 AND log_parser:udp")
         .example("length:>100 AND type:rtp")
         .example("NOT dest:10.0.0.1")
-        .example("(proto:tcp AND length:>500) OR source:192.168")
+        .example("(log_parser:tcp AND length:>500) OR source:192.168")
     .build(),
     "packets", "Network Packets"
     ;

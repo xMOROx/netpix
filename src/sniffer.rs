@@ -1,4 +1,5 @@
 use futures_util::StreamExt;
+use log_parser::parser::Parser;
 use netpix_common::{Packet, Source};
 use pcap::{Capture, PacketCodec, PacketStream};
 
@@ -58,9 +59,35 @@ impl OfflineStream {
         Some(Ok(self.decoder.decode(packet)))
     }
 }
+
+struct LogStream {
+    packets: Vec<Packet>,
+    cursor: usize,
+}
+
+impl LogStream {
+    pub fn new(packets: Vec<Packet>) -> Self {
+        Self {
+            packets,
+            cursor: 0usize,
+        }
+    }
+    pub fn next(&mut self) -> Option<Result<Result<Packet, Error>, pcap::Error>> {
+        if self.cursor < self.packets.len() {
+            let pkt = self.packets[self.cursor].clone();
+            self.cursor += 1;
+
+            Some(Ok(Ok(pkt)))
+        } else {
+            None
+        }
+    }
+}
+
 enum CaptureType {
     Offline(OfflineStream),
     Online(PacketStream<pcap::Active, PacketDecoder>),
+    RtcLogging(LogStream),
 }
 
 pub struct Sniffer {
@@ -107,10 +134,25 @@ impl Sniffer {
         })
     }
 
+    pub fn from_logs(file: &str) -> Result<Self, Error> {
+        let mut parser = Parser::new(Vec::new());
+        parser
+            .decode_from_file(file.to_string())
+            .expect("Failed to decode from log file");
+
+        let log_stream = LogStream::new(parser.packets);
+
+        Ok(Self {
+            capture: CaptureType::RtcLogging(log_stream),
+            source: Source::Interface(file.to_string()),
+        })
+    }
+
     pub fn apply_filter(&mut self, filter: &str) -> Result<(), Error> {
         match self.capture {
             CaptureType::Online(ref mut stream) => stream.capture_mut().filter(filter, true),
             CaptureType::Offline(ref mut stream) => stream.capture.filter(filter, true),
+            CaptureType::RtcLogging(_) => Ok(()),
         }
         .map_err(|_| Error::InvalidFilter)
     }
@@ -119,6 +161,7 @@ impl Sniffer {
         let packet = match self.capture {
             CaptureType::Offline(ref mut stream) => stream.next(),
             CaptureType::Online(ref mut stream) => stream.next().await,
+            CaptureType::RtcLogging(ref mut stream) => stream.next(),
         };
 
         match packet {
