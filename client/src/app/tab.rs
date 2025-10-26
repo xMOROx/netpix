@@ -30,6 +30,7 @@ pub enum MpegTsSection {
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum IceSection {
     StunPackets,
+    Candidates,
 }
 
 impl Tab {
@@ -90,6 +91,7 @@ impl Tab {
             },
             Tab::IceSection(section) => match section {
                 IceSection::StunPackets => "stun_packets",
+                IceSection::Candidates => "ice_candidates",
             },
         }
     }
@@ -153,12 +155,13 @@ impl Section for MpegTsSection {
 
 impl Section for IceSection {
     fn iter() -> impl Iterator<Item = Self> {
-        [Self::StunPackets].into_iter()
+        [Self::StunPackets, Self::Candidates].into_iter()
     }
 
     fn display_name(&self) -> String {
         match self {
-            Self::StunPackets => "🔄 🌐 STUN Packets".to_string(),
+            Self::StunPackets => "🔄 STUN Packets".to_string(),
+            Self::Candidates => "🌐 ICE Candidates".to_string(),
         }
     }
 }
