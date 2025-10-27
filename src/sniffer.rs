@@ -144,7 +144,7 @@ impl Sniffer {
 
         Ok(Self {
             capture: CaptureType::RtcLogging(log_stream),
-            source: Source::Interface(file.to_string()),
+            source: Source::File(file.to_string()),
         })
     }
 
