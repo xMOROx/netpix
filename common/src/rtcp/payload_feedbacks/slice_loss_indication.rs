@@ -1,6 +1,5 @@
 use bincode::{Decode, Encode};
-use crate::rtcp::sli_entry::SliEntry;
-
+use crate::rtcp::payload_feedbacks::sli_entry::SliEntry;
 #[derive(Decode, Encode, Debug, Clone)]
 pub struct SliceLossIndication {
     pub sender_ssrc: u32,
