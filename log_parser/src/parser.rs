@@ -4,8 +4,10 @@ use crate::webrtc::rtclog2::EventStream;
 use netpix_common::packet::{Packet, SessionPacket, SessionProtocol, TransportProtocol};
 use prost::{DecodeError, Message};
 use std::fs::File;
+use std::io::{self, BufRead, BufReader, Seek, SeekFrom};
 use std::io::Read;
 use std::net::{IpAddr, Ipv4Addr, SocketAddr};
+use std::thread;
 use std::time::{Duration, SystemTime};
 
 pub struct Parser {
@@ -17,15 +19,45 @@ impl Parser {
         Parser { packets }
     }
 
-    pub fn decode_from_file(&mut self, file: String) -> Result<(), DecodeError> {
-        let Ok(mut file) = File::open(file) else {
+    pub fn decode_from_file(&mut self, file_path: String) -> Result<(), DecodeError> {
+        let Ok(mut file) = File::open(file_path.clone()) else {
             return Err(DecodeError::new("File not found"));
         };
-        let mut buf = Vec::new();
-        let Ok(_) = file.read_to_end(&mut buf) else {
-            return Err(DecodeError::new("File could not be read"));
+        let Ok(_) = file.seek(SeekFrom::Start(0)) else {
+            return Err(DecodeError::new("Could not seek to the end of the file"));
         };
-        let event_stream: EventStream = Message::decode(&*buf)?;
+
+        let mut buf = [0u8; 1024 * 1024];
+
+        println!("Watching for new content in '{}'...", file_path);
+
+        loop {
+            // file.read() attempts to fill the buffer with bytes from the file.
+            // It returns the number of bytes actually read.
+            let bytes_read = file.read(&mut buf)
+                .map_err(|_| DecodeError::new("Error reading from file"))?;
+
+            // 5. If we read new bytes, process them.
+            if bytes_read > 0 {
+                // The new data is the slice of the buffer from the start
+                // up to the number of bytes read.
+                let new_data_slice = &buf[..bytes_read];
+
+                // Pass ONLY the new data to the decode function.
+                self.decode(new_data_slice)?;
+                println!("packets now: {:?}", self.packets.len());
+                // =========================================================
+
+            } else {
+                // 6. If there's no new content (read returned 0 bytes), sleep briefly.
+                // This prevents the loop from consuming 100% CPU.
+                thread::sleep(Duration::from_millis(200));
+            }
+        }
+    }
+
+    fn decode(&mut self, mut buf: &[u8]) -> Result<(), DecodeError> {
+        let event_stream: EventStream = Message::decode(buf)?;
         let inc_packets: Vec<LogRtcpPacket> = event_stream
             .incoming_rtcp_packets
             .into_iter()
@@ -56,6 +88,7 @@ impl Parser {
 
         Ok(())
     }
+
 
     pub fn parse_rtcp_packets(
         &mut self,
