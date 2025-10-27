@@ -12,7 +12,23 @@ use crate::{
 use egui::{RichText, Ui};
 use egui_extras::{Column, TableBody, TableBuilder, TableRow};
 use ewebsock::WsSender;
-use netpix_common::{packet::SessionPacket, rtcp::*, RtcpPacket};
+use netpix_common::{
+    packet::SessionPacket,
+    rtcp::{
+        RtcpPacket,
+        SenderReport,
+        ReceiverReport,
+        ReceptionReport,
+        SourceDescription,
+        Goodbye,
+        payload_feedbacks::{
+            PictureLossIndication,
+            ReceiverEstimatedMaximumBitrate,
+            SliceLossIndication,
+            FullIntraRequest,
+        },
+    }
+};
 use std::any::Any;
 
 declare_table_struct!(RtcpPacketsTable);
@@ -195,8 +211,14 @@ fn build_packet(ui: &mut Ui, packet: &RtcpPacket) {
         RtcpPacket::ReceiverEstimatedMaximumBitrate(remb) => build_receiver_estimated_maximum_bitrate(ui,remb),
         RtcpPacket::SliceLossIndication(sli) => build_slice_loss_indication(ui,sli),
         RtcpPacket::FullIntraRequest(fir) => build_full_intra_request(ui, fir),
+        RtcpPacket::TransportSpecificFeedback(tf) => {
+            ui.label(tf.get_type_name());
+        }
+        RtcpPacket::Other(packet_type) => {
+            ui.label(format!("Packet type: {:?}", packet_type));
+        }
         _ => {
-            ui.label("Unsupported");
+            ui.label("Unsupported packet type");
         }
     };
 }
