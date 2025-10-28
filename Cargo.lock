@@ -1121,6 +1121,7 @@ dependencies = [
  "prost",
  "prost-build",
  "prost-types",
+ "tokio",
 ]
 
 [[package]]
