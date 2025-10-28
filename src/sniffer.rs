@@ -2,6 +2,8 @@ use futures_util::StreamExt;
 use log_parser::parser::Parser;
 use netpix_common::{Packet, Source};
 use pcap::{Capture, PacketCodec, PacketStream};
+use tokio::sync::mpsc;
+use tokio::sync::mpsc::Receiver;
 
 #[derive(Debug)]
 pub enum Error {
@@ -61,26 +63,19 @@ impl OfflineStream {
 }
 
 struct LogStream {
-    packets: Vec<Packet>,
-    cursor: usize,
+    // Change pcap::Error to your custom Error
+    receiver: Receiver<Result<Packet, tokio::time::error::Error>>,
 }
 
 impl LogStream {
-    pub fn new(packets: Vec<Packet>) -> Self {
-        Self {
-            packets,
-            cursor: 0usize,
-        }
+    // Update the `new` function signature as well
+    pub fn new(receiver: Receiver<Result<Packet, tokio::time::error::Error>>) -> Self {
+        Self { receiver }
     }
-    pub fn next(&mut self) -> Option<Result<Result<Packet, Error>, pcap::Error>> {
-        if self.cursor < self.packets.len() {
-            let pkt = self.packets[self.cursor].clone();
-            self.cursor += 1;
 
-            Some(Ok(Ok(pkt)))
-        } else {
-            None
-        }
+    // Update the return type of the `next` method
+    pub async fn next(&mut self) -> Option<Result<Packet, tokio::time::error::Error>> {
+        self.receiver.recv().await
     }
 }
 
@@ -135,18 +130,29 @@ impl Sniffer {
     }
 
     pub fn from_logs(file: &str) -> Result<Self, Error> {
-        let mut parser = Parser::new(Vec::new());
-        parser
-            .decode_from_file(file.to_string())
-            .expect("Failed to decode from log file");
+        // 1. Create a channel for communication.
+        // The buffer size (e.g., 100) prevents the producer from getting too far ahead
+        // of the consumer.
+        let (tx, rx) = mpsc::channel(100);
 
-        let log_stream = LogStream::new(parser.packets);
+        // 2. Spawn a new asynchronous task to watch the file.
+        // We move the sender `tx` and file path into this task.
+        let file_path = file.to_string();
+        tokio::spawn(async move {
+            Parser::watch_log_file(file_path, tx).await.unwrap();
+        });
 
+        // 3. Create the LogStream with the receiver `rx`.
+        let log_stream = LogStream::new(rx);
+
+        // 4. Return the Sniffer immediately. It's ready to receive packets.
         Ok(Self {
             capture: CaptureType::RtcLogging(log_stream),
             source: Source::File(file.to_string()),
         })
     }
+
+
 
     pub fn apply_filter(&mut self, filter: &str) -> Result<(), Error> {
         match self.capture {
@@ -158,16 +164,27 @@ impl Sniffer {
     }
 
     pub async fn next_packet(&mut self) -> Option<Result<Packet, Error>> {
-        let packet = match self.capture {
-            CaptureType::Offline(ref mut stream) => stream.next(),
-            CaptureType::Online(ref mut stream) => stream.next().await,
-            CaptureType::RtcLogging(ref mut stream) => stream.next(),
+        let packet_result = match self.capture {
+            // Flatten the nested Result from the pcap streams
+            CaptureType::Offline(ref mut stream) => stream.next().map(|res| {
+                // res is Result<Result<Packet, Error>, pcap::Error>
+                // .and_then() flattens it. We map the pcap::Error into our custom Error type.
+                res.map_err(|arg0: pcap::Error| Error::from(Error::CouldntReceivePacket)).and_then(|inner_res| inner_res)
+            }),
+
+            CaptureType::Online(ref mut stream) => stream.next().await.map(|res| {
+                // Same logic for the online stream
+                res.map_err(|arg0: pcap::Error| Error::from(Error::CouldntReceivePacket)).and_then(|inner_res| inner_res)
+            }),
+
+            // Just map the error type for the RtcLogging stream
+            CaptureType::RtcLogging(ref mut stream) => stream.next().await.map(|res| {
+                // res is Result<Packet, tokio::time::error::Error>
+                // We just need to convert the error type.
+                res.map_err(|arg0: tokio::time::error::Error| Error::from(Error::CouldntReceivePacket))
+            }),
         };
 
-        match packet {
-            None => None,
-            Some(Err(_)) => Some(Err(Error::CouldntReceivePacket)),
-            Some(Ok(pack)) => Some(pack),
-        }
+        packet_result
     }
 }
