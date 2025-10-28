@@ -3,57 +3,25 @@ use crate::types::{LogRtcpPacket, RtcpPacketType};
 use crate::webrtc::rtclog2::EventStream;
 use netpix_common::packet::{Packet, SessionPacket, SessionProtocol, TransportProtocol};
 use prost::{DecodeError, Message};
-use std::fs::File;
 use std::io::{self, BufRead, BufReader, Seek, SeekFrom};
 use std::io::Read;
 use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 use std::thread;
-use std::time::{Duration, SystemTime};
+use std::time::SystemTime;
+use tokio::fs::File;
+use tokio::io::{AsyncReadExt, AsyncSeekExt};
+use tokio::sync::mpsc;
+use tokio::time::{sleep, Duration};
+use tokio::time::error::Error;
 
 pub struct Parser {
     pub packets: Vec<Packet>,
+    pack_num : usize
 }
 
 impl Parser {
     pub fn new(packets: Vec<Packet>) -> Parser {
-        Parser { packets }
-    }
-
-    pub fn decode_from_file(&mut self, file_path: String) -> Result<(), DecodeError> {
-        let Ok(mut file) = File::open(file_path.clone()) else {
-            return Err(DecodeError::new("File not found"));
-        };
-        let Ok(_) = file.seek(SeekFrom::Start(0)) else {
-            return Err(DecodeError::new("Could not seek to the end of the file"));
-        };
-
-        let mut buf = [0u8; 1024 * 1024];
-
-        println!("Watching for new content in '{}'...", file_path);
-
-        loop {
-            // file.read() attempts to fill the buffer with bytes from the file.
-            // It returns the number of bytes actually read.
-            let bytes_read = file.read(&mut buf)
-                .map_err(|_| DecodeError::new("Error reading from file"))?;
-
-            // 5. If we read new bytes, process them.
-            if bytes_read > 0 {
-                // The new data is the slice of the buffer from the start
-                // up to the number of bytes read.
-                let new_data_slice = &buf[..bytes_read];
-
-                // Pass ONLY the new data to the decode function.
-                self.decode(new_data_slice)?;
-                println!("packets now: {:?}", self.packets.len());
-                // =========================================================
-
-            } else {
-                // 6. If there's no new content (read returned 0 bytes), sleep briefly.
-                // This prevents the loop from consuming 100% CPU.
-                thread::sleep(Duration::from_millis(200));
-            }
-        }
+        Parser { packets, pack_num: 0 }
     }
 
     fn decode(&mut self, mut buf: &[u8]) -> Result<(), DecodeError> {
@@ -83,10 +51,47 @@ impl Parser {
         self.packets.sort_by_key(|p| p.timestamp);
 
         for (i, packet) in self.packets.iter_mut().enumerate() {
-            packet.id = i;
+            packet.id = i + self.pack_num;
         }
 
         Ok(())
+    }
+
+    pub async fn watch_log_file(
+        file_path: String,
+        tx: mpsc::Sender<Result<Packet, Error>>,
+    ) -> Result<(), std::io::Error> {
+        let mut file = File::open(file_path).await?;
+        file.seek(SeekFrom::Start(0)).await?; // Start from the beginning
+
+        // NOTE: This assumes your Parser can be created and used like this.
+        // If Parser holds state, you may need to adjust.
+        let mut parser = Parser::new(Vec::new());
+        let mut buf = Box::new([0u8;1024 * 1024]);
+
+        loop {
+            let bytes_read = file.read(&mut buf[..]).await?;
+
+            if bytes_read > 0 {
+                // Your existing parser logic might need to be adapted to not fail on partial lines.
+                // For now, we assume it works on byte chunks.
+                if parser.decode(&buf[..bytes_read]).is_ok() {
+                    // Drain only the *newly* added packets.
+                    parser.pack_num += parser.packets.len();
+                    for packet in parser.packets.drain(0..) {
+                        // Send the packet to the Sniffer.
+                        // If send fails, the receiver has been dropped, so we can stop.
+                        if tx.send(Ok(packet)).await.is_err() {
+                            println!("Receiver dropped. Stopping log watcher.");
+                            return Ok(());
+                        }
+                    }
+                }
+            } else {
+                // No new bytes, wait a bit before checking again.
+                sleep(Duration::from_millis(200)).await;
+            }
+        }
     }
 
 
