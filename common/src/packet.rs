@@ -4,7 +4,10 @@ use bincode::{Decode, Encode};
 use std::net::SocketAddr;
 use std::str::FromStr;
 use std::time::Duration;
-use std::{fmt, io::Write, time::SystemTime};
+use std::{fmt, time::SystemTime};
+
+#[cfg(not(target_arch = "wasm32"))]
+use std::io::Write;
 
 #[cfg(not(target_arch = "wasm32"))]
 use pnet_packet::{
