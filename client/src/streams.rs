@@ -124,9 +124,10 @@ fn handle_packet(
                         vec![sr.ssrc]
                     }
                     RtcpPacket::ReceiverReport(rr) => {
-                        //     insert_or_update_rtcp_stream(rtcp_streams, rr.ssrc, packet, pack);
-                        //
-                        //     update_rtcp_streams_with_rr(rtcp_streams,packet,&rr.reports);
+                            // Right now no data from RR is used in RTCP streams,
+                            // so there is no use to process this
+                            // insert_or_update_rtcp_stream(rtcp_streams, rr.ssrc, packet, pack);
+                            // update_rtcp_streams_with_rr(rtcp_streams,packet,&rr.reports);
                         vec![rr.ssrc]
                     }
                     RtcpPacket::SourceDescription(sd) => {

@@ -1,6 +1,5 @@
 use super::filters::parse_filter;
 use crate::filter_system::FilterExpression;
-use crate::utils::{f64_to_ntp, ntp_to_f64};
 use crate::{
     app::{
         common::*,
@@ -9,7 +8,7 @@ use crate::{
     },
     declare_table, declare_table_struct, define_column, impl_table_base,
     streams::RefStreams,
-    utils::ntp_to_string,
+    utils::{f64_to_ntp, ntp_to_f64, ntp_to_time_string},
 };
 use eframe::emath::Vec2;
 use egui::{RichText, Ui};
@@ -79,7 +78,7 @@ impl_table_base!(
             return;
         }
 
-        let row_height = 100.0; // Adjust as needed
+        let row_height = 200.0;
 
     body.rows(row_height, filtered_streams.len(), |mut row| {
         let id = row.index();
@@ -94,46 +93,66 @@ impl_table_base!(
             row.col(|ui| { ui.label(format!("{:.1}", stream_data.current_avg_bitrate_bps / 1000.0)); });
 
             row.col(|ui| {
-                ui.vertical_centered_justified(|ui| {
-                    let points: Vec<PlotPoint> = stream_data
-                    .bitrate_history
-                    .iter()
-                    .map(|(ntp, bitrate)| {
-                        // Transform y into log10 domain:
-                        PlotPoint::new(ntp_to_f64(*ntp), (*bitrate as f64).log10())
-                    })
-                    .collect();
-                    let line = Line::new(PlotPoints::Owned(points));
-                    Plot::new(format!(
-                        "{}{}{}",
-                        stream_data.ssrc, stream_data.source_addr, stream_data.destination_addr
-                    ))
-                    .show_background(false)
-                    .show_axes([true, true])
-                    .x_axis_formatter(|mark,_range| {
-                        format!("{}",ntp_to_string(f64_to_ntp(mark.value)))
-                    })
-                    .y_axis_formatter(|mark, _range| {
-                        let real_bps = 10f64.powf(mark.value);
-                        format!("{:.0}kbits", real_bps / 1_000.0)
-                    })
-                    .label_formatter(|_name, pt| {
-                        let real_bps = 10f64.powf(pt.y);
-                        format!(
-                            "time: {}\navg. bitrate = {:.3}kbits",
-                            ntp_to_string(f64_to_ntp(pt.x)),
-                            real_bps / 1_000.0
-                        )
-                    })
-                    .set_margin_fraction(Vec2::new(0.1, 0.1))
-                    .allow_scroll(false)
-                    .allow_drag(false)
-                    .allow_zoom(false)
-                    .show(ui, |plot_ui| {
-                        plot_ui.line(line);
-                    })
-                    .response;
-                    ui.add_space(7.0);
+        ui.vertical_centered_justified(|ui| {
+            let points: Vec<PlotPoint> = stream_data
+                .bitrate_history
+                .iter()
+                .map(|(ntp, bitrate)| {
+                    PlotPoint::new(ntp_to_f64(*ntp), *bitrate as f64)
+                })
+                .collect();
+
+
+            let max_y = points.iter().fold(0.0, |acc : f64, p| acc.max(p.y));
+
+            let top_bound = if max_y > 0.0 {
+                max_y * 1.3
+            } else {
+                100_000.0
+            };
+
+            // VERY EXPENSIVE!
+            // TO DO: Change to PlotPoints::Borrowed after updating rust version
+            // https://docs.rs/egui_plot/latest/egui_plot/enum.PlotPoints.html#variant.Borrowed
+            let line = Line::new(PlotPoints::Owned(points.clone()));
+
+            let markers = egui_plot::Points::new(PlotPoints::Owned(points.clone()))
+                .radius(2.5)
+                .color(egui::Color32::from_rgb(255, 100, 100));
+
+            Plot::new(format!(
+                "{}{}{}",
+                stream_data.ssrc, stream_data.source_addr, stream_data.destination_addr
+            ))
+            .show_background(false)
+            .show_axes([true, true])
+            .x_axis_formatter(|mark,_range| {
+                format!("{}",ntp_to_time_string(f64_to_ntp(mark.value)))
+            })
+            .y_axis_formatter(|mark, _range| {
+                let real_bps = mark.value;
+                format!("{:.0}kbits", real_bps / 1_000.0)
+            })
+            .label_formatter(|_name, pt| {
+                let real_bps = pt.y;
+                format!(
+                    "time: {}\navg. bitrate = {:.3}kbits",
+                    ntp_to_time_string(f64_to_ntp(pt.x)),
+                    real_bps / 1_000.0
+                )
+            })
+            .set_margin_fraction(Vec2::new(0.1, 0.1))
+            .include_y(0.0)
+            .include_y(top_bound)
+            .allow_scroll(false)
+            .allow_drag(false)
+            .allow_zoom(false)
+            .show(ui, |plot_ui| {
+                plot_ui.line(line);
+                plot_ui.points(markers);
+            })
+            .response;
+            ui.add_space(7.0);
                 });
             });
         } else {
@@ -144,7 +163,6 @@ impl_table_base!(
     }
 );
 
-// Use the specific FilterExpression type from this table's filters module
 declare_table!(RtcpStreamsTable, FilterType, {
     height(60.0);
     striped(true);
@@ -159,17 +177,15 @@ declare_table!(RtcpStreamsTable, FilterType, {
 });
 
 impl RtcpStreamsTable {
-    // This function correctly uses the stream-specific filter logic
     fn stream_matches_filter(&self, stream_data: &RtcpStreamFilterContext) -> bool {
         if self.filter_input.get_filter().is_empty() {
             return true;
         }
-        // Explicitly call this module's parse_filter
         parse_filter(self.filter_input.get_filter())
             .map(|filter| {
                 let matches = filter.matches(stream_data);
                 matches
             })
-            .unwrap_or(true) // Treat parse errors as matching (show the stream)
+            .unwrap_or(true)
     }
 }
