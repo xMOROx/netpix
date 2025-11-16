@@ -399,7 +399,8 @@ fn is_rtcp(packets: &[RtcpPacket]) -> bool {
         RtcpPacket::SenderReport(_)
             | RtcpPacket::ReceiverReport(_)
             | RtcpPacket::Goodbye(_)
-            | RtcpPacket::PayloadSpecificFeedback
+            | RtcpPacket::PayloadSpecificFeedback(_)
+            | RtcpPacket::TransportSpecificFeedback(_)
     ) {
         return false;
     }

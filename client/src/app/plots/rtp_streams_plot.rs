@@ -593,19 +593,19 @@ fn build_stream_points(
                 on_hover.push_str("\nGoodbye\n");
                 on_hover.push_str("------------------------\n");
             }
-            RtcpPacket::PayloadSpecificFeedback => {
+            RtcpPacket::PayloadSpecificFeedback(_) => {
                 on_hover.push_str("\nPayload specific feedback\n");
                 on_hover.push_str("------------------------\n");
             }
-            RtcpPacket::TransportSpecificFeedback => {
+            RtcpPacket::TransportSpecificFeedback(_) => {
                 on_hover.push_str("\nTransport specific feedback\n");
                 on_hover.push_str("------------------------\n");
             }
-            RtcpPacket::ExtendedReport => {
+            RtcpPacket::ExtendedReport(_) => {
                 on_hover.push_str("\nExtended report\n");
                 on_hover.push_str("------------------------\n");
             }
-            RtcpPacket::Other => {
+            RtcpPacket::Other(_) => {
                 on_hover.push_str("\nOther rtcp\n");
                 on_hover.push_str("------------------------\n");
             }
