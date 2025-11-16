@@ -1,12 +1,12 @@
 pub mod dlrr;
 pub mod rrt;
 
-use bincode::{Decode, Encode};
-use crate::rtcp::extended_reports::rrt::ReceiverReferenceTimeReportBlock;
 use crate::rtcp::extended_reports::dlrr::DLRRReportBlock;
+use crate::rtcp::extended_reports::rrt::ReceiverReferenceTimeReportBlock;
+use bincode::{Decode, Encode};
 
 #[derive(Decode, Encode, Debug, Clone)]
-pub struct  ExtendedReport {
+pub struct ExtendedReport {
     pub sender_ssrc: u32,
     pub reports: Vec<BlockType>,
 }
@@ -18,14 +18,14 @@ impl ExtendedReport {
 
     #[cfg(not(target_arch = "wasm32"))]
     pub fn new(pack: &rtcp::extended_report::ExtendedReport) -> Self {
-        use rtcp::extended_report::LossRLEReportBlock;
+        use rtcp::extended_report::DLRRReportBlock;
         use rtcp::extended_report::DuplicateRLEReportBlock;
+        use rtcp::extended_report::LossRLEReportBlock;
         use rtcp::extended_report::PacketReceiptTimesReportBlock;
         use rtcp::extended_report::ReceiverReferenceTimeReportBlock;
         use rtcp::extended_report::StatisticsSummaryReportBlock;
-        use rtcp::extended_report::VoIPMetricsReportBlock;
         use rtcp::extended_report::UnknownReportBlock;
-        use rtcp::extended_report::DLRRReportBlock;
+        use rtcp::extended_report::VoIPMetricsReportBlock;
 
         let mut reports = vec![];
         for report in &pack.reports {
@@ -38,7 +38,9 @@ impl ExtendedReport {
             } else if let Some(_block) = any.downcast_ref::<PacketReceiptTimesReportBlock>() {
                 reports.push(BlockType::PacketReceiptTimes);
             } else if let Some(block) = any.downcast_ref::<ReceiverReferenceTimeReportBlock>() {
-                reports.push(BlockType::ReceiverReferenceTime(rrt::ReceiverReferenceTimeReportBlock::new(block)));
+                reports.push(BlockType::ReceiverReferenceTime(
+                    rrt::ReceiverReferenceTimeReportBlock::new(block),
+                ));
             } else if let Some(block) = any.downcast_ref::<DLRRReportBlock>() {
                 reports.push(BlockType::DLRR(dlrr::DLRRReportBlock::new(block)));
             } else if let Some(_block) = any.downcast_ref::<StatisticsSummaryReportBlock>() {
@@ -79,7 +81,7 @@ impl BlockType {
             BlockType::ReceiverReferenceTime(_) => "Receiver Reference Time",
             BlockType::DLRR(_) => "DLRR",
             BlockType::StatisticsSummary => "StatisticsSummary",
-            BlockType::VoIPMetrics => "VoIPMetrics"
+            BlockType::VoIPMetrics => "VoIPMetrics",
         }
     }
 }

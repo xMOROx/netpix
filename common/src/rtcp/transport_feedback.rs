@@ -10,9 +10,9 @@ pub enum TransportFeedback {
 impl TransportFeedback {
     pub fn get_type_name(&self) -> &str {
         match self {
-            TransportFeedback::TransportLayerCc => "Transport LayerCc",
+            TransportFeedback::TransportLayerCc => "Transport Layer Cc",
             TransportFeedback::TransportLayerNack => "Transport Layer Nack",
-            TransportFeedback::RapidResynchronizationRequest => "Rapid Resynchronization Request"
+            TransportFeedback::RapidResynchronizationRequest => "Rapid Resynchronization Request",
         }
     }
 }

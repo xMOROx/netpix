@@ -1,5 +1,5 @@
-use bincode::{Decode, Encode};
 use crate::rtcp::payload_feedbacks::fir_entry::FirEntry;
+use bincode::{Decode, Encode};
 
 #[derive(Decode, Encode, Debug, Clone)]
 pub struct FullIntraRequest {

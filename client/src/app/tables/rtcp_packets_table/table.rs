@@ -12,27 +12,20 @@ use crate::{
 use egui::{RichText, Ui};
 use egui_extras::{Column, TableBody, TableBuilder, TableRow};
 use ewebsock::WsSender;
+use netpix_common::rtcp::extended_reports::BlockType;
+use netpix_common::rtcp::payload_feedbacks::PayloadFeedback;
+use netpix_common::rtcp::ExtendedReport;
 use netpix_common::{
     packet::SessionPacket,
     rtcp::{
-        RtcpPacket,
-        SenderReport,
-        ReceiverReport,
-        ReceptionReport,
-        SourceDescription,
-        Goodbye,
         payload_feedbacks::{
-            PictureLossIndication,
-            ReceiverEstimatedMaximumBitrate,
+            FullIntraRequest, PictureLossIndication, ReceiverEstimatedMaximumBitrate,
             SliceLossIndication,
-            FullIntraRequest,
         },
-    }
+        Goodbye, ReceiverReport, ReceptionReport, RtcpPacket, SenderReport, SourceDescription,
+    },
 };
 use std::any::Any;
-use netpix_common::rtcp::extended_reports::BlockType;
-use netpix_common::rtcp::ExtendedReport;
-use netpix_common::rtcp::payload_feedbacks::PayloadFeedback;
 
 declare_table_struct!(RtcpPacketsTable);
 
@@ -189,10 +182,10 @@ fn get_row_height(packet: &RtcpPacket) -> f32 {
                     5.0
                 }
             }
-            PayloadFeedback::ReceiverEstimatedMaximumBitrate(remb) => match remb.ssrcs.len(){
+            PayloadFeedback::ReceiverEstimatedMaximumBitrate(remb) => match remb.ssrcs.len() {
                 0 => 2.0,
-                _ => 3.0
-            }
+                _ => 3.0,
+            },
             PayloadFeedback::SliceLossIndication(sli) => {
                 if sli.sli_entries.is_empty() {
                     3.0
@@ -200,7 +193,7 @@ fn get_row_height(packet: &RtcpPacket) -> f32 {
                     6.0
                 }
             }
-        }
+        },
         _ => 1.0,
     };
 
@@ -213,12 +206,14 @@ fn build_packet(ui: &mut Ui, packet: &RtcpPacket) {
         RtcpPacket::ReceiverReport(report) => build_receiver_report(ui, report),
         RtcpPacket::SourceDescription(desc) => build_source_description(ui, desc),
         RtcpPacket::Goodbye(bye) => build_goodbye(ui, bye),
-        RtcpPacket::PayloadSpecificFeedback(pf) => match pf{
-            PayloadFeedback::PictureLossIndication(pli) => build_picture_loss_indication(ui,pli),
-            PayloadFeedback::ReceiverEstimatedMaximumBitrate(remb) => build_receiver_estimated_maximum_bitrate(ui,remb),
-            PayloadFeedback::SliceLossIndication(sli) => build_slice_loss_indication(ui,sli),
+        RtcpPacket::PayloadSpecificFeedback(pf) => match pf {
+            PayloadFeedback::PictureLossIndication(pli) => build_picture_loss_indication(ui, pli),
+            PayloadFeedback::ReceiverEstimatedMaximumBitrate(remb) => {
+                build_receiver_estimated_maximum_bitrate(ui, remb)
+            }
+            PayloadFeedback::SliceLossIndication(sli) => build_slice_loss_indication(ui, sli),
             PayloadFeedback::FullIntraRequest(fir) => build_full_intra_request(ui, fir),
-        }
+        },
         RtcpPacket::ExtendedReport(xr) => build_extended_report(ui, xr),
         RtcpPacket::TransportSpecificFeedback(tf) => {
             ui.label(tf.get_type_name());
@@ -359,7 +354,11 @@ fn build_slice_loss_indication(ui: &mut Ui, sli: &SliceLossIndication) {
         let mut first = true;
         ui.horizontal(|ui| {
             for e in &sli.sli_entries {
-                if !first { ui.separator(); } else { first = false; }
+                if !first {
+                    ui.separator();
+                } else {
+                    first = false;
+                }
                 ui.vertical(|ui| {
                     build_label(ui, "First macroblock:", e.first.to_string());
                     build_label(ui, "Number of macroblocks:", e.number.to_string());
@@ -381,7 +380,11 @@ fn build_full_intra_request(ui: &mut Ui, fir: &FullIntraRequest) {
         let mut first = true;
         ui.horizontal(|ui| {
             for entry in &fir.fir {
-                if !first { ui.separator(); } else { first = false; }
+                if !first {
+                    ui.separator();
+                } else {
+                    first = false;
+                }
                 ui.vertical(|ui| {
                     build_label(ui, "SSRC:", format!("{:x}", entry.ssrc));
                     build_label(ui, "Sequence number:", entry.sequence_number.to_string());

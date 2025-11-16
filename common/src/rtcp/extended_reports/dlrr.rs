@@ -28,7 +28,7 @@ pub struct DLRRReport {
 #[cfg(not(target_arch = "wasm32"))]
 impl DLRRReport {
     fn new(packet: &rtcp::extended_report::DLRRReport) -> Self {
-        Self{
+        Self {
             ssrc: packet.ssrc,
             last_rr: packet.last_rr,
             dlrr: packet.dlrr,

@@ -8,8 +8,8 @@ pub struct ReceiverReferenceTimeReportBlock {
 #[cfg(not(target_arch = "wasm32"))]
 impl ReceiverReferenceTimeReportBlock {
     pub fn new(packet: &rtcp::extended_report::ReceiverReferenceTimeReportBlock) -> Self {
-        Self{
-            ntp_timestamp: packet.ntp_timestamp
+        Self {
+            ntp_timestamp: packet.ntp_timestamp,
         }
     }
 }

@@ -9,7 +9,9 @@ pub struct ReceiverEstimatedMaximumBitrate {
 
 #[cfg(not(target_arch = "wasm32"))]
 impl ReceiverEstimatedMaximumBitrate {
-    pub fn new(packet: &rtcp::payload_feedbacks::receiver_estimated_maximum_bitrate::ReceiverEstimatedMaximumBitrate) -> Self {
+    pub fn new(
+        packet: &rtcp::payload_feedbacks::receiver_estimated_maximum_bitrate::ReceiverEstimatedMaximumBitrate,
+    ) -> Self {
         Self {
             sender_ssrc: packet.sender_ssrc,
             bitrate: packet.bitrate,

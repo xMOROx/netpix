@@ -1,31 +1,29 @@
+pub mod extended_reports;
 pub mod goodbye;
+pub mod payload_feedbacks;
 pub mod receiver_report;
 pub mod reception_report;
 pub mod sender_report;
 pub mod source_description;
-pub mod payload_feedbacks;
 pub mod transport_feedback;
-pub mod extended_reports;
 
-use bincode::{Decode, Encode};
+use crate::rtcp::payload_feedbacks::*;
 #[cfg(not(target_arch = "wasm32"))]
 pub use ::rtcp::header::PacketType;
+use bincode::{Decode, Encode};
 pub use extended_reports::ExtendedReport;
 pub use goodbye::Goodbye;
+pub use payload_feedbacks::{
+    fir_entry::FirEntry, full_intra_request::FullIntraRequest,
+    picture_loss_indication::PictureLossIndication,
+    receiver_estimated_maximum_bitrate::ReceiverEstimatedMaximumBitrate, sli_entry::SliEntry,
+    slice_loss_indication::SliceLossIndication,
+};
 pub use receiver_report::ReceiverReport;
 pub use reception_report::ReceptionReport;
 pub use sender_report::SenderReport;
 pub use source_description::SourceDescription;
 pub use transport_feedback::TransportFeedback;
-pub use payload_feedbacks::{
-    fir_entry::FirEntry,
-    full_intra_request::FullIntraRequest,
-    picture_loss_indication::PictureLossIndication,
-    receiver_estimated_maximum_bitrate::ReceiverEstimatedMaximumBitrate,
-    slice_loss_indication::SliceLossIndication,
-    sli_entry::SliEntry,
-};
-use crate::rtcp::payload_feedbacks::*;
 
 #[derive(Decode, Encode, Debug, Clone)]
 pub enum RtcpPacket {
@@ -52,7 +50,7 @@ impl RtcpPacket {
             ApplicationDefined => "Application Defined",
             PayloadSpecificFeedback(pf) => pf.get_type_name(),
             TransportSpecificFeedback(_) => "Transport-specific Feedback",
-            ExtendedReport(_) => "Extended Report ",
+            ExtendedReport(_) => "Extended Report",
             Other(_) => "Other",
         }
     }
@@ -86,18 +84,18 @@ impl RtcpPacket {
         // previously, I've used the for of rtcp library
         // but for the sake of being able to publish the crate on crates.io
         // I've reverted the changes, so some packets might not be handled properly
+        use rtcp::extended_report::ExtendedReport;
         use rtcp::goodbye::Goodbye;
+        use rtcp::payload_feedbacks::full_intra_request::FullIntraRequest;
+        use rtcp::payload_feedbacks::picture_loss_indication::PictureLossIndication;
+        use rtcp::payload_feedbacks::receiver_estimated_maximum_bitrate::ReceiverEstimatedMaximumBitrate;
+        use rtcp::payload_feedbacks::slice_loss_indication::SliceLossIndication;
         use rtcp::receiver_report::ReceiverReport;
         use rtcp::sender_report::SenderReport;
         use rtcp::source_description::SourceDescription;
-        use rtcp::payload_feedbacks::picture_loss_indication::PictureLossIndication;
-        use rtcp::payload_feedbacks::full_intra_request::FullIntraRequest;
-        use rtcp::payload_feedbacks::receiver_estimated_maximum_bitrate::ReceiverEstimatedMaximumBitrate;
-        use rtcp::payload_feedbacks::slice_loss_indication::SliceLossIndication;
         use rtcp::transport_feedbacks::rapid_resynchronization_request::RapidResynchronizationRequest;
         use rtcp::transport_feedbacks::transport_layer_cc::TransportLayerCc;
         use rtcp::transport_feedbacks::transport_layer_nack::TransportLayerNack;
-        use rtcp::extended_report::ExtendedReport;
 
         let packet_type = packet.header().packet_type;
 
@@ -118,7 +116,9 @@ impl RtcpPacket {
             }
             PacketType::SourceDescription => {
                 if let Some(pack) = packet.downcast_ref::<SourceDescription>() {
-                    return RtcpPacket::SourceDescription(source_description::SourceDescription::new(pack));
+                    return RtcpPacket::SourceDescription(
+                        source_description::SourceDescription::new(pack),
+                    );
                 }
             }
             PacketType::Goodbye => {
@@ -131,24 +131,36 @@ impl RtcpPacket {
             }
             PacketType::TransportSpecificFeedback => {
                 if let Some(_pack) = packet.downcast_ref::<RapidResynchronizationRequest>() {
-                    return RtcpPacket::TransportSpecificFeedback(TransportFeedback::RapidResynchronizationRequest);
+                    return RtcpPacket::TransportSpecificFeedback(
+                        TransportFeedback::RapidResynchronizationRequest,
+                    );
                 }
 
                 if let Some(_pack) = packet.downcast_ref::<TransportLayerCc>() {
-                    return RtcpPacket::TransportSpecificFeedback(TransportFeedback::TransportLayerCc);
+                    return RtcpPacket::TransportSpecificFeedback(
+                        TransportFeedback::TransportLayerCc,
+                    );
                 }
 
                 if let Some(_pack) = packet.downcast_ref::<TransportLayerNack>() {
-                    return RtcpPacket::TransportSpecificFeedback(TransportFeedback::TransportLayerNack);
+                    return RtcpPacket::TransportSpecificFeedback(
+                        TransportFeedback::TransportLayerNack,
+                    );
                 }
             }
             PacketType::PayloadSpecificFeedback => {
                 if let Some(pack) = packet.downcast_ref::<PictureLossIndication>() {
-                    return RtcpPacket::PayloadSpecificFeedback(PayloadFeedback::PictureLossIndication(picture_loss_indication::PictureLossIndication::new(pack)));
+                    return RtcpPacket::PayloadSpecificFeedback(
+                        PayloadFeedback::PictureLossIndication(
+                            picture_loss_indication::PictureLossIndication::new(pack),
+                        ),
+                    );
                 }
 
                 if let Some(pack) = packet.downcast_ref::<FullIntraRequest>() {
-                    return RtcpPacket::PayloadSpecificFeedback(PayloadFeedback::FullIntraRequest(full_intra_request::FullIntraRequest::new(pack)));
+                    return RtcpPacket::PayloadSpecificFeedback(PayloadFeedback::FullIntraRequest(
+                        full_intra_request::FullIntraRequest::new(pack),
+                    ));
                 }
 
                 if let Some(pack) = packet.downcast_ref::<ReceiverEstimatedMaximumBitrate>() {
@@ -156,11 +168,15 @@ impl RtcpPacket {
                 }
 
                 if let Some(pack) = packet.downcast_ref::<SliceLossIndication>() {
-                    return RtcpPacket::PayloadSpecificFeedback(PayloadFeedback::SliceLossIndication(slice_loss_indication::SliceLossIndication::new(pack)));
+                    return RtcpPacket::PayloadSpecificFeedback(
+                        PayloadFeedback::SliceLossIndication(
+                            slice_loss_indication::SliceLossIndication::new(pack),
+                        ),
+                    );
                 }
             }
             PacketType::ExtendedReport => {
-                if let Some(pack) = packet.downcast_ref::<ExtendedReport>(){
+                if let Some(pack) = packet.downcast_ref::<ExtendedReport>() {
                     return RtcpPacket::ExtendedReport(extended_reports::ExtendedReport::new(pack));
                 };
             }

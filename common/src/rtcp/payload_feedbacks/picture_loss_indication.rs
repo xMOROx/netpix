@@ -8,10 +8,12 @@ pub struct PictureLossIndication {
 
 #[cfg(not(target_arch = "wasm32"))]
 impl PictureLossIndication {
-    pub fn new(packet: &rtcp::payload_feedbacks::picture_loss_indication::PictureLossIndication) -> Self {
+    pub fn new(
+        packet: &rtcp::payload_feedbacks::picture_loss_indication::PictureLossIndication,
+    ) -> Self {
         Self {
-            sender_ssrc: packet.sender_ssrc.clone(),
-            media_ssrc: packet.media_ssrc.clone(),
+            sender_ssrc: packet.sender_ssrc,
+            media_ssrc: packet.media_ssrc,
         }
     }
 }

@@ -1,5 +1,5 @@
-use bincode::{Decode, Encode};
 use crate::rtcp::payload_feedbacks::sli_entry::SliEntry;
+use bincode::{Decode, Encode};
 #[derive(Decode, Encode, Debug, Clone)]
 pub struct SliceLossIndication {
     pub sender_ssrc: u32,
@@ -9,7 +9,9 @@ pub struct SliceLossIndication {
 
 #[cfg(not(target_arch = "wasm32"))]
 impl SliceLossIndication {
-    pub fn new(packet: &rtcp::payload_feedbacks::slice_loss_indication::SliceLossIndication) -> Self {
+    pub fn new(
+        packet: &rtcp::payload_feedbacks::slice_loss_indication::SliceLossIndication,
+    ) -> Self {
         let sli_entries = packet.sli_entries.iter().map(SliEntry::new).collect();
 
         Self {
