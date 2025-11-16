@@ -12,8 +12,27 @@ use crate::{
 use egui::{RichText, Ui};
 use egui_extras::{Column, TableBody, TableBuilder, TableRow};
 use ewebsock::WsSender;
-use netpix_common::{packet::SessionPacket, rtcp::*, RtcpPacket};
+use netpix_common::{
+    packet::SessionPacket,
+    rtcp::{
+        RtcpPacket,
+        SenderReport,
+        ReceiverReport,
+        ReceptionReport,
+        SourceDescription,
+        Goodbye,
+        payload_feedbacks::{
+            PictureLossIndication,
+            ReceiverEstimatedMaximumBitrate,
+            SliceLossIndication,
+            FullIntraRequest,
+        },
+    }
+};
 use std::any::Any;
+use netpix_common::rtcp::extended_reports::BlockType;
+use netpix_common::rtcp::ExtendedReport;
+use netpix_common::rtcp::payload_feedbacks::PayloadFeedback;
 
 declare_table_struct!(RtcpPacketsTable);
 
@@ -120,7 +139,7 @@ declare_table!(RtcpPacketsTable, FilterType, {
         column(Some(70.0), 70.0, None, false, true),
         column(Some(150.0), 150.0, None, false, true),
         column(Some(150.0), 150.0, None, false, true),
-        column(Some(170.0), 170.0, None, false, true),
+        column(Some(250.0), 250.0, None, false, true),
         column(None, 200.0, None, false, true),
     )
 });
@@ -156,6 +175,32 @@ fn get_row_height(packet: &RtcpPacket) -> f32 {
             0 => 4.7,
             _ => 11.0,
         },
+        RtcpPacket::ExtendedReport(xr) => match xr.reports.len() {
+            0 => 2.0,
+            1 => 5.5,
+            _ => 8.0,
+        },
+        RtcpPacket::PayloadSpecificFeedback(pf) => match pf {
+            PayloadFeedback::PictureLossIndication(_) => 2.0,
+            PayloadFeedback::FullIntraRequest(fir) => {
+                if fir.fir.is_empty() {
+                    3.0
+                } else {
+                    5.0
+                }
+            }
+            PayloadFeedback::ReceiverEstimatedMaximumBitrate(remb) => match remb.ssrcs.len(){
+                0 => 2.0,
+                _ => 3.0
+            }
+            PayloadFeedback::SliceLossIndication(sli) => {
+                if sli.sli_entries.is_empty() {
+                    3.0
+                } else {
+                    6.0
+                }
+            }
+        }
         _ => 1.0,
     };
 
@@ -168,8 +213,21 @@ fn build_packet(ui: &mut Ui, packet: &RtcpPacket) {
         RtcpPacket::ReceiverReport(report) => build_receiver_report(ui, report),
         RtcpPacket::SourceDescription(desc) => build_source_description(ui, desc),
         RtcpPacket::Goodbye(bye) => build_goodbye(ui, bye),
+        RtcpPacket::PayloadSpecificFeedback(pf) => match pf{
+            PayloadFeedback::PictureLossIndication(pli) => build_picture_loss_indication(ui,pli),
+            PayloadFeedback::ReceiverEstimatedMaximumBitrate(remb) => build_receiver_estimated_maximum_bitrate(ui,remb),
+            PayloadFeedback::SliceLossIndication(sli) => build_slice_loss_indication(ui,sli),
+            PayloadFeedback::FullIntraRequest(fir) => build_full_intra_request(ui, fir),
+        }
+        RtcpPacket::ExtendedReport(xr) => build_extended_report(ui, xr),
+        RtcpPacket::TransportSpecificFeedback(tf) => {
+            ui.label(tf.get_type_name());
+        }
+        RtcpPacket::Other(packet_type) => {
+            ui.label(format!("Packet type: {:?}", packet_type));
+        }
         _ => {
-            ui.label("Unsupported");
+            ui.label("Unsupported packet type");
         }
     };
 }
@@ -270,6 +328,120 @@ fn build_goodbye(ui: &mut Ui, bye: &Goodbye) {
     build_label(ui, "Reason:", bye.reason.clone());
 }
 
+fn build_picture_loss_indication(ui: &mut Ui, pli: &PictureLossIndication) {
+    build_label(ui, "Sender SSRC:", format!("{:x}", pli.sender_ssrc));
+    build_label(ui, "Media SSRC:", format!("{:x}", pli.media_ssrc));
+}
+
+fn build_receiver_estimated_maximum_bitrate(ui: &mut Ui, remb: &ReceiverEstimatedMaximumBitrate) {
+    build_label(ui, "Sender SSRC:", format!("{:x}", remb.sender_ssrc));
+    let kbps = remb.bitrate / 1000.0;
+    build_label(ui, "Bitrate:", format!("{:.2} kbps", kbps));
+    let ssrcs = remb
+        .ssrcs
+        .iter()
+        .map(|s| format!("{:x}", s))
+        .collect::<Vec<_>>()
+        .join(", ");
+    if !ssrcs.is_empty() {
+        build_label(ui, "SSRCs:", ssrcs);
+    }
+}
+
+fn build_slice_loss_indication(ui: &mut Ui, sli: &SliceLossIndication) {
+    build_label(ui, "Sender SSRC:", format!("{:x}", sli.sender_ssrc));
+    build_label(ui, "Media SSRC:", format!("{:x}", sli.media_ssrc));
+
+    if sli.sli_entries.is_empty() {
+        ui.label(RichText::new("No SLI entries").strong());
+    } else {
+        ui.separator();
+        let mut first = true;
+        ui.horizontal(|ui| {
+            for e in &sli.sli_entries {
+                if !first { ui.separator(); } else { first = false; }
+                ui.vertical(|ui| {
+                    build_label(ui, "First macroblock:", e.first.to_string());
+                    build_label(ui, "Number of macroblocks:", e.number.to_string());
+                    build_label(ui, "Picture ID:", e.picture.to_string());
+                });
+            }
+        });
+    }
+}
+
+fn build_full_intra_request(ui: &mut Ui, fir: &FullIntraRequest) {
+    build_label(ui, "Sender SSRC:", format!("{:x}", fir.sender_ssrc));
+    build_label(ui, "Media SSRC:", format!("{:x}", fir.media_ssrc));
+
+    if fir.fir.is_empty() {
+        ui.label(RichText::new("No FIR entries").strong());
+    } else {
+        ui.separator();
+        let mut first = true;
+        ui.horizontal(|ui| {
+            for entry in &fir.fir {
+                if !first { ui.separator(); } else { first = false; }
+                ui.vertical(|ui| {
+                    build_label(ui, "SSRC:", format!("{:x}", entry.ssrc));
+                    build_label(ui, "Sequence number:", entry.sequence_number.to_string());
+                });
+            }
+        });
+    }
+}
+
+fn build_extended_report(ui: &mut Ui, xr: &ExtendedReport) {
+    build_label(ui, "Sender SSRC:", format!("{:x}", xr.sender_ssrc));
+
+    if xr.reports.is_empty() {
+        ui.separator();
+        ui.label(RichText::new("No report blocks").strong());
+        return;
+    }
+
+    ui.separator();
+
+    let mut first_block = true;
+    for report in &xr.reports {
+        if !first_block {
+            ui.separator();
+        } else {
+            first_block = false;
+        }
+
+        build_label(ui, "Block type:", report.get_type_name().to_string());
+
+        match report {
+            BlockType::ReceiverReferenceTime(rrt) => {
+                let datetime = ntp_to_string(rrt.ntp_timestamp);
+                build_label(ui, "NTP timestamp:", datetime);
+            }
+            BlockType::DLRR(dlrr) => {
+                if dlrr.reports.is_empty() {
+                    ui.label(RichText::new("No DLRR reports").strong());
+                } else {
+                    ui.horizontal(|ui| {
+                        let mut first = true;
+                        for dlrr_report in &dlrr.reports {
+                            if !first {
+                                ui.separator();
+                            } else {
+                                first = false;
+                            }
+                            ui.vertical(|ui| {
+                                build_label(ui, "SSRC:", format!("{:x}", dlrr_report.ssrc));
+                                build_label(ui, "Last RR:", dlrr_report.last_rr.to_string());
+                                build_label(ui, "DLRR:", dlrr_report.dlrr.to_string());
+                            });
+                        }
+                    });
+                }
+            }
+            _ => {}
+        }
+    }
+}
 fn build_label(ui: &mut Ui, bold: impl Into<String>, normal: impl Into<String>) {
     let source_label = RichText::new(bold.into()).strong();
     ui.horizontal(|ui| {
