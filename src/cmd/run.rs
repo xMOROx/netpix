@@ -10,6 +10,8 @@ const DEFAULT_PROMISC: bool = false;
 const DEFAULT_PACKET_BUFFER_SIZE: usize = 32_768;
 const DEFAULT_MAXIMUM_PACKAGE_AGE: u64 = 300;
 const DEFAULT_CLIENT_MESSAGE_INTERVAL_MS: u64 = 5; // ~ 300 messages per second
+const DEFAULT_MAX_CLIENT_QUEUE_SIZE: usize = 1000;
+const DEFAULT_MAX_CLIENTS: usize = 100;
 
 #[derive(Debug, clap::Args)]
 pub struct Run {
@@ -44,6 +46,12 @@ pub struct Run {
     /// Maximum age of a package in seconds before it is considered outdated
     #[arg(short='M', long, default_value_t = DEFAULT_MAXIMUM_PACKAGE_AGE)]
     maximum_package_age: u64,
+    /// Maximum number of messages that can be queued per client before backpressure is applied
+    #[arg(short='q', long, default_value_t = DEFAULT_MAX_CLIENT_QUEUE_SIZE)]
+    max_client_queue_size: usize,
+    /// Maximum number of concurrent client connections
+    #[arg(short='C', long, default_value_t = DEFAULT_MAX_CLIENTS)]
+    max_clients: usize,
 }
 
 impl Run {
@@ -86,6 +94,8 @@ impl Run {
             .client_message_interval_ms(self.message_interval)
             .max_packets_age(self.maximum_package_age)
             .packet_buffer_size(self.buffer_size)
+            .max_client_queue_size(self.max_client_queue_size)
+            .max_clients(self.max_clients)
             .addr(address)
             .build();
 

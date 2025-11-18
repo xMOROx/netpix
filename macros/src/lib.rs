@@ -35,23 +35,26 @@ pub fn setup_packet_handlers(_input: TokenStream) -> TokenStream {
 #[proc_macro]
 pub fn setup_routes(_input: TokenStream) -> TokenStream {
     // Example usage:
-    // setup_routes!(clients, source_to_packets)
+    // setup_routes!(clients, source_to_packets, config)
     let input = parse_macro_input!(_input as syn::ExprTuple);
     let clients = &input.elems[0];
     let source_to_packets = &input.elems[1];
+    let config = &input.elems[2];
 
     let expanded = quote! {
         {
             let clients_filter = warp::any().map(move || #clients.clone());
             let source_to_packets_filter = warp::any().map(move || #source_to_packets.clone());
+            let config_filter = warp::any().map(move || #config);
 
             let ws = warp::path(crate::server::constants::WEBSOCKET_PATH)
                 .and(warp::ws())
                 .and(clients_filter)
                 .and(source_to_packets_filter)
-                .map(|ws: warp::ws::Ws, clients_cl, source_to_packets_cl| {
+                .and(config_filter)
+                .map(|ws: warp::ws::Ws, clients_cl, source_to_packets_cl, config_cl| {
                     ws.on_upgrade(move |socket| {
-                        crate::server::client::handle_connection(socket, clients_cl, source_to_packets_cl)
+                        crate::server::client::handle_connection(socket, clients_cl, source_to_packets_cl, config_cl)
                     })
                 });
 

@@ -126,13 +126,16 @@ async fn sniff(
                         };
                         let msg = Message::binary(encoded);
 
-                        for (_, client) in clients.write().await.iter_mut() {
+                        // Use try_queue_message with backpressure handling
+                        let mut clients_guard = clients.write().await;
+                        for (_, client) in clients_guard.iter_mut() {
                             if let Some(src) = &client.source {
                                 if *src == sniffer.source {
-                                    client.queue.push_back(msg.clone());
+                                    client.try_queue_message(msg.clone());
                                 }
                             }
                         }
+                        drop(clients_guard);
 
                         let mut packets = packets.write().await;
 
@@ -201,7 +204,7 @@ async fn send_all_packets(client_id: usize, packets: &Packets, clients: &Clients
         };
         let msg = Message::binary(encoded);
 
-        client.queue.push_back(msg);
+        client.try_queue_message(msg);
     }
 }
 
