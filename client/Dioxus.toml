@@ -1,0 +1,16 @@
+[application]
+name = "netpix_client"
+
+[web.app]
+title = "Netpix"
+
+[web.watcher]
+
+[web.resource]
+
+[web.resource.dev]
+
+[web.resource.style]
+
+[web.proxy]
+backend = "http://localhost:3550/ws"
