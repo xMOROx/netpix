@@ -9,19 +9,22 @@ use crate::streams::RefStreams;
 
 mod tab;
 mod websocket;
+mod tables;
+
 use tab::Tab;
 use websocket::WebSocketManager;
+use tables::PacketsTable;
 
 // App state
 #[derive(Clone)]
-struct AppState {
-    is_capturing: bool,
-    streams: RefStreams,
-    sources: Vec<Source>,
-    selected_source: Option<Source>,
-    current_tab: Tab,
-    discharged_count: usize,
-    overwritten_count: usize,
+pub(crate) struct AppState {
+    pub is_capturing: bool,
+    pub streams: RefStreams,
+    pub sources: Vec<Source>,
+    pub selected_source: Option<Source>,
+    pub current_tab: Tab,
+    pub discharged_count: usize,
+    pub overwritten_count: usize,
 }
 
 impl Default for AppState {
@@ -236,22 +239,38 @@ fn ContentPanel(state: Signal<AppState>) -> Element {
     rsx! {
         div {
             class: "content-panel",
-            style: "flex: 1; background: #1e1e1e; color: #ddd; padding: 20px; overflow: auto;",
+            style: "flex: 1; background: #1e1e1e; color: #ddd; overflow: hidden; display: flex; flex-direction: column;",
             
-            h2 { 
-                style: "margin-top: 0; color: #fff;",
-                "{current_tab.display_name()}" 
-            }
-            
-            p { 
-                style: "color: #888;",
-                "Content for {current_tab.display_name()} will be displayed here." 
-            }
-            
-            // TODO: Render actual table/plot content based on current_tab
+            // Header
             div {
-                style: "margin-top: 20px; padding: 20px; background: #2c2c2c; border-radius: 4px;",
-                "Table/Plot content placeholder"
+                style: "padding: 20px; padding-bottom: 10px;",
+                h2 { 
+                    style: "margin: 0; color: #fff;",
+                    "{current_tab.display_name()}" 
+                }
+            }
+            
+            // Content area - render appropriate component based on tab
+            div {
+                style: "flex: 1; overflow: hidden;",
+                match current_tab {
+                    Tab::Packets => rsx! {
+                        PacketsTable { state: state }
+                    },
+                    _ => rsx! {
+                        div {
+                            style: "padding: 20px;",
+                            p { 
+                                style: "color: #888;",
+                                "Content for {current_tab.display_name()} will be displayed here." 
+                            }
+                            div {
+                                style: "margin-top: 20px; padding: 20px; background: #2c2c2c; border-radius: 4px;",
+                                "Table/Plot content placeholder"
+                            }
+                        }
+                    }
+                }
             }
         }
     }
