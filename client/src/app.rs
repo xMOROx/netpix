@@ -13,7 +13,7 @@ mod tables;
 
 use tab::Tab;
 use websocket::WebSocketManager;
-use tables::PacketsTable;
+use tables::{PacketsTable, RtpPacketsTable, RtpStreamsTable};
 
 // App state
 #[derive(Clone)]
@@ -256,6 +256,25 @@ fn ContentPanel(state: Signal<AppState>) -> Element {
                 match current_tab {
                     Tab::Packets => rsx! {
                         PacketsTable { state: state }
+                    },
+                    Tab::RtpSection(section) => {
+                        match section {
+                            tab::RtpSection::Packets => rsx! {
+                                RtpPacketsTable { state: state }
+                            },
+                            tab::RtpSection::Streams => rsx! {
+                                RtpStreamsTable { state: state }
+                            },
+                            _ => rsx! {
+                                div {
+                                    style: "padding: 20px;",
+                                    p { 
+                                        style: "color: #888;",
+                                        "Content for {current_tab.display_name()} will be displayed here." 
+                                    }
+                                }
+                            }
+                        }
                     },
                     _ => rsx! {
                         div {
