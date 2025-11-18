@@ -13,4 +13,7 @@ pub struct Config {
     /// Maximum number of concurrent client connections
     #[builder(default = 100)]
     pub max_clients: usize,
+    /// Number of messages to send per client per tick (batch size)
+    #[builder(default = 10)]
+    pub message_batch_size: usize,
 }

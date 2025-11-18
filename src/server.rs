@@ -20,7 +20,7 @@ pub async fn run(sniffers: HashMap<String, Sniffer>, config: Config) {
 
     let routes = setup_routes!((clients, source_to_packets, config));
 
-    spawn_message_sender!((sender_clients, config.client_message_interval_ms,));
+    spawn_message_sender!((sender_clients, config.client_message_interval_ms, config.message_batch_size));
 
     run_server!((routes, config.addr));
 }

@@ -12,6 +12,7 @@ use ringbuf::{
     traits::{Consumer, Observer, RingBuffer},
     HeapRb,
 };
+use std::collections::HashSet;
 use std::time::SystemTime;
 use std::{collections::HashMap, io::Write, sync::Arc};
 use tokio::sync::{mpsc, mpsc::UnboundedSender, RwLock};
@@ -20,6 +21,9 @@ use warp::ws::{Message, WebSocket};
 pub type PacketRingBuffer = HeapRb<Response>;
 pub type Packets = Arc<RwLock<PacketRingBuffer>>;
 pub type PacketsMap = Arc<HashMap<Source, (Packets, mpsc::Sender<()>)>>;
+
+/// Per-source list of subscribed client IDs for efficient broadcasting
+pub type SourceSubscriptions = Arc<RwLock<HashMap<Source, HashSet<usize>>>>;
 
 pub async fn setup_packet_handlers(
     sniffers: HashMap<String, Sniffer>,

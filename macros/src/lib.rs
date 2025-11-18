@@ -70,22 +70,34 @@ pub fn setup_routes(_input: TokenStream) -> TokenStream {
 #[proc_macro]
 pub fn spawn_message_sender(_input: TokenStream) -> TokenStream {
     // Usage:
-    // spawn_message_sender!(clients, CLIENT_MESSAGE_INTERVAL_MS)
+    // spawn_message_sender!(clients, CLIENT_MESSAGE_INTERVAL_MS, MESSAGE_BATCH_SIZE)
     let input = parse_macro_input!(_input as syn::ExprTuple);
     let clients = &input.elems[0];
     let interval_ms = &input.elems[1];
+    let batch_size = &input.elems[2];
 
     let expanded = quote! {
         {
             let clients_for_sender = #clients.clone();
+            let batch_size = #batch_size;
             tokio::spawn(async move {
                 let mut ticker = tokio::time::interval(std::time::Duration::from_millis(#interval_ms));
                 loop {
                     ticker.tick().await;
                     let mut clients = clients_for_sender.write().await;
                     for client in clients.values_mut() {
-                        if let Some(msg) = client.queue.pop_front() {
-                            let _ = client.sender.send(msg);
+                        // Send multiple messages per tick for better throughput
+                        let mut sent = 0;
+                        while sent < batch_size {
+                            if let Some(msg) = client.queue.pop_front() {
+                                if client.sender.send(msg).is_err() {
+                                    // Client disconnected, stop trying to send
+                                    break;
+                                }
+                                sent += 1;
+                            } else {
+                                break;
+                            }
                         }
                     }
                 }

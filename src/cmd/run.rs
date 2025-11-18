@@ -12,6 +12,7 @@ const DEFAULT_MAXIMUM_PACKAGE_AGE: u64 = 300;
 const DEFAULT_CLIENT_MESSAGE_INTERVAL_MS: u64 = 5; // ~ 300 messages per second
 const DEFAULT_MAX_CLIENT_QUEUE_SIZE: usize = 1000;
 const DEFAULT_MAX_CLIENTS: usize = 100;
+const DEFAULT_MESSAGE_BATCH_SIZE: usize = 10;
 
 #[derive(Debug, clap::Args)]
 pub struct Run {
@@ -52,6 +53,9 @@ pub struct Run {
     /// Maximum number of concurrent client connections
     #[arg(short='C', long, default_value_t = DEFAULT_MAX_CLIENTS)]
     max_clients: usize,
+    /// Number of messages to send per client per interval (batch size)
+    #[arg(short='B', long, default_value_t = DEFAULT_MESSAGE_BATCH_SIZE)]
+    message_batch_size: usize,
 }
 
 impl Run {
@@ -96,6 +100,7 @@ impl Run {
             .packet_buffer_size(self.buffer_size)
             .max_client_queue_size(self.max_client_queue_size)
             .max_clients(self.max_clients)
+            .message_batch_size(self.message_batch_size)
             .addr(address)
             .build();
 
