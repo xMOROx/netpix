@@ -13,7 +13,8 @@ mod tables;
 
 use tab::Tab;
 use websocket::WebSocketManager;
-use tables::{PacketsTable, RtpPacketsTable, RtpStreamsTable, RtcpPacketsTable, StunPacketsTable};
+use tables::{PacketsTable, RtpPacketsTable, RtpStreamsTable, RtcpPacketsTable, StunPacketsTable,
+             MpegtsPacketsTable, MpegtsStreamsTable, MpegtsInfoTable};
 
 // App state
 #[derive(Clone)]
@@ -279,6 +280,19 @@ fn ContentPanel(state: Signal<AppState>) -> Element {
                             }
                         }
                     },
+                    Tab::MpegTsSection(section) => {
+                        match section {
+                            tab::MpegTsSection::Packets => rsx! {
+                                MpegtsPacketsTable { state: state }
+                            },
+                            tab::MpegTsSection::Streams => rsx! {
+                                MpegtsStreamsTable { state: state }
+                            },
+                            tab::MpegTsSection::Information => rsx! {
+                                MpegtsInfoTable { state: state }
+                            },
+                        }
+                    },
                     Tab::IceSection(section) => {
                         match section {
                             tab::IceSection::StunPackets => rsx! {
@@ -286,19 +300,6 @@ fn ContentPanel(state: Signal<AppState>) -> Element {
                             },
                         }
                     },
-                    _ => rsx! {
-                        div {
-                            style: "padding: 20px;",
-                            p { 
-                                style: "color: #888;",
-                                "Content for {current_tab.display_name()} will be displayed here." 
-                            }
-                            div {
-                                style: "margin-top: 20px; padding: 20px; background: #2c2c2c; border-radius: 4px;",
-                                "Table/Plot content placeholder"
-                            }
-                        }
-                    }
                 }
             }
         }

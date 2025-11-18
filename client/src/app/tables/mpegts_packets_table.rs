@@ -1,0 +1,94 @@
+use dioxus::prelude::*;
+use crate::app::AppState;
+use netpix_common::packet::SessionPacket;
+
+#[component]
+pub fn MpegtsPacketsTable(state: Signal<AppState>) -> Element {
+    let streams = state.read().streams.clone();
+    let streams_ref = streams.borrow();
+    
+    // Filter for MPEG-TS packets only
+    let mpegts_packets: Vec<_> = streams_ref
+        .packets
+        .values()
+        .filter(|packet| matches!(packet.contents, SessionPacket::Mpegts(_)))
+        .collect();
+    
+    let first_ts = mpegts_packets
+        .first()
+        .map(|p| p.timestamp)
+        .unwrap_or_default();
+    
+    rsx! {
+        div {
+            style: "width: 100%; height: 100%; display: flex; flex-direction: column;",
+            
+            // Table container
+            div {
+                style: "flex: 1; overflow: auto; background: #1e1e1e;",
+                
+                table {
+                    style: "width: 100%; border-collapse: collapse; color: #ddd; font-family: monospace; font-size: 12px;",
+                    
+                    thead {
+                        style: "position: sticky; top: 0; background: #2c2c2c; z-index: 10;",
+                        tr {
+                            th { style: "padding: 10px; text-align: left; border-bottom: 2px solid #444; font-weight: bold;", "No." }
+                            th { style: "padding: 10px; text-align: left; border-bottom: 2px solid #444; font-weight: bold;", "Time" }
+                            th { style: "padding: 10px; text-align: left; border-bottom: 2px solid #444; font-weight: bold;", "Source" }
+                            th { style: "padding: 10px; text-align: left; border-bottom: 2px solid #444; font-weight: bold;", "Destination" }
+                            th { style: "padding: 10px; text-align: left; border-bottom: 2px solid #444; font-weight: bold;", "Fragments" }
+                            th { style: "padding: 10px; text-align: left; border-bottom: 2px solid #444; font-weight: bold;", "PIDs" }
+                        }
+                    }
+                    
+                    tbody {
+                        for (idx, packet) in mpegts_packets.iter().enumerate() {
+                            {
+                                if let SessionPacket::Mpegts(ref mpegts) = packet.contents {
+                                    let timestamp = packet.timestamp - first_ts;
+                                    let time_str = format!("{:.4}", timestamp.as_secs_f64());
+                                    let source_str = format!("{}", packet.source_addr);
+                                    let dest_str = format!("{}", packet.destination_addr);
+                                    let fragments = mpegts.number_of_fragments;
+                                    let pids: Vec<String> = mpegts.fragments.iter()
+                                        .map(|f| f.header.pid.to_string())
+                                        .collect();
+                                    let pids_str = pids.join(", ");
+                                    
+                                    rsx! {
+                                        tr {
+                                            key: "{packet.id}",
+                                            style: if idx % 2 == 0 { "background: #1e1e1e;" } else { "background: #252525;" },
+                                            td { style: "padding: 8px; border-bottom: 1px solid #333;", "{packet.id}" }
+                                            td { style: "padding: 8px; border-bottom: 1px solid #333;", "{time_str}" }
+                                            td { style: "padding: 8px; border-bottom: 1px solid #333;", "{source_str}" }
+                                            td { style: "padding: 8px; border-bottom: 1px solid #333;", "{dest_str}" }
+                                            td { style: "padding: 8px; border-bottom: 1px solid #333; color: #2196F3;", "{fragments}" }
+                                            td { style: "padding: 8px; border-bottom: 1px solid #333; font-size: 11px;", "{pids_str}" }
+                                        }
+                                    }
+                                } else {
+                                    rsx! { tr {} }
+                                }
+                            }
+                        }
+                    }
+                }
+                
+                if mpegts_packets.is_empty() {
+                    div {
+                        style: "padding: 40px; text-align: center; color: #888;",
+                        "No MPEG-TS packets captured yet"
+                    }
+                }
+            }
+            
+            // Footer with packet count
+            div {
+                style: "padding: 10px; background: #2c2c2c; border-top: 1px solid #444; font-size: 12px; color: #888;",
+                "MPEG-TS packets: {mpegts_packets.len()}"
+            }
+        }
+    }
+}
