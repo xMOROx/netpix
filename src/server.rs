@@ -18,9 +18,9 @@ pub async fn run(sniffers: HashMap<String, Sniffer>, config: Config) {
     let source_to_packets = setup_packet_handlers!((sniffers, clients, config));
     let sender_clients = clients.clone();
 
-    let routes = setup_routes!((clients, source_to_packets));
+    let routes = setup_routes!((clients, source_to_packets, config));
 
-    spawn_message_sender!((sender_clients, config.client_message_interval_ms,));
+    spawn_message_sender!((sender_clients, config.client_message_interval_ms, config.message_batch_size));
 
     run_server!((routes, config.addr));
 }

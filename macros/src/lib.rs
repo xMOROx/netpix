@@ -35,23 +35,26 @@ pub fn setup_packet_handlers(_input: TokenStream) -> TokenStream {
 #[proc_macro]
 pub fn setup_routes(_input: TokenStream) -> TokenStream {
     // Example usage:
-    // setup_routes!(clients, source_to_packets)
+    // setup_routes!(clients, source_to_packets, config)
     let input = parse_macro_input!(_input as syn::ExprTuple);
     let clients = &input.elems[0];
     let source_to_packets = &input.elems[1];
+    let config = &input.elems[2];
 
     let expanded = quote! {
         {
             let clients_filter = warp::any().map(move || #clients.clone());
             let source_to_packets_filter = warp::any().map(move || #source_to_packets.clone());
+            let config_filter = warp::any().map(move || #config);
 
             let ws = warp::path(crate::server::constants::WEBSOCKET_PATH)
                 .and(warp::ws())
                 .and(clients_filter)
                 .and(source_to_packets_filter)
-                .map(|ws: warp::ws::Ws, clients_cl, source_to_packets_cl| {
+                .and(config_filter)
+                .map(|ws: warp::ws::Ws, clients_cl, source_to_packets_cl, config_cl| {
                     ws.on_upgrade(move |socket| {
-                        crate::server::client::handle_connection(socket, clients_cl, source_to_packets_cl)
+                        crate::server::client::handle_connection(socket, clients_cl, source_to_packets_cl, config_cl)
                     })
                 });
 
@@ -67,22 +70,34 @@ pub fn setup_routes(_input: TokenStream) -> TokenStream {
 #[proc_macro]
 pub fn spawn_message_sender(_input: TokenStream) -> TokenStream {
     // Usage:
-    // spawn_message_sender!(clients, CLIENT_MESSAGE_INTERVAL_MS)
+    // spawn_message_sender!(clients, CLIENT_MESSAGE_INTERVAL_MS, MESSAGE_BATCH_SIZE)
     let input = parse_macro_input!(_input as syn::ExprTuple);
     let clients = &input.elems[0];
     let interval_ms = &input.elems[1];
+    let batch_size = &input.elems[2];
 
     let expanded = quote! {
         {
             let clients_for_sender = #clients.clone();
+            let batch_size = #batch_size;
             tokio::spawn(async move {
                 let mut ticker = tokio::time::interval(std::time::Duration::from_millis(#interval_ms));
                 loop {
                     ticker.tick().await;
                     let mut clients = clients_for_sender.write().await;
                     for client in clients.values_mut() {
-                        if let Some(msg) = client.queue.pop_front() {
-                            let _ = client.sender.send(msg);
+                        // Send multiple messages per tick for better throughput
+                        let mut sent = 0;
+                        while sent < batch_size {
+                            if let Some(msg) = client.queue.pop_front() {
+                                if client.sender.send(msg).is_err() {
+                                    // Client disconnected, stop trying to send
+                                    break;
+                                }
+                                sent += 1;
+                            } else {
+                                break;
+                            }
                         }
                     }
                 }

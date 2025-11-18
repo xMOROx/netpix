@@ -12,6 +12,7 @@ use ringbuf::{
     traits::{Consumer, Observer, RingBuffer},
     HeapRb,
 };
+use std::collections::HashSet;
 use std::time::SystemTime;
 use std::{collections::HashMap, io::Write, sync::Arc};
 use tokio::sync::{mpsc, mpsc::UnboundedSender, RwLock};
@@ -20,6 +21,9 @@ use warp::ws::{Message, WebSocket};
 pub type PacketRingBuffer = HeapRb<Response>;
 pub type Packets = Arc<RwLock<PacketRingBuffer>>;
 pub type PacketsMap = Arc<HashMap<Source, (Packets, mpsc::Sender<()>)>>;
+
+/// Per-source list of subscribed client IDs for efficient broadcasting
+pub type SourceSubscriptions = Arc<RwLock<HashMap<Source, HashSet<usize>>>>;
 
 pub async fn setup_packet_handlers(
     sniffers: HashMap<String, Sniffer>,
@@ -70,10 +74,16 @@ async fn send_stats(clients: &Clients, discharged: usize, overwritten: usize) {
         overwritten,
     };
     let response = Response::PacketsStats(stats);
+    
+    // Encode once and reuse for all clients
+    let Ok(encoded) = response.encode() else {
+        error!("Failed to encode stats");
+        return;
+    };
+    let msg = Message::binary(encoded);
+    
     for (_, client) in clients.write().await.iter_mut() {
-        if let Ok(encoded) = response.encode() {
-            client.queue.push_back(Message::binary(encoded));
-        }
+        client.try_queue_message(msg.clone());
     }
 }
 
@@ -126,13 +136,16 @@ async fn sniff(
                         };
                         let msg = Message::binary(encoded);
 
-                        for (_, client) in clients.write().await.iter_mut() {
+                        // Use try_queue_message with backpressure handling
+                        let mut clients_guard = clients.write().await;
+                        for (_, client) in clients_guard.iter_mut() {
                             if let Some(src) = &client.source {
                                 if *src == sniffer.source {
-                                    client.queue.push_back(msg.clone());
+                                    client.try_queue_message(msg.clone());
                                 }
                             }
                         }
+                        drop(clients_guard);
 
                         let mut packets = packets.write().await;
 
@@ -201,7 +214,7 @@ async fn send_all_packets(client_id: usize, packets: &Packets, clients: &Clients
         };
         let msg = Message::binary(encoded);
 
-        client.queue.push_back(msg);
+        client.try_queue_message(msg);
     }
 }
 
@@ -332,7 +345,7 @@ pub async fn handle_messages(
                             let msg = Message::binary(encoded);
                             let mut wr_clients = clients.write().await;
                             for (_, client) in wr_clients.iter_mut() {
-                                client.queue.push_back(msg.clone());
+                                client.try_queue_message(msg.clone());
                             }
                         }
                     }
