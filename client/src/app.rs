@@ -41,7 +41,7 @@ impl Default for AppState {
 #[component]
 pub fn App() -> Element {
     let mut state = use_signal(AppState::default);
-    let mut ws_manager = use_signal(|| WebSocketManager::new());
+    let mut ws_manager = use_signal(WebSocketManager::new);
 
     // Initialize WebSocket connection
     use_effect(move || {

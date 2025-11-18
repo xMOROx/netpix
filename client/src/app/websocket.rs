@@ -64,11 +64,7 @@ impl WebSocketManager {
     }
 
     pub async fn receive_message(&self) -> Option<Vec<u8>> {
-        if let Some(msg) = self.message_queue.borrow_mut().pop() {
-            Some(msg)
-        } else {
-            None
-        }
+        self.message_queue.borrow_mut().pop()
     }
 
     pub fn send(&self, data: &[u8]) -> Result<(), JsValue> {
