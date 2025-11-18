@@ -74,10 +74,16 @@ async fn send_stats(clients: &Clients, discharged: usize, overwritten: usize) {
         overwritten,
     };
     let response = Response::PacketsStats(stats);
+    
+    // Encode once and reuse for all clients
+    let Ok(encoded) = response.encode() else {
+        error!("Failed to encode stats");
+        return;
+    };
+    let msg = Message::binary(encoded);
+    
     for (_, client) in clients.write().await.iter_mut() {
-        if let Ok(encoded) = response.encode() {
-            client.queue.push_back(Message::binary(encoded));
-        }
+        client.try_queue_message(msg.clone());
     }
 }
 
@@ -339,7 +345,7 @@ pub async fn handle_messages(
                             let msg = Message::binary(encoded);
                             let mut wr_clients = clients.write().await;
                             for (_, client) in wr_clients.iter_mut() {
-                                client.queue.push_back(msg.clone());
+                                client.try_queue_message(msg.clone());
                             }
                         }
                     }
