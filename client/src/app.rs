@@ -26,6 +26,7 @@ pub(crate) struct AppState {
     pub current_tab: Tab,
     pub discharged_count: usize,
     pub overwritten_count: usize,
+    pub update_counter: usize, // Force re-renders when data changes
 }
 
 impl Default for AppState {
@@ -38,6 +39,7 @@ impl Default for AppState {
             current_tab: Tab::Packets,
             discharged_count: 0,
             overwritten_count: 0,
+            update_counter: 0,
         }
     }
 }
@@ -101,7 +103,7 @@ pub fn App() -> Element {
 }
 
 #[component]
-fn TopBar(state: Signal<AppState>) -> Element {
+fn TopBar(mut state: Signal<AppState>) -> Element {
     let current_tab = state.read().current_tab;
     
     rsx! {
@@ -136,7 +138,20 @@ fn TopBar(state: Signal<AppState>) -> Element {
                 style: "padding: 5px; background: #1e1e1e; color: #ddd; border: 1px solid #555; border-radius: 4px;",
                 value: "{current_tab:?}",
                 onchange: move |evt| {
-                    warn!("Tab changed: {}", evt.value());
+                    let value = evt.value();
+                    let new_tab = match value.as_str() {
+                        "Packets" => Tab::Packets,
+                        "RtpPackets" => Tab::RtpSection(tab::RtpSection::Packets),
+                        "RtcpPackets" => Tab::RtpSection(tab::RtpSection::RtcpPackets),
+                        "RtpStreams" => Tab::RtpSection(tab::RtpSection::Streams),
+                        "RtpPlot" => Tab::RtpSection(tab::RtpSection::Plot),
+                        "MpegTsPackets" => Tab::MpegTsSection(tab::MpegTsSection::Packets),
+                        "MpegTsStreams" => Tab::MpegTsSection(tab::MpegTsSection::Streams),
+                        "MpegTsInfo" => Tab::MpegTsSection(tab::MpegTsSection::Information),
+                        "StunPackets" => Tab::IceSection(tab::IceSection::StunPackets),
+                        _ => Tab::Packets,
+                    };
+                    state.write().current_tab = new_tab;
                 },
                 
                 optgroup { label: "📋 General",
@@ -336,9 +351,17 @@ fn handle_message(msg: Vec<u8>, state: &mut Signal<AppState>) {
 
     match response {
         (Response::Packet(packet), _) => {
-            let state_ref = state.read();
-            let mut streams = state_ref.streams.borrow_mut();
-            streams.add_packet(packet);
+            // Check if capturing is enabled
+            if !state.read().is_capturing {
+                return;
+            }
+            {
+                let state_ref = state.read();
+                let mut streams = state_ref.streams.borrow_mut();
+                streams.add_packet(packet);
+            }
+            // Increment counter to trigger re-render
+            state.write().update_counter += 1;
         }
         (Response::Sources(sources), _) => {
             let mut s = state.write();
@@ -350,11 +373,15 @@ fn handle_message(msg: Vec<u8>, state: &mut Signal<AppState>) {
             s.sources = sources;
         }
         (Response::Sdp(stream_key, sdp), _) => {
-            let state_ref = state.read();
-            let mut streams = state_ref.streams.borrow_mut();
-            if let Some(stream) = streams.rtp_streams.get_mut(&stream_key) {
-                stream.add_sdp(sdp);
+            {
+                let state_ref = state.read();
+                let mut streams = state_ref.streams.borrow_mut();
+                if let Some(stream) = streams.rtp_streams.get_mut(&stream_key) {
+                    stream.add_sdp(sdp);
+                }
             }
+            // Increment counter to trigger re-render
+            state.write().update_counter += 1;
         }
         (Response::PacketsStats(stats), _) => {
             let mut s = state.write();

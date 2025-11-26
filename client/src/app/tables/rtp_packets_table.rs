@@ -4,6 +4,8 @@ use netpix_common::packet::SessionPacket;
 
 #[component]
 pub fn RtpPacketsTable(state: Signal<AppState>) -> Element {
+    // Read update counter to trigger re-renders when data changes
+    let _update = state.read().update_counter;
     let streams = state.read().streams.clone();
     let streams_ref = streams.borrow();
     

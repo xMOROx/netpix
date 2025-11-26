@@ -3,6 +3,8 @@ use crate::app::AppState;
 
 #[component]
 pub fn PacketsTable(state: Signal<AppState>) -> Element {
+    // Read update counter to trigger re-renders when data changes
+    let _update = state.read().update_counter;
     let streams = state.read().streams.clone();
     let packets = streams.borrow();
     let packet_list: Vec<_> = packets.packets.values().collect();

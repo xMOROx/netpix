@@ -5,6 +5,8 @@ use netpix_common::RtcpPacket;
 
 #[component]
 pub fn RtcpPacketsTable(state: Signal<AppState>) -> Element {
+    // Read update counter to trigger re-renders when data changes
+    let _update = state.read().update_counter;
     let streams = state.read().streams.clone();
     let streams_ref = streams.borrow();
     
