@@ -1,29 +1,67 @@
 use dioxus::prelude::*;
 use crate::app::AppState;
+use crate::app::components::FilterInput;
+use crate::app::tables::filters::{build_mpegts_packets_filter_help, parse_mpegts_packet_filter, MpegtsPacketFilterContext, MpegtsPacketFilterType};
+use crate::filter_system::FilterExpression;
 use netpix_common::packet::SessionPacket;
 
 #[component]
 pub fn MpegtsPacketsTable(state: Signal<AppState>) -> Element {
     // Read update counter to trigger re-renders when data changes
     let _update = state.read().update_counter;
+    let filter_text = use_signal(String::new);
+    let filter_error = use_signal(|| None::<String>);
+    
     let streams = state.read().streams.clone();
     let streams_ref = streams.borrow();
+    
+    // Parse filter
+    let filter: Option<MpegtsPacketFilterType> = if filter_text.read().is_empty() {
+        None
+    } else {
+        parse_mpegts_packet_filter(&filter_text.read()).ok()
+    };
     
     // Filter for MPEG-TS packets only
     let mpegts_packets: Vec<_> = streams_ref
         .packets
         .values()
-        .filter(|packet| matches!(packet.contents, SessionPacket::Mpegts(_)))
+        .filter(|packet| {
+            if let SessionPacket::Mpegts(ref mpegts) = packet.contents {
+                if let Some(ref f) = filter {
+                    let ctx = MpegtsPacketFilterContext { packet, mpegts };
+                    f.matches(&ctx)
+                } else {
+                    true
+                }
+            } else {
+                false
+            }
+        })
         .collect();
     
-    let first_ts = mpegts_packets
-        .first()
+    let first_ts = streams_ref
+        .packets
+        .values()
+        .filter(|p| matches!(p.contents, SessionPacket::Mpegts(_)))
+        .next()
         .map(|p| p.timestamp)
         .unwrap_or_default();
     
     rsx! {
         div {
             style: "width: 100%; height: 100%; display: flex; flex-direction: column;",
+            
+            // Filter bar
+            div {
+                style: "padding: 10px 20px; background: #252525; border-bottom: 1px solid #333;",
+                FilterInput {
+                    filter_text: filter_text,
+                    filter_error: filter_error,
+                    placeholder: "Filter MPEG-TS packets (e.g., source:192.168 AND pid:100)".to_string(),
+                    help_content: build_mpegts_packets_filter_help().to_string(),
+                }
+            }
             
             // Table container
             div {

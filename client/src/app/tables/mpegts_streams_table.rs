@@ -1,19 +1,52 @@
 use dioxus::prelude::*;
 use crate::app::AppState;
+use crate::app::components::FilterInput;
+use crate::app::tables::filters::{build_mpegts_streams_filter_help, parse_mpegts_stream_filter, MpegtsStreamFilterContext, MpegtsStreamFilterType};
+use crate::filter_system::FilterExpression;
 
 #[component]
 pub fn MpegtsStreamsTable(state: Signal<AppState>) -> Element {
     // Read update counter to trigger re-renders when data changes
     let _update = state.read().update_counter;
+    let filter_text = use_signal(String::new);
+    let filter_error = use_signal(|| None::<String>);
+    
     let streams = state.read().streams.clone();
     let streams_ref = streams.borrow();
     
-    let mut stream_list: Vec<_> = streams_ref.mpeg_ts_streams.values().collect();
+    // Parse filter
+    let filter: Option<MpegtsStreamFilterType> = if filter_text.read().is_empty() {
+        None
+    } else {
+        parse_mpegts_stream_filter(&filter_text.read()).ok()
+    };
+    
+    let mut stream_list: Vec<_> = streams_ref.mpeg_ts_streams.values()
+        .filter(|stream| {
+            if let Some(ref f) = filter {
+                let ctx = MpegtsStreamFilterContext { stream };
+                f.matches(&ctx)
+            } else {
+                true
+            }
+        })
+        .collect();
     stream_list.sort_by_key(|s| s.alias.as_str());
     
     rsx! {
         div {
             style: "width: 100%; height: 100%; display: flex; flex-direction: column;",
+            
+            // Filter bar
+            div {
+                style: "padding: 10px 20px; background: #252525; border-bottom: 1px solid #333;",
+                FilterInput {
+                    filter_text: filter_text,
+                    filter_error: filter_error,
+                    placeholder: "Filter MPEG-TS streams (e.g., alias:stream1 AND substreams:>3)".to_string(),
+                    help_content: build_mpegts_streams_filter_help().to_string(),
+                }
+            }
             
             // Table container
             div {
