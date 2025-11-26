@@ -1,10 +1,10 @@
-use futures_util::stream::StreamExt;
-use log::{error, info};
+use log::{error, info, warn};
 use std::cell::RefCell;
 use std::rc::Rc;
 use wasm_bindgen::prelude::*;
 use wasm_bindgen::JsCast;
 use web_sys::{BinaryType, CloseEvent, ErrorEvent, MessageEvent, WebSocket};
+use netpix_common::Request;
 
 #[derive(Clone)]
 pub struct WebSocketManager {
@@ -37,6 +37,7 @@ impl WebSocketManager {
             if let Ok(abuf) = e.data().dyn_into::<js_sys::ArrayBuffer>() {
                 let array = js_sys::Uint8Array::new(&abuf);
                 let vec = array.to_vec();
+                info!("WebSocket received message: {} bytes", vec.len());
                 message_queue.borrow_mut().push(vec);
             }
         }) as Box<dyn FnMut(MessageEvent)>);
@@ -84,5 +85,14 @@ impl WebSocketManager {
             ws.send_with_u8_array(data)?;
         }
         Ok(())
+    }
+
+    pub fn send_request(&self, request: &Request) -> Result<(), JsValue> {
+        let Ok(msg) = request.encode() else {
+            warn!("Failed to encode request");
+            return Ok(());
+        };
+        info!("Sending request: {:?}", request);
+        self.send(&msg)
     }
 }

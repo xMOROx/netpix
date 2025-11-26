@@ -1,5 +1,5 @@
 use dioxus::prelude::*;
-use log::{error, warn};
+use log::{error, info, warn};
 use netpix_common::{Request, Response, Source};
 use std::rc::Rc;
 use web_sys::{BinaryType, MessageEvent, WebSocket};
@@ -27,6 +27,7 @@ pub(crate) struct AppState {
     pub discharged_count: usize,
     pub overwritten_count: usize,
     pub update_counter: usize, // Force re-renders when data changes
+    pub pending_source_change: Option<Source>, // Track source changes
 }
 
 impl Default for AppState {
@@ -40,6 +41,7 @@ impl Default for AppState {
             discharged_count: 0,
             overwritten_count: 0,
             update_counter: 0,
+            pending_source_change: None,
         }
     }
 }
@@ -53,9 +55,10 @@ pub fn App() -> Element {
     use_effect(move || {
         let host = web_sys::window()
             .and_then(|w| w.location().host().ok())
-            .unwrap_or_else(|| "localhost:3550".to_string());
+            .unwrap_or_else(|| "localhost:5566".to_string());
         
         let ws_url = format!("ws://{}/ws", host);
+        info!("Connecting to WebSocket at {}", ws_url);
         
         if let Err(e) = ws_manager.read().connect(&ws_url) {
             error!("Failed to connect to WebSocket: {:?}", e);
@@ -66,10 +69,24 @@ pub fn App() -> Element {
     use_effect(move || {
         spawn(async move {
             loop {
+                // Check for pending source change
+                let pending_source = {
+                    let mut s = state.write();
+                    s.pending_source_change.take()
+                };
+                
+                if let Some(source) = pending_source {
+                    info!("Sending ChangeSource request for: {}", source);
+                    let request = Request::ChangeSource(source.clone());
+                    if let Err(e) = ws_manager.read().send_request(&request) {
+                        error!("Failed to send ChangeSource request: {:?}", e);
+                    }
+                }
+                
                 // Drain all pending messages
                 let messages = ws_manager.read().drain_messages();
                 for msg in messages {
-                    handle_message(msg, &mut state);
+                    handle_message(msg, &mut state, &ws_manager);
                 }
                 // Poll every 50ms
                 gloo_timers::future::TimeoutFuture::new(50).await;
@@ -107,6 +124,8 @@ pub fn App() -> Element {
 fn TopBar(mut state: Signal<AppState>) -> Element {
     let current_tab = state.read().current_tab;
     let tab_value = current_tab.value();
+    let selected_source = state.read().selected_source.clone();
+    let source_value = selected_source.as_ref().map(|s| s.to_string()).unwrap_or_default();
     
     rsx! {
         div {
@@ -115,15 +134,35 @@ fn TopBar(mut state: Signal<AppState>) -> Element {
             
             // Source selector
             select {
-                style: "padding: 5px; background: #1e1e1e; color: #ddd; border: 1px solid #555; border-radius: 4px;",
+                style: "padding: 5px; background: #1e1e1e; color: #ddd; border: 1px solid #555; border-radius: 4px; min-width: 200px;",
+                value: "{source_value}",
                 onchange: move |evt| {
-                    warn!("Source changed: {}", evt.value());
+                    let value = evt.value();
+                    info!("Source selection changed to: {}", value);
+                    
+                    // Find the source that matches this string
+                    let sources = state.read().sources.clone();
+                    if let Some(source) = sources.into_iter().find(|s| s.to_string() == value) {
+                        info!("Found matching source: {:?}", source);
+                        let mut s = state.write();
+                        // Clear existing data when source changes
+                        s.streams.borrow_mut().clear();
+                        s.selected_source = Some(source.clone());
+                        s.pending_source_change = Some(source);
+                        s.update_counter += 1;
+                    }
                 },
-                option { "Select Source..." }
+                option { 
+                    value: "",
+                    disabled: true,
+                    selected: selected_source.is_none(),
+                    "Select Source..." 
+                }
                 for source in state.read().sources.iter() {
                     option { 
-                        value: "{source:?}",
-                        "{source:?}"
+                        value: "{source}",
+                        selected: selected_source.as_ref() == Some(source),
+                        "{source}"
                     }
                 }
             }
@@ -345,11 +384,13 @@ fn BottomBar(state: Signal<AppState>) -> Element {
     }
 }
 
-fn handle_message(msg: Vec<u8>, state: &mut Signal<AppState>) {
+fn handle_message(msg: Vec<u8>, state: &mut Signal<AppState>, _ws_manager: &Signal<WebSocketManager>) {
     let Ok(response) = Response::decode(&msg) else {
         error!("Failed to decode response message");
         return;
     };
+
+    info!("Received response: {:?}", std::mem::discriminant(&response.0));
 
     match response {
         (Response::Packet(packet), _) => {
@@ -357,6 +398,7 @@ fn handle_message(msg: Vec<u8>, state: &mut Signal<AppState>) {
             if !state.read().is_capturing {
                 return;
             }
+            info!("Adding packet to streams");
             {
                 let state_ref = state.read();
                 let mut streams = state_ref.streams.borrow_mut();
@@ -366,15 +408,28 @@ fn handle_message(msg: Vec<u8>, state: &mut Signal<AppState>) {
             state.write().update_counter += 1;
         }
         (Response::Sources(sources), _) => {
+            info!("Received {} sources", sources.len());
             let mut s = state.write();
+            
+            // Check if current selected source is still valid
             if let Some(ref source) = s.selected_source {
                 if !sources.contains(source) {
                     s.selected_source = None;
                 }
             }
+            
+            // Auto-select the first source if none is selected and sources are available
+            if s.selected_source.is_none() && !sources.is_empty() {
+                let first_source = sources[0].clone();
+                info!("Auto-selecting first source: {}", first_source);
+                s.selected_source = Some(first_source.clone());
+                s.pending_source_change = Some(first_source);
+            }
+            
             s.sources = sources;
         }
         (Response::Sdp(stream_key, sdp), _) => {
+            info!("Received SDP for stream: {:?}", stream_key);
             {
                 let state_ref = state.read();
                 let mut streams = state_ref.streams.borrow_mut();
