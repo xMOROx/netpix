@@ -8,6 +8,29 @@ pub enum Tab {
     IceSection(IceSection),
 }
 
+impl Tab {
+    /// Returns the value string used in the select element
+    pub fn value(&self) -> &'static str {
+        match self {
+            Self::Packets => "Packets",
+            Self::RtpSection(section) => match section {
+                RtpSection::Packets => "RtpPackets",
+                RtpSection::RtcpPackets => "RtcpPackets",
+                RtpSection::Streams => "RtpStreams",
+                RtpSection::Plot => "RtpPlot",
+            },
+            Self::MpegTsSection(section) => match section {
+                MpegTsSection::Packets => "MpegTsPackets",
+                MpegTsSection::Streams => "MpegTsStreams",
+                MpegTsSection::Information => "MpegTsInfo",
+            },
+            Self::IceSection(section) => match section {
+                IceSection::StunPackets => "StunPackets",
+            },
+        }
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum RtpSection {
     Packets,

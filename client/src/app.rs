@@ -47,7 +47,7 @@ impl Default for AppState {
 #[component]
 pub fn App() -> Element {
     let mut state = use_signal(AppState::default);
-    let mut ws_manager = use_signal(WebSocketManager::new);
+    let ws_manager = use_signal(WebSocketManager::new);
 
     // Initialize WebSocket connection
     use_effect(move || {
@@ -57,21 +57,22 @@ pub fn App() -> Element {
         
         let ws_url = format!("ws://{}/ws", host);
         
-        spawn(async move {
-            if let Err(e) = ws_manager.write().connect(&ws_url).await {
-                error!("Failed to connect to WebSocket: {:?}", e);
-            }
-        });
+        if let Err(e) = ws_manager.read().connect(&ws_url) {
+            error!("Failed to connect to WebSocket: {:?}", e);
+        }
     });
 
-    // Handle incoming WebSocket messages
+    // Handle incoming WebSocket messages with polling
     use_effect(move || {
         spawn(async move {
             loop {
-                if let Some(msg) = ws_manager.read().receive_message().await {
+                // Drain all pending messages
+                let messages = ws_manager.read().drain_messages();
+                for msg in messages {
                     handle_message(msg, &mut state);
                 }
-                gloo_timers::future::TimeoutFuture::new(10).await;
+                // Poll every 50ms
+                gloo_timers::future::TimeoutFuture::new(50).await;
             }
         });
     });
@@ -105,6 +106,7 @@ pub fn App() -> Element {
 #[component]
 fn TopBar(mut state: Signal<AppState>) -> Element {
     let current_tab = state.read().current_tab;
+    let tab_value = current_tab.value();
     
     rsx! {
         div {
@@ -136,7 +138,7 @@ fn TopBar(mut state: Signal<AppState>) -> Element {
             
             select {
                 style: "padding: 5px; background: #1e1e1e; color: #ddd; border: 1px solid #555; border-radius: 4px;",
-                value: "{current_tab:?}",
+                value: "{tab_value}",
                 onchange: move |evt| {
                     let value = evt.value();
                     let new_tab = match value.as_str() {
