@@ -1,19 +1,47 @@
 use dioxus::prelude::*;
 use crate::app::AppState;
+use crate::app::components::FilterInput;
+use crate::app::tables::filters::{StunPacketFilterContext, parse_stun_packet_filter};
+use crate::filter_system::FilterExpression;
 use netpix_common::packet::SessionPacket;
 
 #[component]
 pub fn StunPacketsTable(state: Signal<AppState>) -> Element {
+    let mut filter_text = use_signal(String::new);
+    let mut filter_error = use_signal(|| None::<String>);
+    
     // Read update counter to trigger re-renders when data changes
     let _update = state.read().update_counter;
     let streams = state.read().streams.clone();
     let streams_ref = streams.borrow();
+    
+    // Parse filter
+    let parsed_filter = if filter_text.read().is_empty() {
+        None
+    } else {
+        match parse_stun_packet_filter(&filter_text.read()) {
+            Ok(f) => { filter_error.set(None); Some(f) }
+            Err(e) => { filter_error.set(Some(e.to_string())); None }
+        }
+    };
     
     // Filter for STUN packets only
     let stun_packets: Vec<_> = streams_ref
         .packets
         .values()
         .filter(|packet| matches!(packet.contents, SessionPacket::Stun(_)))
+        .filter(|packet| {
+            if let Some(ref filter) = parsed_filter {
+                if let SessionPacket::Stun(ref stun) = packet.contents {
+                    let ctx = StunPacketFilterContext {
+                        source_addr: &packet.source_addr.to_string(),
+                        destination_addr: &packet.destination_addr.to_string(),
+                        packet: stun,
+                    };
+                    filter.matches(&ctx)
+                } else { true }
+            } else { true }
+        })
         .collect();
     
     let first_ts = stun_packets
@@ -24,6 +52,14 @@ pub fn StunPacketsTable(state: Signal<AppState>) -> Element {
     rsx! {
         div {
             style: "width: 100%; height: 100%; display: flex; flex-direction: column;",
+            
+            // Filter input
+            FilterInput {
+                filter_text: filter_text,
+                filter_error: filter_error,
+                placeholder: "Filter: source:ip, dest:ip, type:binding, transaction:id, length:>size...".to_string(),
+                help_content: "source:192.168 - Source IP\ndest:10.0 - Destination IP\ntype:binding - Message type\ntransaction:abc - Transaction ID\nlength:>100 - Message length".to_string(),
+            }
             
             // Table container
             div {

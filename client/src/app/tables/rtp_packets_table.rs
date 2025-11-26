@@ -1,19 +1,57 @@
 use dioxus::prelude::*;
 use crate::app::AppState;
+use crate::app::components::FilterInput;
+use crate::app::tables::filters::{RtpPacketFilterContext, parse_rtp_packet_filter};
+use crate::filter_system::FilterExpression;
 use netpix_common::packet::SessionPacket;
 
 #[component]
 pub fn RtpPacketsTable(state: Signal<AppState>) -> Element {
+    let mut filter_text = use_signal(String::new);
+    let mut filter_error = use_signal(|| None::<String>);
+    
     // Read update counter to trigger re-renders when data changes
     let _update = state.read().update_counter;
     let streams = state.read().streams.clone();
     let streams_ref = streams.borrow();
+    
+    // Build SSRC to alias lookup first
+    let ssrc_aliases: std::collections::HashMap<_, _> = streams_ref
+        .rtp_streams
+        .iter()
+        .map(|(key, stream)| (*key, stream.alias.to_string()))
+        .collect();
+    
+    // Parse filter
+    let parsed_filter = if filter_text.read().is_empty() {
+        None
+    } else {
+        match parse_rtp_packet_filter(&filter_text.read()) {
+            Ok(f) => { filter_error.set(None); Some(f) }
+            Err(e) => { filter_error.set(Some(e.to_string())); None }
+        }
+    };
     
     // Filter for RTP packets only
     let rtp_packets: Vec<_> = streams_ref
         .packets
         .values()
         .filter(|packet| matches!(packet.contents, SessionPacket::Rtp(_)))
+        .filter(|packet| {
+            if let Some(ref filter) = parsed_filter {
+                if let SessionPacket::Rtp(ref rtp) = packet.contents {
+                    let key = (packet.source_addr, packet.destination_addr, packet.transport_protocol, rtp.ssrc);
+                    let alias = ssrc_aliases.get(&key).map(|s| s.as_str()).unwrap_or("");
+                    let ctx = RtpPacketFilterContext {
+                        source_addr: &packet.source_addr.to_string(),
+                        destination_addr: &packet.destination_addr.to_string(),
+                        alias,
+                        packet: rtp,
+                    };
+                    filter.matches(&ctx)
+                } else { true }
+            } else { true }
+        })
         .collect();
     
     let first_ts = rtp_packets
@@ -21,16 +59,17 @@ pub fn RtpPacketsTable(state: Signal<AppState>) -> Element {
         .map(|p| p.timestamp)
         .unwrap_or_default();
     
-    // Build SSRC to alias lookup
-    let ssrc_aliases: std::collections::HashMap<_, _> = streams_ref
-        .rtp_streams
-        .iter()
-        .map(|(key, stream)| (*key, stream.alias.to_string()))
-        .collect();
-    
     rsx! {
         div {
             style: "width: 100%; height: 100%; display: flex; flex-direction: column;",
+            
+            // Filter input
+            FilterInput {
+                filter_text: filter_text,
+                filter_error: filter_error,
+                placeholder: "Filter: source:ip, dest:ip, alias:name, marker:+/-, seq:num, payload:>size...".to_string(),
+                help_content: "source:192.168 - Source IP\ndest:10.0 - Destination IP\nalias:stream - Stream alias\npadding:+/- - Padding flag\nextension:+/- - Extension\nmarker:+/- - Marker bit\nseq:1000 - Sequence number\ntimestamp:>1000 - RTP timestamp\npayload:>500 - Payload size".to_string(),
+            }
             
             // Table container
             div {

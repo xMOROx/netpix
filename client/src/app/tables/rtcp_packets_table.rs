@@ -1,20 +1,45 @@
 use dioxus::prelude::*;
 use crate::app::AppState;
+use crate::app::components::FilterInput;
+use crate::app::tables::filters::{RtcpPacketFilterContext, parse_rtcp_packet_filter};
+use crate::filter_system::FilterExpression;
 use netpix_common::packet::SessionPacket;
 use netpix_common::RtcpPacket;
 
 #[component]
 pub fn RtcpPacketsTable(state: Signal<AppState>) -> Element {
+    let mut filter_text = use_signal(String::new);
+    let mut filter_error = use_signal(|| None::<String>);
+    
     // Read update counter to trigger re-renders when data changes
     let _update = state.read().update_counter;
     let streams = state.read().streams.clone();
     let streams_ref = streams.borrow();
+    
+    // Parse filter
+    let parsed_filter = if filter_text.read().is_empty() {
+        None
+    } else {
+        match parse_rtcp_packet_filter(&filter_text.read()) {
+            Ok(f) => { filter_error.set(None); Some(f) }
+            Err(e) => { filter_error.set(Some(e.to_string())); None }
+        }
+    };
     
     // Collect RTCP packets (which can be compound - multiple RTCP packets in one UDP packet)
     let mut rtcp_packets = Vec::new();
     for packet in streams_ref.packets.values() {
         if let SessionPacket::Rtcp(ref rtcp_list) = packet.contents {
             for (idx, rtcp_packet) in rtcp_list.iter().enumerate() {
+                // Apply filter
+                if let Some(ref filter) = parsed_filter {
+                    let ctx = RtcpPacketFilterContext {
+                        source_addr: &packet.source_addr.to_string(),
+                        destination_addr: &packet.destination_addr.to_string(),
+                        packet: rtcp_packet,
+                    };
+                    if !filter.matches(&ctx) { continue; }
+                }
                 rtcp_packets.push((packet, rtcp_packet, idx + 1));
             }
         }
@@ -27,6 +52,14 @@ pub fn RtcpPacketsTable(state: Signal<AppState>) -> Element {
     rsx! {
         div {
             style: "width: 100%; height: 100%; display: flex; flex-direction: column;",
+            
+            // Filter input
+            FilterInput {
+                filter_text: filter_text,
+                filter_error: filter_error,
+                placeholder: "Filter: source:ip, dest:ip, type:sender/receiver/sdes/bye...".to_string(),
+                help_content: "source:192.168 - Source IP\ndest:10.0 - Destination IP\ntype:sender - Sender Report\ntype:receiver - Receiver Report\ntype:sdes - Source Description\ntype:bye - Goodbye".to_string(),
+            }
             
             // Table container
             div {

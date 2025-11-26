@@ -1,19 +1,55 @@
 use dioxus::prelude::*;
 use crate::app::AppState;
+use crate::app::components::FilterInput;
+use crate::app::tables::filters::{RtpStreamFilterContext, parse_rtp_stream_filter};
+use crate::filter_system::FilterExpression;
 
 #[component]
 pub fn RtpStreamsTable(state: Signal<AppState>) -> Element {
+    let mut filter_text = use_signal(String::new);
+    let mut filter_error = use_signal(|| None::<String>);
+    
     // Read update counter to trigger re-renders when data changes
     let _update = state.read().update_counter;
     let streams = state.read().streams.clone();
     let streams_ref = streams.borrow();
     
-    let mut stream_list: Vec<_> = streams_ref.rtp_streams.values().collect();
+    // Parse filter
+    let parsed_filter = if filter_text.read().is_empty() {
+        None
+    } else {
+        match parse_rtp_stream_filter(&filter_text.read()) {
+            Ok(f) => { filter_error.set(None); Some(f) }
+            Err(e) => { filter_error.set(Some(e.to_string())); None }
+        }
+    };
+    
+    let mut stream_list: Vec<_> = streams_ref.rtp_streams.values()
+        .filter(|stream| {
+            if let Some(ref filter) = parsed_filter {
+                let ctx = RtpStreamFilterContext {
+                    source_addr: &stream.source_addr.to_string(),
+                    destination_addr: &stream.destination_addr.to_string(),
+                    alias: &stream.alias,
+                    stream,
+                };
+                filter.matches(&ctx)
+            } else { true }
+        })
+        .collect();
     stream_list.sort_by_key(|s| s.alias.as_str());
     
     rsx! {
         div {
             style: "width: 100%; height: 100%; display: flex; flex-direction: column;",
+            
+            // Filter input
+            FilterInput {
+                filter_text: filter_text,
+                filter_error: filter_error,
+                placeholder: "Filter: source:ip, dest:ip, alias:name, cname:name, bitrate:>1000, packets:>100...".to_string(),
+                help_content: "source:192.168 - Source IP\ndest:10.0 - Destination IP\nalias:stream - Stream alias\ncname:name - CNAME\nbitrate:>1000 - Bitrate in kbps\npackets:>100 - Packet count".to_string(),
+            }
             
             // Table container
             div {
