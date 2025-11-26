@@ -10,11 +10,15 @@ use crate::streams::RefStreams;
 mod tab;
 mod websocket;
 mod tables;
+mod components;
+mod plots;
 
 use tab::Tab;
 use websocket::WebSocketManager;
 use tables::{PacketsTable, RtpPacketsTable, RtpStreamsTable, RtcpPacketsTable, StunPacketsTable,
              MpegtsPacketsTable, MpegtsStreamsTable, MpegtsInfoTable};
+use plots::RtpStreamsPlot;
+pub use components::{FilterInput, build_filter_help};
 
 // App state
 #[derive(Clone)]
@@ -325,15 +329,9 @@ fn ContentPanel(state: Signal<AppState>) -> Element {
                             tab::RtpSection::Streams => rsx! {
                                 RtpStreamsTable { state: state }
                             },
-                            _ => rsx! {
-                                div {
-                                    style: "padding: 20px;",
-                                    p { 
-                                        style: "color: #888;",
-                                        "Content for {current_tab.display_name()} will be displayed here." 
-                                    }
-                                }
-                            }
+                            tab::RtpSection::Plot => rsx! {
+                                RtpStreamsPlot { state: state }
+                            },
                         }
                     },
                     Tab::MpegTsSection(section) => {

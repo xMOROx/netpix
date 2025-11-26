@@ -6,6 +6,7 @@ mod stun_packets_table;
 mod mpegts_packets_table;
 mod mpegts_streams_table;
 mod mpegts_info_table;
+pub mod filters;
 
 pub use packets_table::PacketsTable;
 pub use rtp_packets_table::RtpPacketsTable;

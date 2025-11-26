@@ -1,8 +1,35 @@
 use dioxus::prelude::*;
 use crate::app::AppState;
+use crate::app::components::{FilterInput, build_filter_help};
+use crate::filter_system::FilterExpression;
+use super::filters::{PacketFilterContext, parse_packet_filter};
+
+// Packets table filter help
+fn packets_filter_help() -> String {
+    build_filter_help(
+        "Network Packet Filters",
+        &[
+            ("source:<ip>", "Filter by source IP address"),
+            ("dest:<ip>", "Filter by destination IP address"),
+            ("protocol:<proto>", "Filter by protocol (TCP, UDP, RTP, RTCP, MPEG-TS)"),
+            ("type:<type>", "Filter by session type"),
+            ("length:<op><size>", "Filter by packet size (>, <, >=, <=, or exact)"),
+        ],
+        &[
+            "source:192.168 AND protocol:udp",
+            "length:>100 AND type:rtp",
+            "NOT dest:10.0.0.1",
+            "(protocol:tcp AND length:>500) OR source:192.168",
+        ],
+    )
+}
 
 #[component]
 pub fn PacketsTable(state: Signal<AppState>) -> Element {
+    // Filter state
+    let filter_text = use_signal(String::new);
+    let mut filter_error = use_signal(|| None::<String>);
+    
     // Read update counter to trigger re-renders when data changes
     let _update = state.read().update_counter;
     let streams = state.read().streams.clone();
@@ -16,9 +43,41 @@ pub fn PacketsTable(state: Signal<AppState>) -> Element {
         .map(|p| p.timestamp)
         .unwrap_or_default();
     
+    // Apply filter
+    let filter_str = filter_text.read().clone();
+    let filtered_packets: Vec<_> = if filter_str.trim().is_empty() {
+        filter_error.set(None);
+        sorted_packets
+    } else {
+        match parse_packet_filter(&filter_str) {
+            Ok(filter) => {
+                filter_error.set(None);
+                sorted_packets
+                    .into_iter()
+                    .filter(|packet| {
+                        let ctx = PacketFilterContext { packet };
+                        filter.matches(&ctx)
+                    })
+                    .collect()
+            }
+            Err(e) => {
+                filter_error.set(Some(format!("{}", e)));
+                Vec::new()
+            }
+        }
+    };
+    
     rsx! {
         div {
             style: "width: 100%; height: 100%; display: flex; flex-direction: column;",
+            
+            // Filter input
+            FilterInput {
+                filter_text: filter_text,
+                filter_error: filter_error,
+                placeholder: "Filter packets (e.g., source:192.168 AND protocol:udp)".to_string(),
+                help_content: packets_filter_help(),
+            }
             
             // Table container
             div {
@@ -41,7 +100,7 @@ pub fn PacketsTable(state: Signal<AppState>) -> Element {
                     }
                     
                     tbody {
-                        for (idx, packet) in sorted_packets.iter().enumerate() {
+                        for (idx, packet) in filtered_packets.iter().enumerate() {
                             {
                                 let timestamp = packet.timestamp - first_ts;
                                 let time_str = format!("{:.4}", timestamp.as_secs_f64());
@@ -68,10 +127,14 @@ pub fn PacketsTable(state: Signal<AppState>) -> Element {
                     }
                 }
                 
-                if sorted_packets.is_empty() {
+                if filtered_packets.is_empty() {
                     div {
                         style: "padding: 40px; text-align: center; color: #888;",
-                        "No packets captured yet"
+                        if filter_str.trim().is_empty() {
+                            "No packets captured yet"
+                        } else {
+                            "No packets match the filter"
+                        }
                     }
                 }
             }
@@ -79,7 +142,7 @@ pub fn PacketsTable(state: Signal<AppState>) -> Element {
             // Footer with packet count
             div {
                 style: "padding: 10px; background: #2c2c2c; border-top: 1px solid #444; font-size: 12px; color: #888;",
-                "Total packets: {sorted_packets.len()}"
+                "Showing {filtered_packets.len()} packets"
             }
         }
     }
