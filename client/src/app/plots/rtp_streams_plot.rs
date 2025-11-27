@@ -1,856 +1,472 @@
-use self::SettingsXAxis::*;
-use crate::app::common::PlotBase;
-use crate::{
-    app::is_rtp_stream_visible,
-    streams::{
-        rtpStream::{RtpInfo, RtpStream},
-        RefStreams, Streams,
-    },
-};
-use eframe::{
-    egui::{self, TextBuffer},
-    epaint::Color32,
-};
-use egui::Context;
-use egui::{Align2, RichText, Ui};
-use egui_plot::{
-    Line, LineStyle, MarkerShape, Plot, PlotBounds, PlotPoint, PlotPoints, PlotUi, Points, Text,
-};
-use ewebsock::WsSender;
-use netpix_common::{
-    packet::SessionPacket, rtcp::ReceptionReport, rtp::payload_type::MediaType, Packet, RtcpPacket,
-    RtpPacket, RtpStreamKey,
-};
-use std::any::Any;
-use std::{
-    cell::Ref,
-    collections::HashMap,
-    fmt::{Display, Error, Formatter},
-};
+//! RTP Streams Plot Component
+//!
+//! Provides an interactive visualization of RTP streams over time using SVG.
+//! Features: zoom, pan, responsive sizing, tooltips, stream visibility toggles.
 
-struct PointData {
-    x: f64,
-    y_low: f64,
-    y_top: f64,
-    on_hover: String,
-    color: Color32,
-    radius: f32,
-    is_rtcp: bool,
-    marker_shape: MarkerShape,
-}
+use dioxus::prelude::*;
+use crate::app::AppState;
+use netpix_common::RtpStreamKey;
+use std::collections::HashMap;
 
-struct StreamSeparatorLine {
-    x_start: f64,
-    x_end: f64,
-    y: f64,
-}
-
-struct StreamText {
-    x: f64,
-    y: f64,
-    on_hover: String,
-}
-
-#[derive(Debug, PartialEq, Copy, Clone)]
-enum SettingsXAxis {
+/// X-axis display mode
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum XAxisMode {
     RtpTimestamp,
-    RawTimestamp,
+    SecondsFromStart,
     SequenceNumber,
 }
 
-impl SettingsXAxis {
-    fn all() -> Vec<Self> {
-        vec![RtpTimestamp, RawTimestamp, SequenceNumber]
+impl XAxisMode {
+    fn label(&self) -> &'static str {
+        match self {
+            XAxisMode::RtpTimestamp => "RTP Timestamp",
+            XAxisMode::SecondsFromStart => "Seconds from Start",
+            XAxisMode::SequenceNumber => "Sequence Number",
+        }
     }
 }
 
-impl Display for SettingsXAxis {
-    fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), Error> {
-        let name = match self {
-            RtpTimestamp => "RTP timestamp",
-            RawTimestamp => "Seconds from start",
-            SequenceNumber => "Sequence number",
-        };
-
-        write!(f, "{}", name)
-    }
+/// Point data for rendering - with precomputed SVG coordinates
+#[derive(Clone)]
+struct PlotPoint {
+    px: f64,
+    py_low: f64,
+    py_top: f64,
+    color: String,
+    hover: String,
 }
 
-pub struct RtpStreamsPlot {
-    streams: RefStreams,
-    points_data: Vec<PointData>,
-    stream_separator_lines: Vec<StreamSeparatorLine>,
-    stream_texts: Vec<StreamText>,
-    x_axis: SettingsXAxis,
-    requires_reset: bool,
-    streams_visibility: HashMap<RtpStreamKey, bool>,
-    last_rtp_packets_len: usize,
-    set_plot_bounds: bool,
-    slider_max: i64,
-    slider_start: i64,
-    slider_length: i64,
-    first_draw: bool,
-    ws_sender: WsSender,
+/// Stream separator line with precomputed Y
+#[derive(Clone)]
+struct StreamLine {
+    py: f64,
+    alias: String,
+    in_view: bool,
 }
 
-impl PlotBase for RtpStreamsPlot {
-    fn new(streams: RefStreams, ws_sender: WsSender) -> Self
-    where
-        Self: Sized,
-    {
-        Self {
-            streams,
-            ws_sender,
-            points_data: Vec::new(),
-            stream_separator_lines: Vec::new(),
-            stream_texts: Vec::new(),
-            x_axis: RtpTimestamp,
-            requires_reset: false,
-            streams_visibility: HashMap::default(),
-            last_rtp_packets_len: 0,
-            set_plot_bounds: false,
-            slider_max: 10000,
-            slider_start: 0,
-            slider_length: 1,
-            first_draw: true,
-        }
-    }
-
-    fn ui(&mut self, ctx: &Context) {
-        egui::CentralPanel::default().show(ctx, |ui| {
-            ui.vertical(|ui| {
-                ui.collapsing("Help", |ui| {
-                    Self::build_help_section(ui);
-                });
-                ui.collapsing("Settings", |ui| {
-                    self.options_ui(ui);
-                });
-            });
-            self.plot_ui(ui);
-        });
-    }
-
-    fn plot_id(&self) -> &'static str {
-        "rtp_streams_plot"
-    }
-
-    fn plot_name(&self) -> &'static str {
-        "RTP Streams Plot"
-    }
-
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
-
-    fn as_any_mut(&mut self) -> &mut dyn Any {
-        self
-    }
+/// Grid line data
+#[derive(Clone)]
+struct GridLine {
+    pos: f64,
+    label: String,
 }
 
-impl RtpStreamsPlot {
-    fn build_help_section(ui: &mut Ui) {
-        ui.horizontal(|ui| {
-            ui.vertical(|ui| {
-                ui.horizontal(|ui| {
-                    ui.add_space(0.8);
-                    ui.label(RichText::from("     🔴").color(Color32::RED));
-                    ui.label("End of a packet");
-                });
-                ui.label(RichText::from("       |").color(Color32::RED));
-                ui.horizontal(|ui| {
-                    ui.label(RichText::from("       |").color(Color32::RED));
-                    ui.label("  Length of line represents payload size relative to other packets.");
-                });
-
-                ui.label(RichText::from("       |").color(Color32::RED));
-                ui.horizontal(|ui| {
-                    ui.label(RichText::from("       |").color(Color32::RED));
-                    ui.label("  Beginning of a packet");
-                });
-            });
-            ui.vertical(|ui| {
-                ui.label("The color of a dot presents:");
-                ui.horizontal(|ui| {
-                    ui.label(RichText::from("\t🔴").color(Color32::RED));
-                    ui.label("Ordinary RTP packet");
-                });
-                ui.horizontal(|ui| {
-                    ui.label(RichText::from("\t🔴").color(Color32::GREEN));
-                    ui.label("RTP packet has marker");
-                });
-                ui.horizontal(|ui| {
-                    ui.label(RichText::from("\t🔴").color(Color32::GOLD));
-                    ui.label("At least one previous packet is lost");
-                });
-                ui.horizontal(|ui| {
-                    ui.label(RichText::from("\t■").color(Color32::from_rgb(200, 0, 200)));
-                    ui.label("RTCP packet");
-                });
-            })
-        });
-    }
-
-    fn options_ui(&mut self, ui: &mut Ui) {
-        ui.horizontal(|ui| {
-            ui.add_space(12.0);
-            ui.vertical(|ui| {
-                self.reset_button(ui);
-                self.axis_settings(ui);
-                self.toggle_streams(ui);
-            });
-            ui.separator();
-            ui.vertical(|ui| {
-                self.plot_bounds_ui_options(ui);
-            });
-        });
-    }
-
-    fn plot_bounds_ui_options(&mut self, ui: &mut Ui) {
-        let set_plot_button_clicked = ui.button("Set plot bounds").clicked();
-
-        let (x_min_text, x_max_text) = match self.x_axis {
-            RtpTimestamp => ("First RTP timestamp", "Length"),
-            RawTimestamp => ("First second", "Length"),
-            SequenceNumber => ("First sequence number", "Length"),
-        };
-
-        let max = (self.slider_max as f64 * 1.13) as i64;
-        let x_min_resp =
-            ui.add(egui::Slider::new(&mut self.slider_start, 0..=max).text(x_min_text));
-        let x_max_resp =
-            ui.add(egui::Slider::new(&mut self.slider_length, 1..=max).text(x_max_text));
-
-        if set_plot_button_clicked | x_min_resp.dragged() | x_max_resp.dragged() {
-            self.set_plot_bounds = true
+#[component]
+pub fn RtpStreamsPlot(state: Signal<AppState>) -> Element {
+    // Read update counter to trigger re-renders
+    let _update = state.read().update_counter;
+    
+    // Plot state
+    let mut x_axis_mode = use_signal(|| XAxisMode::SecondsFromStart);
+    let mut streams_visibility: Signal<HashMap<RtpStreamKey, bool>> = use_signal(HashMap::new);
+    
+    // Zoom state
+    let mut zoom_level = use_signal(|| 1.0_f64);
+    
+    // View bounds controls
+    let mut x_start = use_signal(|| 0.0_f64);
+    let mut x_length = use_signal(|| 100.0_f64);
+    let mut use_custom_bounds = use_signal(|| false);
+    
+    let streams_data = state.read().streams.clone();
+    let streams = streams_data.borrow();
+    let rtp_streams = &streams.rtp_streams;
+    
+    // Get list of streams sorted by alias
+    let mut stream_list: Vec<_> = rtp_streams.iter().collect();
+    stream_list.sort_by(|a, b| a.1.alias.cmp(&b.1.alias));
+    
+    // Build raw data first
+    let mut raw_points: Vec<(f64, f64, f64, String, String)> = Vec::new(); // x, y_low, y_top, color, hover
+    let mut raw_lines: Vec<(f64, String)> = Vec::new(); // y, alias
+    let mut y_offset = 0.0_f64;
+    let y_stream_gap = 100.0_f64;
+    let min_height = 2.0_f64;
+    
+    let mut data_x_min = f64::INFINITY;
+    let mut data_x_max = f64::NEG_INFINITY;
+    let mut data_y_max = 0.0_f64;
+    
+    for (key, stream) in stream_list.iter() {
+        let is_visible = streams_visibility.read().get(key).copied().unwrap_or(true);
+        if !is_visible {
+            continue;
         }
-        ui.vertical(|ui| {
-            ui.add_space(10.0);
-        });
-    }
-
-    fn toggle_streams(&mut self, ui: &mut Ui) {
-        ui.horizontal_wrapped(|ui| {
-            let mut aliases = Vec::new();
-            let streams = &self.streams.borrow().rtp_streams;
-            let keys: Vec<_> = streams.keys().collect();
-
-            keys.iter().for_each(|&key| {
-                let alias = streams.get(key).unwrap().alias.to_string();
-                aliases.push((*key, alias));
-            });
-            aliases.sort_by(|(_, a), (_, b)| a.cmp(b));
-
-            ui.label(RichText::from("Toggle streams: ").strong());
-            aliases.iter().for_each(|(key, alias)| {
-                let selected = {
-                    let streams_visibility = &mut self.streams_visibility;
-                    let key = *key;
-                    streams_visibility.entry(key).or_insert(true)
-                };
-                if ui.checkbox(selected, alias).clicked() {
-                    self.requires_reset = true
-                }
-            });
-        });
-    }
-
-    fn axis_settings(&mut self, ui: &mut Ui) {
-        ui.horizontal(|ui| {
-            ui.label(RichText::from("X axis:").strong());
-            SettingsXAxis::all().into_iter().for_each(|setting| {
-                if ui
-                    .radio(setting == self.x_axis, setting.to_string())
-                    .clicked()
-                {
-                    self.x_axis = setting;
-                    self.slider_max = 1;
-                    self.slider_length = 1;
-                    self.slider_start = 0;
-                    self.requires_reset = true;
-                }
-            });
-        });
-    }
-
-    fn reset_button(&mut self, ui: &mut Ui) {
-        if ui.button("Reset to initial state").clicked() {
-            self.requires_reset = true;
+        
+        let rtp_packets = &stream.rtp_packets;
+        if rtp_packets.is_empty() {
+            continue;
         }
-    }
-
-    fn plot_ui(&mut self, ui: &mut Ui) {
-        let number_of_rtp_packets = self.number_of_rtp_packets();
-        if self.last_rtp_packets_len != number_of_rtp_packets || self.requires_reset {
-            self.refresh_points();
-        }
-
-        let plot = Plot::new("rtp-plot")
-            .show_background(false)
-            .show_axes([true, false])
-            .label_formatter(|name, _value| name.to_string());
-
-        if self.requires_reset {
-            plot.reset().show(ui, |plot_ui| {
-                self.draw_points(plot_ui);
-            });
-        } else {
-            plot.show(ui, |plot_ui| {
-                self.draw_points(plot_ui);
-            });
-        }
-        self.requires_reset = false;
-        self.last_rtp_packets_len = number_of_rtp_packets;
-    }
-
-    fn number_of_rtp_packets(&mut self) -> usize {
-        self.streams
-            .borrow()
-            .rtp_streams
-            .values()
-            .map(|stream| stream.rtp_packets.len())
-            .sum()
-    }
-
-    fn draw_points(&mut self, plot_ui: &mut PlotUi) {
-        let mut highest_y = 0.0;
-        for point_data in &self.points_data {
-            let PointData {
-                x,
-                y_low,
-                y_top,
-                on_hover,
-                color,
-                radius,
-                is_rtcp,
-                marker_shape,
-            } = point_data;
-            if *y_top > highest_y {
-                highest_y = *y_top;
-            }
-
-            let point = Points::new([*x, *y_top])
-                .name(on_hover)
-                .color(*color)
-                .radius(*radius)
-                .shape(*marker_shape);
-
-            plot_ui.points(point);
-            if !is_rtcp {
-                plot_ui.line(
-                    Line::new(PlotPoints::new(vec![[*x, *y_low], [*x, *y_top]]))
-                        .color(Color32::RED)
-                        .highlight(false)
-                        .width(0.5),
-                );
-            }
-        }
-        for separator in &self.stream_separator_lines {
-            let StreamSeparatorLine { x_start, x_end, y } = separator;
-            plot_ui.line(
-                Line::new(PlotPoints::new(vec![[*x_start, *y], [*x_end, *y]]))
-                    .color(Color32::GRAY)
-                    .style(LineStyle::Solid)
-                    .width(0.5),
-            );
-        }
-
-        for text in &self.stream_texts {
-            let StreamText { x, y, on_hover } = text;
-            plot_ui.text(
-                Text::new(
-                    PlotPoint { x: *x, y: *y },
-                    RichText::new(on_hover)
-                        .color(Color32::LIGHT_GRAY)
-                        .strong()
-                        .size(12.0),
-                )
-                .anchor(Align2::RIGHT_TOP),
-            )
-        }
-
-        if !self.first_draw && self.set_plot_bounds {
-            plot_ui.set_plot_bounds(PlotBounds::from_min_max(
-                [(self.slider_start as f64) - 0.05, -0.5],
-                [
-                    (self.slider_start + self.slider_length) as f64,
-                    highest_y * 1.55,
-                ],
-            ));
-            self.set_plot_bounds = false
-        }
-        if self.first_draw {
-            self.first_draw = false
-        }
-    }
-
-    fn refresh_points(&mut self) {
-        self.points_data.clear();
-        self.stream_separator_lines.clear();
-        self.stream_texts.clear();
-        let streams = self.streams.borrow();
-        let mut points_x_and_y_top: Vec<(f64, f64)> = Vec::new();
-        let mut previous_stream_max_y = 0.0;
-        let mut biggest_margin = 0.0;
-        let mut previous_stream_height = 0.0;
-
-        let mut stream_separator_length = 0.0;
-        streams.rtp_streams.iter().for_each(|(_, stream)| {
-            let rtp_packets = &stream.rtp_packets;
-            let first_rtp_id = rtp_packets.first().unwrap();
-            let first_packet = streams.packets.get(first_rtp_id.id).unwrap();
-            let SessionPacket::Rtp(ref first_rtp_packet) = first_packet.contents else {
-                unreachable!();
+        
+        raw_lines.push((y_offset, format!("{} (SSRC: {:x})", stream.alias, stream.ssrc)));
+        
+        let first_packet = rtp_packets.first();
+        let first_time = first_packet.map(|p| p.time).unwrap_or_default();
+        let first_seq = first_packet.map(|p| p.packet.sequence_number as f64).unwrap_or(0.0);
+        let first_ts = first_packet.map(|p| p.packet.timestamp as f64).unwrap_or(0.0);
+        
+        let mut stream_max_y = y_offset;
+        
+        for packet in rtp_packets.iter() {
+            let x = match *x_axis_mode.read() {
+                XAxisMode::RtpTimestamp => packet.packet.timestamp as f64 - first_ts,
+                XAxisMode::SecondsFromStart => (packet.time - first_time).as_secs_f64(),
+                XAxisMode::SequenceNumber => packet.packet.sequence_number as f64 - first_seq,
             };
-
-            for rtp_packet in &stream.rtp_packets {
-                let max_x = match self.x_axis {
-                    RtpTimestamp => {
-                        rtp_packet.packet.timestamp as f64 - first_rtp_packet.timestamp as f64
-                    }
-                    RawTimestamp => {
-                        rtp_packet.time.as_secs_f64() - first_packet.timestamp.as_secs_f64()
-                    }
-                    SequenceNumber => {
-                        rtp_packet.packet.sequence_number as f64
-                            - first_rtp_packet.sequence_number as f64
-                    }
-                };
-                if stream_separator_length < max_x {
-                    stream_separator_length = max_x
-                }
-            }
-        });
-
-        streams
-            .rtp_streams
-            .iter()
-            .enumerate()
-            .for_each(|(i, (key, stream))| {
-                if !*(is_rtp_stream_visible(&mut self.streams_visibility, *key)) {
-                    return;
-                }
-                if i != 0 {
-                    let stream_highest_y_if_drawn = get_highest_y(
-                        &streams,
-                        &mut Vec::new(),
-                        stream,
-                        self.x_axis,
-                        previous_stream_max_y,
-                    );
-                    let stream_height_if_drawn = stream_highest_y_if_drawn - previous_stream_max_y;
-                    let margin = stream_height_if_drawn * 0.2 + previous_stream_height * 0.2;
-                    if biggest_margin < margin {
-                        biggest_margin = margin;
-                    }
-                };
-
-                let this_stream_y_baseline = match self.x_axis {
-                    RtpTimestamp => previous_stream_max_y + biggest_margin,
-                    RawTimestamp => previous_stream_max_y + 20.0,
-                    SequenceNumber => previous_stream_max_y + 20.0,
-                };
-                self.stream_texts.push(StreamText {
-                    x: 0.0,
-                    y: this_stream_y_baseline,
-                    on_hover: String::from(&format!("{} ({:x})  ", stream.alias, stream.ssrc)),
-                });
-                if let Some((_, _)) = points_x_and_y_top.last() {
-                    self.stream_separator_lines.push(StreamSeparatorLine {
-                        x_start: 0.0,
-                        x_end: stream_separator_length,
-                        y: (this_stream_y_baseline + previous_stream_max_y) / 2.0,
-                    })
-                };
-
-                build_stream_points(
-                    &streams,
-                    &mut points_x_and_y_top,
-                    stream,
-                    self.x_axis,
-                    &mut self.points_data,
-                    &mut previous_stream_max_y,
-                    &mut self.slider_max,
-                    this_stream_y_baseline,
-                );
-                previous_stream_height = previous_stream_max_y - this_stream_y_baseline;
-            });
+            
+            if x < data_x_min { data_x_min = x; }
+            if x > data_x_max { data_x_max = x; }
+            
+            let payload_height = (packet.packet.payload_length as f64 * 0.02).max(min_height);
+            let y_low = y_offset;
+            let y_top = y_offset + payload_height;
+            
+            if y_top > stream_max_y { stream_max_y = y_top; }
+            if y_top > data_y_max { data_y_max = y_top; }
+            
+            let color = if packet.prev_lost {
+                "#FFD700".to_string()
+            } else if packet.packet.marker {
+                "#00FF00".to_string()
+            } else {
+                "#FF4444".to_string()
+            };
+            
+            let hover = format!(
+                "Stream: {} | Seq: {} | TS: {} | {} bytes{}{}",
+                stream.alias,
+                packet.packet.sequence_number,
+                packet.packet.timestamp,
+                packet.packet.payload_length,
+                if packet.packet.marker { " [M]" } else { "" },
+                if packet.prev_lost { " [LOST]" } else { "" }
+            );
+            
+            raw_points.push((x, y_low, y_top, color, hover));
+        }
+        
+        y_offset = stream_max_y + y_stream_gap;
     }
-}
-
-fn get_highest_y(
-    streams: &Ref<Streams>,
-    points_x_and_y_top: &mut Vec<(f64, f64)>,
-    stream: &RtpStream,
-    settings_x_axis: SettingsXAxis,
-    this_stream_y_baseline: f64,
-) -> f64 {
-    let mut highest_y = 0.0;
-    let rtp_packets = &stream.rtp_packets;
-    if rtp_packets.is_empty() {
-        return highest_y;
-    }
-
-    let first_rtp_id = rtp_packets.first().unwrap();
-    let first_packet = streams.packets.get(first_rtp_id.id).unwrap();
-    let SessionPacket::Rtp(ref first_rtp_packet) = first_packet.contents else {
-        unreachable!();
+    
+    // Handle empty state
+    if data_x_min == f64::INFINITY { data_x_min = 0.0; }
+    if data_x_max == f64::NEG_INFINITY { data_x_max = 1.0; }
+    if data_y_max < 0.001 { data_y_max = 100.0; }
+    
+    // SVG dimensions
+    let zoom = *zoom_level.read();
+    let svg_width = (1200.0 * zoom).max(800.0);
+    let svg_height = (600.0_f64.max(data_y_max * 2.0) * zoom).max(400.0);
+    let margin = 80.0_f64;
+    let plot_width = svg_width - margin * 2.0;
+    let plot_height = svg_height - margin * 2.0;
+    
+    // View bounds
+    let view_x_min = if *use_custom_bounds.read() {
+        *x_start.read()
+    } else {
+        data_x_min - (data_x_max - data_x_min) * 0.05
     };
-
-    rtp_packets
+    let view_x_max = if *use_custom_bounds.read() {
+        *x_start.read() + *x_length.read()
+    } else {
+        data_x_max + (data_x_max - data_x_min) * 0.05
+    };
+    
+    let view_y_min = 0.0;
+    let view_y_max = data_y_max * 1.1;
+    
+    let x_range = (view_x_max - view_x_min).max(0.001);
+    let y_range = (view_y_max - view_y_min).max(0.001);
+    
+    // Precompute SVG coordinates for all points
+    let plot_points: Vec<PlotPoint> = raw_points
         .iter()
-        .enumerate()
-        .for_each(|(packet_ix, packet)| {
-            let previous_packet = if packet_ix == 0 {
-                None
-            } else {
-                let prev_rtp_id = rtp_packets.get(packet_ix - 1).unwrap().id;
-                streams.packets.get(prev_rtp_id)
-            };
-
-            let (_, _, y_top) = get_x_and_y(
-                points_x_and_y_top,
-                first_rtp_packet,
-                previous_packet,
-                packet,
-                settings_x_axis,
-                this_stream_y_baseline,
-                first_packet,
-            );
-            points_x_and_y_top.push((y_top, y_top));
-
-            if highest_y < y_top {
-                highest_y = y_top;
+        .filter(|(x, _, _, _, _)| *x >= view_x_min && *x <= view_x_max)
+        .map(|(x, y_low, y_top, color, hover)| {
+            let px = margin + ((x - view_x_min) / x_range) * plot_width;
+            let py_low = margin + plot_height - ((y_low - view_y_min) / y_range) * plot_height;
+            let py_top = margin + plot_height - ((y_top - view_y_min) / y_range) * plot_height;
+            PlotPoint {
+                px,
+                py_low: py_low.clamp(margin, margin + plot_height),
+                py_top: py_top.clamp(margin, margin + plot_height),
+                color: color.clone(),
+                hover: hover.clone(),
             }
-        });
-    highest_y
-}
-
-#[allow(clippy::too_many_arguments)]
-fn build_stream_points(
-    streams: &Ref<Streams>,
-    points_x_and_y_top: &mut Vec<(f64, f64)>,
-    stream: &RtpStream,
-    settings_x_axis: SettingsXAxis,
-    points_data: &mut Vec<PointData>,
-    previous_stream_max_y: &mut f64,
-    slider_max: &mut i64,
-    this_stream_y_baseline: f64,
-) {
-    let rtp_packets = &stream.rtp_packets;
-    let rtcp_packets = &stream.rtcp_packets;
-    if rtp_packets.is_empty() {
-        return;
-    }
-
-    let first_rtp_id = rtp_packets.first().unwrap();
-    let first_packet = streams.packets.get(first_rtp_id.id).unwrap();
-    let SessionPacket::Rtp(ref first_rtp_packet) = first_packet.contents else {
-        unreachable!();
+        })
+        .collect();
+    
+    // Precompute stream lines
+    let stream_lines: Vec<StreamLine> = raw_lines
+        .iter()
+        .map(|(y, alias)| {
+            let py = margin + plot_height - ((y - view_y_min) / y_range) * plot_height;
+            StreamLine {
+                py,
+                alias: alias.clone(),
+                in_view: py >= margin && py <= margin + plot_height,
+            }
+        })
+        .collect();
+    
+    // Precompute grid lines
+    let h_grid: Vec<GridLine> = (0..=5)
+        .map(|i| {
+            let pos = margin + (i as f64 * plot_height / 5.0);
+            let value = view_y_max - (i as f64 / 5.0) * y_range;
+            GridLine { pos, label: format!("{:.0}", value) }
+        })
+        .collect();
+    
+    let format_x_val = |v: f64| -> String {
+        match *x_axis_mode.read() {
+            XAxisMode::SecondsFromStart => format!("{:.2}s", v),
+            _ => format!("{:.0}", v),
+        }
     };
-
-    let mut on_hover = String::new();
-    let mut maybe_prev_id = None;
-
-    rtcp_packets.iter().for_each(|rtcp_info| {
-        match &rtcp_info.packet {
-            RtcpPacket::SenderReport(sender_report) => {
-                on_hover.push_str("Sender Report\n\n");
-                on_hover.push_str(&format!("Source: {:x}\n", sender_report.ssrc));
-                on_hover.push_str(&format!("NTP time: {}\n", sender_report.ntp_time));
-                on_hover.push_str(&format!("RTP time: {}\n", sender_report.rtp_time));
-                for report in &sender_report.reports {
-                    build_reception_report(&mut on_hover, &report);
-                }
-                on_hover.push_str("------------------------\n");
-            }
-            RtcpPacket::ReceiverReport(receiver_report) => {
-                on_hover.push_str("Receiver Report\n\n");
-                on_hover.push_str(&format!("Source: {:x}\n", receiver_report.ssrc));
-                for report in &receiver_report.reports {
-                    build_reception_report(&mut on_hover, &report);
-                }
-                on_hover.push_str("------------------------\n");
-            }
-            RtcpPacket::SourceDescription(source_description) => {
-                on_hover.push_str("Source Description\n\n");
-                for chunk in &source_description.chunks {
-                    on_hover.push_str(&format!("Source: {:x}\n", chunk.source));
-                    for item in &chunk.items {
-                        on_hover.push_str(&format!("{}: {}\n", item.sdes_type, item.text));
+    
+    let v_grid: Vec<GridLine> = (0..=5)
+        .map(|i| {
+            let pos = margin + (i as f64 * plot_width / 5.0);
+            let value = view_x_min + (i as f64 / 5.0) * x_range;
+            GridLine { pos, label: format_x_val(value) }
+        })
+        .collect();
+    
+    let slider_max = (data_x_max * 1.2).max(100.0) as i64;
+    let x_label_text = x_axis_mode.read().label().to_string();
+    let data_x_min_str = format_x_val(data_x_min);
+    let data_x_max_str = format_x_val(data_x_max);
+    let x_start_str = format_x_val(*x_start.read());
+    let x_length_str = format_x_val(*x_length.read());
+    let stream_count = rtp_streams.len();
+    let point_count = plot_points.len();
+    let zoom_str = format!("{:.1}x", zoom);
+    
+    rsx! {
+        div {
+            style: "width: 100%; height: 100%; display: flex; flex-direction: column; background: #1e1e1e; color: #ddd; overflow: hidden;",
+            
+            // Controls
+            div {
+                style: "padding: 12px 16px; background: #252525; border-bottom: 1px solid #333;",
+                
+                div {
+                    style: "display: flex; flex-wrap: wrap; gap: 16px; align-items: center;",
+                    
+                    // X-axis selector
+                    span { style: "font-weight: bold;", "X:" }
+                    select {
+                        style: "padding: 4px 8px; background: #333; color: white; border: 1px solid #555; border-radius: 4px;",
+                        value: "{x_axis_mode.read().label()}",
+                        onchange: move |evt: Event<FormData>| {
+                            let mode = match evt.value().as_str() {
+                                "Seconds from Start" => XAxisMode::SecondsFromStart,
+                                "RTP Timestamp" => XAxisMode::RtpTimestamp,
+                                _ => XAxisMode::SequenceNumber,
+                            };
+                            x_axis_mode.set(mode);
+                            use_custom_bounds.set(false);
+                        },
+                        option { value: "Seconds from Start", "Seconds from Start" }
+                        option { value: "RTP Timestamp", "RTP Timestamp" }
+                        option { value: "Sequence Number", "Sequence Number" }
+                    }
+                    
+                    // Zoom
+                    span { style: "font-weight: bold;", "Zoom:" }
+                    button {
+                        style: "padding: 4px 8px; background: #444; border: none; color: white; border-radius: 4px; cursor: pointer;",
+                        onclick: move |_| zoom_level.set((zoom * 1.5).min(10.0)),
+                        "+"
+                    }
+                    button {
+                        style: "padding: 4px 8px; background: #444; border: none; color: white; border-radius: 4px; cursor: pointer;",
+                        onclick: move |_| zoom_level.set((zoom / 1.5).max(0.5)),
+                        "-"
+                    }
+                    button {
+                        style: "padding: 4px 8px; background: #555; border: none; color: white; border-radius: 4px; cursor: pointer;",
+                        onclick: move |_| {
+                            zoom_level.set(1.0);
+                            use_custom_bounds.set(false);
+                        },
+                        "Reset"
+                    }
+                    span { style: "color: #888; font-size: 12px;", "{zoom_str}" }
+                    
+                    // Bounds
+                    label {
+                        style: "display: flex; align-items: center; gap: 4px;",
+                        input {
+                            r#type: "checkbox",
+                            checked: *use_custom_bounds.read(),
+                            onchange: move |evt: Event<FormData>| use_custom_bounds.set(evt.checked()),
+                        }
+                        "Custom X"
+                    }
+                    
+                    if *use_custom_bounds.read() {
+                        span { "Start:" }
+                        input {
+                            r#type: "range",
+                            min: "0",
+                            max: "{slider_max}",
+                            value: "{*x_start.read() as i64}",
+                            style: "width: 100px;",
+                            oninput: move |evt: Event<FormData>| {
+                                if let Ok(v) = evt.value().parse::<f64>() {
+                                    x_start.set(v);
+                                }
+                            },
+                        }
+                        span { style: "font-size: 11px; min-width: 50px;", "{x_start_str}" }
+                        
+                        span { "Len:" }
+                        input {
+                            r#type: "range",
+                            min: "1",
+                            max: "{slider_max}",
+                            value: "{*x_length.read() as i64}",
+                            style: "width: 100px;",
+                            oninput: move |evt: Event<FormData>| {
+                                if let Ok(v) = evt.value().parse::<f64>() {
+                                    x_length.set(v.max(1.0));
+                                }
+                            },
+                        }
+                        span { style: "font-size: 11px; min-width: 50px;", "{x_length_str}" }
                     }
                 }
-                on_hover.push_str("------------------------\n");
-            }
-            RtcpPacket::Goodbye(goodbye) => {
-                on_hover.push_str("Goodbye\n\n");
-                for source in &goodbye.sources {
-                    on_hover.push_str(&format!("Source: {:x}", source));
-                    on_hover.push_str(&format!("Reason: {}", goodbye.reason));
-                }
-                on_hover.push_str("------------------------\n");
-            }
-            RtcpPacket::ApplicationDefined => {
-                on_hover.push_str("\nGoodbye\n");
-                on_hover.push_str("------------------------\n");
-            }
-            RtcpPacket::PayloadSpecificFeedback => {
-                on_hover.push_str("\nPayload specific feedback\n");
-                on_hover.push_str("------------------------\n");
-            }
-            RtcpPacket::TransportSpecificFeedback => {
-                on_hover.push_str("\nTransport specific feedback\n");
-                on_hover.push_str("------------------------\n");
-            }
-            RtcpPacket::ExtendedReport => {
-                on_hover.push_str("\nExtended report\n");
-                on_hover.push_str("------------------------\n");
-            }
-            RtcpPacket::Other => {
-                on_hover.push_str("\nOther rtcp\n");
-                on_hover.push_str("------------------------\n");
-            }
-        };
-        let x = rtcp_info.time.as_secs_f64() - first_packet.timestamp.as_secs_f64();
-        let y = if let Some(last_position) = points_x_and_y_top.last() {
-            let last_x = last_position.0;
-            let last_y_top = last_position.1;
-            if x == last_x {
-                let shift = 3.0;
-                last_y_top + shift
-            } else {
-                this_stream_y_baseline
-            }
-        } else {
-            this_stream_y_baseline
-        };
-        if *previous_stream_max_y < y {
-            *previous_stream_max_y = y;
-        }
-
-        if let Some(prev_id) = maybe_prev_id {
-            if prev_id != rtcp_info.id {
-                match settings_x_axis {
-                    RtpTimestamp => {}
-                    RawTimestamp => {
-                        let saved_on_hover = on_hover.clone();
-                        points_data.push(PointData {
-                            x,
-                            y_low: y,
-                            y_top: y,
-                            on_hover: saved_on_hover,
-                            color: Color32::from_rgb(200, 0, 200),
-                            radius: 3.5,
-                            is_rtcp: true,
-                            marker_shape: MarkerShape::Square,
-                        });
-                        on_hover = String::new();
-                        points_x_and_y_top.push((x, y));
-                        let x = x as i64;
-                        if x > *slider_max {
-                            *slider_max = x;
+                
+                // Stream toggles
+                div {
+                    style: "display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; align-items: center;",
+                    span { style: "font-weight: bold;", "Streams:" }
+                    
+                    for (key, stream) in stream_list.iter() {
+                        {
+                            let key = **key;
+                            let alias = stream.alias.clone();
+                            let is_visible = streams_visibility.read().get(&key).copied().unwrap_or(true);
+                            let bg = if is_visible { "#3a5a3a" } else { "#444" };
+                            
+                            rsx! {
+                                label {
+                                    style: "display: flex; align-items: center; gap: 4px; cursor: pointer; padding: 2px 6px; background: {bg}; border-radius: 4px; font-size: 11px;",
+                                    input {
+                                        r#type: "checkbox",
+                                        checked: is_visible,
+                                        onchange: move |_| {
+                                            let mut vis = streams_visibility.write();
+                                            let current = vis.get(&key).copied().unwrap_or(true);
+                                            vis.insert(key, !current);
+                                        },
+                                    }
+                                    "{alias}"
+                                }
+                            }
                         }
                     }
-                    SequenceNumber => {}
                 }
             }
-        }
-        maybe_prev_id = Some(rtcp_info.id);
-    });
-    rtp_packets
-        .iter()
-        .enumerate()
-        .for_each(|(packet_ix, packet)| {
-            let previous_packet = if packet_ix == 0 {
-                None
-            } else {
-                let prev_rtp_id = rtp_packets.get(packet_ix - 1).unwrap().id;
-                streams.packets.get(prev_rtp_id)
-            };
-
-            let (x, y_low, y_top) = get_x_and_y(
-                points_x_and_y_top,
-                first_rtp_packet,
-                previous_packet,
-                packet,
-                settings_x_axis,
-                this_stream_y_baseline,
-                first_packet,
-            );
-            let on_hover = build_on_hover_text(stream, packet, x, settings_x_axis);
-
-            points_data.push(PointData {
-                x,
-                y_low,
-                y_top,
-                on_hover,
-                color: get_color(packet),
-                radius: get_radius(packet),
-                is_rtcp: false,
-                marker_shape: MarkerShape::Circle,
-            });
-
-            if *previous_stream_max_y < y_top {
-                *previous_stream_max_y = y_top;
+            
+            // Legend
+            div {
+                style: "display: flex; gap: 16px; padding: 6px 16px; background: #2a2a2a; border-bottom: 1px solid #333; font-size: 11px;",
+                
+                div {
+                    style: "display: flex; align-items: center; gap: 4px;",
+                    div { style: "width: 8px; height: 8px; background: #FF4444; border-radius: 50%;" }
+                    "Normal"
+                }
+                div {
+                    style: "display: flex; align-items: center; gap: 4px;",
+                    div { style: "width: 8px; height: 8px; background: #00FF00; border-radius: 50%;" }
+                    "Marker"
+                }
+                div {
+                    style: "display: flex; align-items: center; gap: 4px;",
+                    div { style: "width: 8px; height: 8px; background: #FFD700; border-radius: 50%;" }
+                    "Lost"
+                }
             }
-
-            points_x_and_y_top.push((x, y_top));
-            let x = x as i64;
-            if x > *slider_max {
-                *slider_max = x;
-            }
-        });
-}
-
-fn build_reception_report(on_hover: &mut String, report: &&ReceptionReport) {
-    on_hover.push_str(&"-".repeat(160));
-    on_hover.push('\n');
-    on_hover.push_str(&format!("SSRC: {:x}\t", report.ssrc));
-    on_hover.push_str(&format!("Fraction lost: {}\t", report.fraction_lost));
-    on_hover.push_str(&format!("Cumulative lost: {}\t", report.total_lost));
-    on_hover.push_str(&format!(
-        "Extended highest sequence number: {}\n",
-        report.last_sequence_number
-    ));
-    on_hover.push_str(&format!("Interarrival jitter: {}\t", report.jitter));
-    on_hover.push_str(&format!(
-        "Last SR timestamp: {}\t",
-        report.last_sender_report
-    ));
-    on_hover.push_str(&format!("Delay since last SR: {}\n", report.delay));
-}
-
-#[allow(clippy::too_many_arguments)]
-fn get_x_and_y(
-    points_x_and_y_top: &mut [(f64, f64)],
-    first_rtp_packet: &RtpPacket,
-    previous_packet: Option<&Packet>,
-    rtp: &RtpInfo,
-    settings_x_axis: SettingsXAxis,
-    this_stream_y_baseline: f64,
-    first_packet: &Packet,
-) -> (f64, f64, f64) {
-    let minimum_shift = 0.02;
-    let payload_length_shift = rtp.packet.payload_length as f64;
-    let height = minimum_shift * payload_length_shift;
-
-    let (x, y, y_top) = match settings_x_axis {
-        RtpTimestamp => {
-            if let Some(prev_packet) = previous_packet {
-                let SessionPacket::Rtp(ref prev_rtp) = prev_packet.contents else {
-                    unreachable!();
-                };
-
-                let last_y_top = if rtp.packet.timestamp != prev_rtp.timestamp {
-                    this_stream_y_baseline
+            
+            // Plot area with mouse wheel zoom
+            div {
+                style: "flex: 1; overflow: auto; background: #1a1a1a;",
+                onwheel: move |evt: WheelEvent| {
+                    let delta = evt.delta().strip_units().y;
+                    if delta < 0.0 {
+                        // Scroll up = zoom in
+                        zoom_level.set((zoom * 1.2).min(10.0));
+                    } else if delta > 0.0 {
+                        // Scroll down = zoom out
+                        zoom_level.set((zoom / 1.2).max(0.5));
+                    }
+                },
+                
+                if plot_points.is_empty() {
+                    div {
+                        style: "display: flex; align-items: center; justify-content: center; height: 100%; color: #888;",
+                        "No RTP packets to display"
+                    }
                 } else {
-                    let prev_y_top = points_x_and_y_top.last().unwrap().to_owned().1;
-                    prev_y_top
-                };
-
-                (
-                    rtp.packet.timestamp as f64 - first_rtp_packet.timestamp as f64,
-                    last_y_top,
-                    last_y_top + height,
-                )
-            } else {
-                (
-                    rtp.packet.timestamp as f64 - first_rtp_packet.timestamp as f64,
-                    this_stream_y_baseline,
-                    this_stream_y_baseline + height,
-                )
+                    svg {
+                        width: "{svg_width}",
+                        height: "{svg_height}",
+                        style: "min-width: 100%; min-height: 100%;",
+                        
+                        // Background
+                        rect { x: "0", y: "0", width: "{svg_width}", height: "{svg_height}", fill: "#1a1a1a" }
+                        rect { x: "{margin}", y: "{margin}", width: "{plot_width}", height: "{plot_height}", fill: "#222", stroke: "#444" }
+                        
+                        // Horizontal grid
+                        for gl in h_grid.iter() {
+                            line { x1: "{margin}", y1: "{gl.pos}", x2: "{margin + plot_width}", y2: "{gl.pos}", stroke: "#333" }
+                            text { x: "{margin - 5.0}", y: "{gl.pos + 4.0}", fill: "#666", text_anchor: "end", font_size: "10", "{gl.label}" }
+                        }
+                        
+                        // Vertical grid
+                        for gl in v_grid.iter() {
+                            line { x1: "{gl.pos}", y1: "{margin}", x2: "{gl.pos}", y2: "{margin + plot_height}", stroke: "#333" }
+                            text { x: "{gl.pos}", y: "{margin + plot_height + 15.0}", fill: "#666", text_anchor: "middle", font_size: "10", "{gl.label}" }
+                        }
+                        
+                        // Stream separators
+                        for sl in stream_lines.iter().filter(|sl| sl.in_view) {
+                            line { x1: "{margin}", y1: "{sl.py}", x2: "{margin + plot_width}", y2: "{sl.py}", stroke: "#555", stroke_dasharray: "5,5" }
+                            text { x: "{margin + 5.0}", y: "{sl.py - 5.0}", fill: "#aaa", font_size: "11", font_weight: "bold", "{sl.alias}" }
+                        }
+                        
+                        // Data points
+                        for pt in plot_points.iter() {
+                            line { x1: "{pt.px}", y1: "{pt.py_low}", x2: "{pt.px}", y2: "{pt.py_top}", stroke: "{pt.color}" }
+                            circle {
+                                cx: "{pt.px}",
+                                cy: "{pt.py_top}",
+                                r: "3",
+                                fill: "{pt.color}",
+                                style: "cursor: pointer;",
+                                title { "{pt.hover}" }
+                            }
+                        }
+                        
+                        // Axis labels
+                        text { x: "{margin + plot_width / 2.0}", y: "{margin + plot_height + 35.0}", fill: "#999", text_anchor: "middle", font_size: "12", "{x_label_text}" }
+                        text { x: "20", y: "{margin + plot_height / 2.0}", fill: "#999", text_anchor: "middle", font_size: "12", transform: "rotate(-90, 20, {margin + plot_height / 2.0})", "Payload Size" }
+                    }
+                }
+            }
+            
+            // Footer
+            div {
+                style: "padding: 6px 16px; background: #252525; border-top: 1px solid #333; font-size: 11px; color: #888; display: flex; gap: 16px;",
+                span { "Streams: {stream_count}" }
+                span { "Points: {point_count}" }
+                span { "X: {data_x_min_str} → {data_x_max_str}" }
             }
         }
-        RawTimestamp => (
-            rtp.time.as_secs_f64() - first_packet.timestamp.as_secs_f64(),
-            this_stream_y_baseline,
-            this_stream_y_baseline + height,
-        ),
-        SequenceNumber => (
-            (rtp.packet.sequence_number - first_rtp_packet.sequence_number) as f64,
-            this_stream_y_baseline,
-            this_stream_y_baseline + height,
-        ),
-    };
-    (x, y, y_top)
-}
-
-fn build_on_hover_text(
-    stream: &RtpStream,
-    rtp: &RtpInfo,
-    x: f64,
-    settings_x_axis: SettingsXAxis,
-) -> String {
-    let mut on_hover = String::new();
-
-    on_hover.push_str(&format!(
-        "Alias: {} (SSRC: {:x})",
-        stream.alias, stream.ssrc
-    ));
-    on_hover.push('\n');
-    on_hover.push_str(&format!(
-        "Source: {}\nDestination: {}\n",
-        stream.source_addr, stream.destination_addr
-    ));
-    if rtp.prev_lost {
-        on_hover.push_str("\n***Previous packet is lost!***\n")
-    }
-    let marker_info = if rtp.packet.marker {
-        match rtp.packet.payload_type.media_type {
-            MediaType::Audio => {
-                "\nFor audio payload type, marker says that it is first packet after silence.\n"
-            }
-            MediaType::Video => {
-                "\nFor video payload type, marker says that it is last packet of a video frame.\n"
-            }
-            MediaType::AudioOrVideo => {
-                "\nMarker could say that it is last packet of a video frame or \n\
-                     that it is a first packet after silence.\n"
-            }
-        }
-    } else {
-        ""
-    };
-    on_hover.push_str(marker_info);
-    on_hover.push('\n');
-    on_hover.push_str(&format!("Sequence number: {}", rtp.packet.sequence_number));
-    on_hover.push('\n');
-    on_hover.push_str(&format!("Payload length: {}", rtp.packet.payload_length));
-    on_hover.push('\n');
-    on_hover.push_str(&format!("Padding: {}", rtp.packet.padding));
-    on_hover.push('\n');
-    on_hover.push_str(&format!("Extensions headers: {}", rtp.packet.extension));
-    on_hover.push('\n');
-    on_hover.push_str(&format!("Marker: {}", rtp.packet.marker));
-    on_hover.push('\n');
-    on_hover.push_str(&format!("CSRC: {:?}", rtp.packet.csrc));
-    on_hover.push('\n');
-    on_hover.push_str(&rtp.packet.payload_type.to_string());
-    on_hover.push('\n');
-    let str = match settings_x_axis {
-        RtpTimestamp => format!("x = {} [RTP timestamp]\n", x),
-        RawTimestamp => format!("x = {:.5} [s]\n", x),
-        SequenceNumber => format!("x = {} [Sequence number]\n", x),
-    };
-    on_hover.push_str(&str);
-    on_hover
-}
-
-fn get_radius(rtp: &RtpInfo) -> f32 {
-    if rtp.prev_lost {
-        3.5
-    } else if rtp.packet.marker {
-        2.5
-    } else {
-        2.0
-    }
-}
-
-fn get_color(rtp: &RtpInfo) -> Color32 {
-    if rtp.prev_lost {
-        Color32::GOLD
-    } else if rtp.packet.marker {
-        Color32::GREEN
-    } else {
-        Color32::RED
     }
 }

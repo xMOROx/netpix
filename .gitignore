@@ -2,3 +2,7 @@ target/
 dist/
 .idea
 .vscode
+client/pkg/
+client/dist/
+client/target/
+*.bak
