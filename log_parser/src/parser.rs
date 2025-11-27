@@ -3,29 +3,33 @@ use crate::types::{LogRtcpPacket, RtcpPacketType};
 use crate::webrtc::rtclog2::EventStream;
 use netpix_common::packet::{Packet, SessionPacket, SessionProtocol, TransportProtocol};
 use prost::{DecodeError, Message};
-use std::fs::File;
-use std::io::Read;
+use std::io::SeekFrom;
 use std::net::{IpAddr, Ipv4Addr, SocketAddr};
-use std::time::{Duration, SystemTime};
+use std::time::SystemTime;
+use tokio::fs::File;
+use tokio::io::{AsyncReadExt, AsyncSeekExt};
+use tokio::sync::mpsc;
+use tokio::time::error::Error;
+use tokio::time::{sleep, Duration};
+
+const READ_BUFFER_SIZE: usize = 1024;
+const POLL_INTERVAL_MS: u64 = 200;
 
 pub struct Parser {
     pub packets: Vec<Packet>,
+    pack_num: usize,
 }
 
 impl Parser {
     pub fn new(packets: Vec<Packet>) -> Parser {
-        Parser { packets }
+        Parser {
+            packets,
+            pack_num: 0,
+        }
     }
 
-    pub fn decode_from_file(&mut self, file: String) -> Result<(), DecodeError> {
-        let Ok(mut file) = File::open(file) else {
-            return Err(DecodeError::new("File not found"));
-        };
-        let mut buf = Vec::new();
-        let Ok(_) = file.read_to_end(&mut buf) else {
-            return Err(DecodeError::new("File could not be read"));
-        };
-        let event_stream: EventStream = Message::decode(&*buf)?;
+    fn decode(&mut self, buf: &[u8]) -> Result<(), DecodeError> {
+        let event_stream: EventStream = Message::decode(buf)?;
         let inc_packets: Vec<LogRtcpPacket> = event_stream
             .incoming_rtcp_packets
             .into_iter()
@@ -51,10 +55,47 @@ impl Parser {
         self.packets.sort_by_key(|p| p.timestamp);
 
         for (i, packet) in self.packets.iter_mut().enumerate() {
-            packet.id = i;
+            packet.id = i + self.pack_num;
         }
 
         Ok(())
+    }
+
+    pub async fn watch_log_file(
+        file_path: String,
+        tx: mpsc::Sender<Result<Packet, Error>>,
+    ) -> Result<(), std::io::Error> {
+        let mut file = File::open(file_path).await?;
+        file.seek(SeekFrom::Start(0)).await?;
+
+        let mut parser = Parser::new(Vec::new());
+
+        let mut buf = vec![0u8; READ_BUFFER_SIZE];
+
+        loop {
+            let mut persistent_buf = Vec::new();
+            let mut bytes_read = file.read(&mut buf[..]).await?;
+
+            if bytes_read > 0 {
+                while bytes_read > 0 {
+                    persistent_buf.extend_from_slice(&buf[..bytes_read]);
+                    bytes_read = file.read(&mut buf[..]).await?;
+                }
+
+                if parser.decode(&persistent_buf).is_ok() {
+                    parser.pack_num += parser.packets.len();
+                    for packet in parser.packets.drain(0..) {
+                        if tx.send(Ok(packet)).await.is_err() {
+                            println!("Receiver dropped. Stopping log watcher.");
+                            return Ok(());
+                        }
+                    }
+                }
+            } else {
+                // inefficient workaround because: https://github.com/notify-rs/notify/issues/254
+                sleep(Duration::from_millis(POLL_INTERVAL_MS)).await;
+            }
+        }
     }
 
     pub fn parse_rtcp_packets(

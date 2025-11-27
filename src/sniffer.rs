@@ -2,6 +2,10 @@ use futures_util::StreamExt;
 use log_parser::parser::Parser;
 use netpix_common::{Packet, Source};
 use pcap::{Capture, PacketCodec, PacketStream};
+use tokio::sync::mpsc;
+use tokio::sync::mpsc::Receiver;
+
+const LOG_CHANNEL_BUFFER_SIZE: usize = 100;
 
 #[derive(Debug)]
 pub enum Error {
@@ -61,26 +65,16 @@ impl OfflineStream {
 }
 
 struct LogStream {
-    packets: Vec<Packet>,
-    cursor: usize,
+    receiver: Receiver<Result<Packet, tokio::time::error::Error>>,
 }
 
 impl LogStream {
-    pub fn new(packets: Vec<Packet>) -> Self {
-        Self {
-            packets,
-            cursor: 0usize,
-        }
+    pub fn new(receiver: Receiver<Result<Packet, tokio::time::error::Error>>) -> Self {
+        Self { receiver }
     }
-    pub fn next(&mut self) -> Option<Result<Result<Packet, Error>, pcap::Error>> {
-        if self.cursor < self.packets.len() {
-            let pkt = self.packets[self.cursor].clone();
-            self.cursor += 1;
 
-            Some(Ok(Ok(pkt)))
-        } else {
-            None
-        }
+    pub async fn next(&mut self) -> Option<Result<Packet, tokio::time::error::Error>> {
+        self.receiver.recv().await
     }
 }
 
@@ -135,16 +129,20 @@ impl Sniffer {
     }
 
     pub fn from_logs(file: &str) -> Result<Self, Error> {
-        let mut parser = Parser::new(Vec::new());
-        parser
-            .decode_from_file(file.to_string())
-            .expect("Failed to decode from log file");
+        let (tx, rx) = mpsc::channel(LOG_CHANNEL_BUFFER_SIZE);
 
-        let log_stream = LogStream::new(parser.packets);
+        let file_path = file.to_string();
+        tokio::spawn(async move {
+            if let Err(e) = Parser::watch_log_file(file_path, tx).await {
+                eprintln!("Error watching log file: {:?}", e);
+            }
+        });
+
+        let log_stream = LogStream::new(rx);
 
         Ok(Self {
             capture: CaptureType::RtcLogging(log_stream),
-            source: Source::Interface(file.to_string()),
+            source: Source::File(file.to_string()),
         })
     }
 
@@ -158,16 +156,24 @@ impl Sniffer {
     }
 
     pub async fn next_packet(&mut self) -> Option<Result<Packet, Error>> {
-        let packet = match self.capture {
-            CaptureType::Offline(ref mut stream) => stream.next(),
-            CaptureType::Online(ref mut stream) => stream.next().await,
-            CaptureType::RtcLogging(ref mut stream) => stream.next(),
+        let packet_result = match self.capture {
+            CaptureType::Offline(ref mut stream) => stream.next().map(|res| {
+                res.map_err(|_arg0: pcap::Error| Error::from(Error::CouldntReceivePacket))
+                    .and_then(|inner_res| inner_res)
+            }),
+
+            CaptureType::Online(ref mut stream) => stream.next().await.map(|res| {
+                res.map_err(|_arg0: pcap::Error| Error::from(Error::CouldntReceivePacket))
+                    .and_then(|inner_res| inner_res)
+            }),
+
+            CaptureType::RtcLogging(ref mut stream) => stream.next().await.map(|res| {
+                res.map_err(|_arg0: tokio::time::error::Error| {
+                    Error::from(Error::CouldntReceivePacket)
+                })
+            }),
         };
 
-        match packet {
-            None => None,
-            Some(Err(_)) => Some(Err(Error::CouldntReceivePacket)),
-            Some(Ok(pack)) => Some(pack),
-        }
+        packet_result
     }
 }
