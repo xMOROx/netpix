@@ -1,14 +1,30 @@
 use dioxus::prelude::*;
 use crate::app::AppState;
-use crate::app::components::FilterInput;
+use crate::app::components::{FilterInput, FilterHelpData};
 use crate::app::tables::filters::{RtcpPacketFilterContext, parse_rtcp_packet_filter};
 use crate::filter_system::FilterExpression;
 use netpix_common::packet::SessionPacket;
 use netpix_common::RtcpPacket;
 
+fn rtcp_packets_help_data() -> FilterHelpData {
+    FilterHelpData::new(
+        "RTCP Packet Filters",
+        &[
+            ("source:<ip>", "Filter by source IP address"),
+            ("dest:<ip>", "Filter by destination IP address"),
+            ("type:<type>", "Filter by RTCP type (sender, receiver, sdes, bye)"),
+        ],
+        &[
+            "type:sender OR type:receiver",
+            "source:192.168 AND type:sdes",
+            "NOT type:bye",
+        ],
+    )
+}
+
 #[component]
 pub fn RtcpPacketsTable(state: Signal<AppState>) -> Element {
-    let mut filter_text = use_signal(String::new);
+    let filter_text = use_signal(String::new);
     let mut filter_error = use_signal(|| None::<String>);
     
     // Read update counter to trigger re-renders when data changes
@@ -58,7 +74,8 @@ pub fn RtcpPacketsTable(state: Signal<AppState>) -> Element {
                 filter_text: filter_text,
                 filter_error: filter_error,
                 placeholder: "Filter: source:ip, dest:ip, type:sender/receiver/sdes/bye...".to_string(),
-                help_content: "source:192.168 - Source IP\ndest:10.0 - Destination IP\ntype:sender - Sender Report\ntype:receiver - Receiver Report\ntype:sdes - Source Description\ntype:bye - Goodbye".to_string(),
+                help_content: String::new(),
+                help_data: Some(rtcp_packets_help_data()),
             }
             
             // Table container

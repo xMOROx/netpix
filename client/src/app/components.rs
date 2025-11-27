@@ -1,3 +1,3 @@
 mod filter_input;
 
-pub use filter_input::{FilterInput, build_filter_help};
+pub use filter_input::{FilterInput, build_filter_help, FilterHelpData};

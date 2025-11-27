@@ -1,8 +1,26 @@
 use dioxus::prelude::*;
 use crate::app::AppState;
-use crate::app::components::FilterInput;
+use crate::app::components::{FilterInput, FilterHelpData};
 use crate::app::tables::filters::{build_mpegts_streams_filter_help, parse_mpegts_stream_filter, MpegtsStreamFilterContext, MpegtsStreamFilterType};
 use crate::filter_system::FilterExpression;
+
+fn mpegts_streams_help_data() -> FilterHelpData {
+    FilterHelpData::new(
+        "MPEG-TS Stream Filters",
+        &[
+            ("alias:<name>", "Filter by stream alias"),
+            ("source:<ip>", "Filter by source IP address"),
+            ("dest:<ip>", "Filter by destination IP address"),
+            ("substreams:<op><num>", "Filter by substream count"),
+            ("packets:<op><num>", "Filter by packet count"),
+        ],
+        &[
+            "alias:stream1 AND substreams:>3",
+            "packets:>100",
+            "source:192.168",
+        ],
+    )
+}
 
 #[component]
 pub fn MpegtsStreamsTable(state: Signal<AppState>) -> Element {
@@ -45,6 +63,7 @@ pub fn MpegtsStreamsTable(state: Signal<AppState>) -> Element {
                     filter_error: filter_error,
                     placeholder: "Filter MPEG-TS streams (e.g., alias:stream1 AND substreams:>3)".to_string(),
                     help_content: build_mpegts_streams_filter_help().to_string(),
+                    help_data: Some(mpegts_streams_help_data()),
                 }
             }
             

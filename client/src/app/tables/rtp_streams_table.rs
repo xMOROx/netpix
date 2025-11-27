@@ -1,12 +1,31 @@
 use dioxus::prelude::*;
 use crate::app::AppState;
-use crate::app::components::FilterInput;
+use crate::app::components::{FilterInput, FilterHelpData};
 use crate::app::tables::filters::{RtpStreamFilterContext, parse_rtp_stream_filter};
 use crate::filter_system::FilterExpression;
 
+fn rtp_streams_help_data() -> FilterHelpData {
+    FilterHelpData::new(
+        "RTP Stream Filters",
+        &[
+            ("source:<ip>", "Filter by source IP address"),
+            ("dest:<ip>", "Filter by destination IP address"),
+            ("alias:<name>", "Filter by stream alias"),
+            ("cname:<name>", "Filter by CNAME"),
+            ("bitrate:<op><kbps>", "Filter by bitrate (>, <, =)"),
+            ("packets:<op><count>", "Filter by packet count"),
+        ],
+        &[
+            "source:192.168 AND bitrate:>1000",
+            "alias:video OR alias:audio",
+            "packets:>1000 AND NOT cname:test",
+        ],
+    )
+}
+
 #[component]
 pub fn RtpStreamsTable(state: Signal<AppState>) -> Element {
-    let mut filter_text = use_signal(String::new);
+    let filter_text = use_signal(String::new);
     let mut filter_error = use_signal(|| None::<String>);
     
     // Read update counter to trigger re-renders when data changes
@@ -48,7 +67,8 @@ pub fn RtpStreamsTable(state: Signal<AppState>) -> Element {
                 filter_text: filter_text,
                 filter_error: filter_error,
                 placeholder: "Filter: source:ip, dest:ip, alias:name, cname:name, bitrate:>1000, packets:>100...".to_string(),
-                help_content: "source:192.168 - Source IP\ndest:10.0 - Destination IP\nalias:stream - Stream alias\ncname:name - CNAME\nbitrate:>1000 - Bitrate in kbps\npackets:>100 - Packet count".to_string(),
+                help_content: String::new(),
+                help_data: Some(rtp_streams_help_data()),
             }
             
             // Table container

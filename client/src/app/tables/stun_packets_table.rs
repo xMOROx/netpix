@@ -1,13 +1,31 @@
 use dioxus::prelude::*;
 use crate::app::AppState;
-use crate::app::components::FilterInput;
+use crate::app::components::{FilterInput, FilterHelpData};
 use crate::app::tables::filters::{StunPacketFilterContext, parse_stun_packet_filter};
 use crate::filter_system::FilterExpression;
 use netpix_common::packet::SessionPacket;
 
+fn stun_packets_help_data() -> FilterHelpData {
+    FilterHelpData::new(
+        "STUN Packet Filters",
+        &[
+            ("source:<ip>", "Filter by source IP address"),
+            ("dest:<ip>", "Filter by destination IP address"),
+            ("type:<type>", "Filter by STUN message type (binding, etc.)"),
+            ("transaction:<id>", "Filter by transaction ID (hex)"),
+            ("length:<op><size>", "Filter by message length"),
+        ],
+        &[
+            "type:binding AND source:192.168",
+            "length:>100",
+            "transaction:abc123",
+        ],
+    )
+}
+
 #[component]
 pub fn StunPacketsTable(state: Signal<AppState>) -> Element {
-    let mut filter_text = use_signal(String::new);
+    let filter_text = use_signal(String::new);
     let mut filter_error = use_signal(|| None::<String>);
     
     // Read update counter to trigger re-renders when data changes
@@ -58,7 +76,8 @@ pub fn StunPacketsTable(state: Signal<AppState>) -> Element {
                 filter_text: filter_text,
                 filter_error: filter_error,
                 placeholder: "Filter: source:ip, dest:ip, type:binding, transaction:id, length:>size...".to_string(),
-                help_content: "source:192.168 - Source IP\ndest:10.0 - Destination IP\ntype:binding - Message type\ntransaction:abc - Transaction ID\nlength:>100 - Message length".to_string(),
+                help_content: String::new(),
+                help_data: Some(stun_packets_help_data()),
             }
             
             // Table container

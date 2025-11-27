@@ -1,9 +1,26 @@
 use dioxus::prelude::*;
 use crate::app::AppState;
-use crate::app::components::FilterInput;
+use crate::app::components::{FilterInput, FilterHelpData};
 use crate::app::tables::filters::{build_mpegts_packets_filter_help, parse_mpegts_packet_filter, MpegtsPacketFilterContext, MpegtsPacketFilterType};
 use crate::filter_system::FilterExpression;
 use netpix_common::packet::SessionPacket;
+
+fn mpegts_packets_help_data() -> FilterHelpData {
+    FilterHelpData::new(
+        "MPEG-TS Packet Filters",
+        &[
+            ("source:<ip>", "Filter by source IP address"),
+            ("dest:<ip>", "Filter by destination IP address"),
+            ("pid:<number>", "Filter by PID value"),
+            ("fragments:<op><num>", "Filter by fragment count"),
+        ],
+        &[
+            "source:192.168 AND pid:100",
+            "fragments:>1",
+            "NOT pid:0",
+        ],
+    )
+}
 
 #[component]
 pub fn MpegtsPacketsTable(state: Signal<AppState>) -> Element {
@@ -60,6 +77,7 @@ pub fn MpegtsPacketsTable(state: Signal<AppState>) -> Element {
                     filter_error: filter_error,
                     placeholder: "Filter MPEG-TS packets (e.g., source:192.168 AND pid:100)".to_string(),
                     help_content: build_mpegts_packets_filter_help().to_string(),
+                    help_data: Some(mpegts_packets_help_data()),
                 }
             }
             

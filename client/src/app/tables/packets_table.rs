@@ -1,12 +1,31 @@
 use dioxus::prelude::*;
 use crate::app::AppState;
-use crate::app::components::{FilterInput, build_filter_help};
+use crate::app::components::{FilterInput, build_filter_help, FilterHelpData};
 use crate::filter_system::FilterExpression;
 use super::filters::{PacketFilterContext, parse_packet_filter};
 
 // Packets table filter help
 fn packets_filter_help() -> String {
     build_filter_help(
+        "Network Packet Filters",
+        &[
+            ("source:<ip>", "Filter by source IP address"),
+            ("dest:<ip>", "Filter by destination IP address"),
+            ("protocol:<proto>", "Filter by protocol (TCP, UDP, RTP, RTCP, MPEG-TS)"),
+            ("type:<type>", "Filter by session type"),
+            ("length:<op><size>", "Filter by packet size (>, <, >=, <=, or exact)"),
+        ],
+        &[
+            "source:192.168 AND protocol:udp",
+            "length:>100 AND type:rtp",
+            "NOT dest:10.0.0.1",
+            "(protocol:tcp AND length:>500) OR source:192.168",
+        ],
+    )
+}
+
+fn packets_help_data() -> FilterHelpData {
+    FilterHelpData::new(
         "Network Packet Filters",
         &[
             ("source:<ip>", "Filter by source IP address"),
@@ -77,6 +96,7 @@ pub fn PacketsTable(state: Signal<AppState>) -> Element {
                 filter_error: filter_error,
                 placeholder: "Filter packets (e.g., source:192.168 AND protocol:udp)".to_string(),
                 help_content: packets_filter_help(),
+                help_data: Some(packets_help_data()),
             }
             
             // Table container

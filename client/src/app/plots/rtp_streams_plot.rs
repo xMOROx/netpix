@@ -393,9 +393,19 @@ pub fn RtpStreamsPlot(state: Signal<AppState>) -> Element {
                 }
             }
             
-            // Plot area
+            // Plot area with mouse wheel zoom
             div {
                 style: "flex: 1; overflow: auto; background: #1a1a1a;",
+                onwheel: move |evt: WheelEvent| {
+                    let delta = evt.delta().strip_units().y;
+                    if delta < 0.0 {
+                        // Scroll up = zoom in
+                        zoom_level.set((zoom * 1.2).min(10.0));
+                    } else if delta > 0.0 {
+                        // Scroll down = zoom out
+                        zoom_level.set((zoom / 1.2).max(0.5));
+                    }
+                },
                 
                 if plot_points.is_empty() {
                     div {

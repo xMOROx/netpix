@@ -1,13 +1,35 @@
 use dioxus::prelude::*;
 use crate::app::AppState;
-use crate::app::components::FilterInput;
+use crate::app::components::{FilterInput, FilterHelpData};
 use crate::app::tables::filters::{RtpPacketFilterContext, parse_rtp_packet_filter};
 use crate::filter_system::FilterExpression;
 use netpix_common::packet::SessionPacket;
 
+fn rtp_packets_help_data() -> FilterHelpData {
+    FilterHelpData::new(
+        "RTP Packet Filters",
+        &[
+            ("source:<ip>", "Filter by source IP address"),
+            ("dest:<ip>", "Filter by destination IP address"),
+            ("alias:<name>", "Filter by stream alias"),
+            ("padding:+/-", "Filter by padding flag (+ = set, - = not set)"),
+            ("extension:+/-", "Filter by extension header"),
+            ("marker:+/-", "Filter by marker bit"),
+            ("seq:<num>", "Filter by sequence number"),
+            ("timestamp:<op><num>", "Filter by RTP timestamp (>, <, =)"),
+            ("payload:<op><size>", "Filter by payload size in bytes"),
+        ],
+        &[
+            "source:192.168 AND marker:+",
+            "payload:>500 OR extension:+",
+            "alias:stream1 AND NOT padding:+",
+        ],
+    )
+}
+
 #[component]
 pub fn RtpPacketsTable(state: Signal<AppState>) -> Element {
-    let mut filter_text = use_signal(String::new);
+    let filter_text = use_signal(String::new);
     let mut filter_error = use_signal(|| None::<String>);
     
     // Read update counter to trigger re-renders when data changes
@@ -68,7 +90,8 @@ pub fn RtpPacketsTable(state: Signal<AppState>) -> Element {
                 filter_text: filter_text,
                 filter_error: filter_error,
                 placeholder: "Filter: source:ip, dest:ip, alias:name, marker:+/-, seq:num, payload:>size...".to_string(),
-                help_content: "source:192.168 - Source IP\ndest:10.0 - Destination IP\nalias:stream - Stream alias\npadding:+/- - Padding flag\nextension:+/- - Extension\nmarker:+/- - Marker bit\nseq:1000 - Sequence number\ntimestamp:>1000 - RTP timestamp\npayload:>500 - Payload size".to_string(),
+                help_content: String::new(),
+                help_data: Some(rtp_packets_help_data()),
             }
             
             // Table container
