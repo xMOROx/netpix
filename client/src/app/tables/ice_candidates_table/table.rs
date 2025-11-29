@@ -11,7 +11,7 @@ pub struct IceCandidatesTable {
     ws_sender: WsSender,
     visualization: IceCandidatesVisualization,
     cached_data: Option<IceCandidatesData>,
-    last_packet_count: usize,
+    last_stun_packet_count: usize,
 }
 
 impl TableBase for IceCandidatesTable {
@@ -21,16 +21,26 @@ impl TableBase for IceCandidatesTable {
             ws_sender,
             visualization: IceCandidatesVisualization::default(),
             cached_data: None,
-            last_packet_count: 0,
+            last_stun_packet_count: 0,
         }
     }
 
     fn ui(&mut self, ctx: &Context) {
         CentralPanel::default().show(ctx, |ui| {
-            let current_count = self.streams.borrow().packets.len();
-            if self.cached_data.is_none() || current_count != self.last_packet_count {
+            let current_stun_count = self
+                .streams
+                .borrow()
+                .packets
+                .values()
+                .filter(|p| matches!(
+                    &p.contents,
+                    netpix_common::packet::SessionPacket::Stun(_)
+                ))
+                .count();
+
+            if self.cached_data.is_none() || current_stun_count != self.last_stun_packet_count {
                 self.cached_data = Some(self.build_ice_data());
-                self.last_packet_count = current_count;
+                self.last_stun_packet_count = current_stun_count;
             }
 
             if let Some(ref data) = self.cached_data {
