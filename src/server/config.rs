@@ -7,4 +7,13 @@ pub struct Config {
     pub client_message_interval_ms: u64,
     pub packet_buffer_size: usize,
     pub addr: SocketAddr,
+    /// Maximum number of messages that can be queued per client before backpressure is applied
+    #[builder(default = 1000)]
+    pub max_client_queue_size: usize,
+    /// Maximum number of concurrent client connections
+    #[builder(default = 100)]
+    pub max_clients: usize,
+    /// Number of messages to send per client per tick (batch size)
+    #[builder(default = 10)]
+    pub message_batch_size: usize,
 }
