@@ -12,8 +12,8 @@ impl Sdp {
     pub fn build(raw_sdp: String) -> Option<Self> {
         use crate::rtp::payload_type::MediaType;
         use webrtc_sdp::{
-            attribute_type::SdpAttribute, media_type::SdpMediaValue, parse_sdp_line, SdpLine,
-            SdpType,
+            SdpLine, SdpType, attribute_type::SdpAttribute, media_type::SdpMediaValue,
+            parse_sdp_line,
         };
 
         let mut lines = raw_sdp.lines();

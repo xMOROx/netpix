@@ -4,7 +4,7 @@ mod tests;
 use crate::mpegts::psi::pat::constants::*;
 use crate::mpegts::psi::psi_buffer::FragmentaryPsi;
 use crate::mpegts::psi::{
-    constants::*, ProgramSpecificInformation, ProgramSpecificInformationHeader, TableId,
+    ProgramSpecificInformation, ProgramSpecificInformationHeader, TableId, constants::*,
 };
 use crate::utils::{BitReader, DataParser, DataValidator};
 use bincode::{Decode, Encode};

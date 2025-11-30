@@ -76,8 +76,8 @@ impl From<u8> for AlignmentType {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::mpegts::descriptors::tags::DescriptorTag;
     use crate::mpegts::descriptors::DescriptorHeader;
+    use crate::mpegts::descriptors::tags::DescriptorTag;
 
     #[test]
     fn test_data_stream_alignment_descriptor_unmarshall() {

@@ -1,8 +1,8 @@
 use super::{descriptor::*, filters::*, types::*};
 use crate::{
     app::{
-        tables::mpegts_info_table::table_body::build_table_body, FilterHelpContent, FilterInput,
-        TableBase, TableConfig, TABLE_HEADER_TEXT_SIZE,
+        FilterHelpContent, FilterInput, TABLE_HEADER_TEXT_SIZE, TableBase, TableConfig,
+        tables::mpegts_info_table::table_body::build_table_body,
     },
     declare_table, declare_table_struct, define_column,
     filter_system::FilterExpression,
@@ -44,11 +44,10 @@ impl_table_base!(
             self.build_table(ui);
         });
 
-        if self.open_modal.is_open {
-            if let Some(descriptor) = &self.open_modal.descriptor.clone() {
+        if self.open_modal.is_open
+            && let Some(descriptor) = &self.open_modal.descriptor.clone() {
                 show_descriptor_modal(ctx, descriptor, &mut self.open_modal);
             }
-        }
     }
     ;
     build_header: |self, header| {

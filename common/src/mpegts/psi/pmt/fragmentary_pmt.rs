@@ -1,9 +1,9 @@
 #[cfg(test)]
 mod tests;
 
-use crate::mpegts::psi::pmt::{constants::*, PmtFields};
+use crate::mpegts::psi::pmt::{PmtFields, constants::*};
 use crate::mpegts::psi::psi_buffer::FragmentaryPsi;
-use crate::mpegts::psi::{constants::*, ProgramSpecificInformationHeader};
+use crate::mpegts::psi::{ProgramSpecificInformationHeader, constants::*};
 use crate::utils::{BitReader, DataParser, DataValidator};
 use bincode::{Decode, Encode};
 

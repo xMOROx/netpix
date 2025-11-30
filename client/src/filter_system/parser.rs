@@ -2,7 +2,7 @@ use super::{
     error::ParseError,
     lexer::Lexer,
     traits::{CommonFilterParser, FilterCombinator, FilterExpression},
-    types::{get_operator_precedence, Token},
+    types::{Token, get_operator_precedence},
 };
 
 pub type ParseResult<T> = Result<T, ParseError>;

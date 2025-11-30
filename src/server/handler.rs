@@ -1,20 +1,20 @@
 use super::{client::Clients, config::Config};
 use crate::sniffer::Sniffer;
-use flate2::write::GzEncoder;
 use flate2::Compression;
+use flate2::write::GzEncoder;
 use futures_util::{
-    stream::{SplitSink, SplitStream},
     SinkExt, StreamExt, TryFutureExt,
+    stream::{SplitSink, SplitStream},
 };
 use log::{error, info, warn};
 use netpix_common::{PacketsStats, Request, Response, RtpStreamKey, Sdp, Source};
 use ringbuf::{
-    traits::{Consumer, Observer, RingBuffer},
     HeapRb,
+    traits::{Consumer, Observer, RingBuffer},
 };
 use std::time::SystemTime;
 use std::{collections::HashMap, io::Write, sync::Arc};
-use tokio::sync::{mpsc, mpsc::UnboundedSender, RwLock};
+use tokio::sync::{RwLock, mpsc, mpsc::UnboundedSender};
 use warp::ws::{Message, WebSocket};
 
 pub type PacketRingBuffer = HeapRb<Response>;
@@ -127,11 +127,10 @@ async fn sniff(
                         let msg = Message::binary(encoded);
 
                         for (_, client) in clients.write().await.iter_mut() {
-                            if let Some(src) = &client.source {
-                                if *src == sniffer.source {
+                            if let Some(src) = &client.source
+                                && *src == sniffer.source {
                                     client.queue.push_back(msg.clone());
                                 }
-                            }
                         }
 
                         let mut packets = packets.write().await;
@@ -145,12 +144,11 @@ async fn sniff(
                         }
                         packets.push_overwrite(response);
 
-                        if let Ok(elapsed) = last_stats_time.elapsed() {
-                            if elapsed.as_secs() >= 5 {
+                        if let Ok(elapsed) = last_stats_time.elapsed()
+                            && elapsed.as_secs() >= 5 {
                                 send_stats(&clients, total_discharged_count, overwritten_count).await;
                                 last_stats_time = SystemTime::now();
                             }
-                        }
                     }
                     Some(Err(err)) => info!("Error when capturing a packet: {:?}", err),
                     None => break,
@@ -229,12 +227,11 @@ async fn parse_sdp(
 
     let clients_guard = clients.read().await;
     for (_, client) in clients_guard.iter() {
-        if let Some(ref source) = client.source {
-            if *source == *cur_source {
-                if let Err(e) = client.sender.send(msg.clone()) {
-                    error!("Sniffer: error while sending sdp: {}", e);
-                }
-            }
+        if let Some(ref source) = client.source
+            && *source == *cur_source
+            && let Err(e) = client.sender.send(msg.clone())
+        {
+            error!("Sniffer: error while sending sdp: {}", e);
         }
     }
 }
@@ -249,10 +246,10 @@ async fn handle_source_change(
         let mut wr_clients = clients.write().await;
         let client = wr_clients.get_mut(&client_id).unwrap();
 
-        if let Some(old_source) = &client.source {
-            if let Some((_, cancel_tx)) = packets.get(old_source) {
-                let _ = cancel_tx.send(()).await;
-            }
+        if let Some(old_source) = &client.source
+            && let Some((_, cancel_tx)) = packets.get(old_source)
+        {
+            let _ = cancel_tx.send(()).await;
         }
 
         client.queue.clear();
@@ -322,7 +319,10 @@ pub async fn handle_messages(
                         if let Some(cur_source) = &source {
                             parse_sdp(client_id, clients, cur_source, stream_key, sdp).await;
                         } else {
-                            warn!("Received ParseSdp request without a selected source, client_id: {}", client_id);
+                            warn!(
+                                "Received ParseSdp request without a selected source, client_id: {}",
+                                client_id
+                            );
                         }
                     }
 

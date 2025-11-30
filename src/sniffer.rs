@@ -156,24 +156,20 @@ impl Sniffer {
     }
 
     pub async fn next_packet(&mut self) -> Option<Result<Packet, Error>> {
-        let packet_result = match self.capture {
+        match self.capture {
             CaptureType::Offline(ref mut stream) => stream.next().map(|res| {
-                res.map_err(|_arg0: pcap::Error| Error::from(Error::CouldntReceivePacket))
+                res.map_err(|_arg0: pcap::Error| Error::CouldntReceivePacket)
                     .and_then(|inner_res| inner_res)
             }),
 
             CaptureType::Online(ref mut stream) => stream.next().await.map(|res| {
-                res.map_err(|_arg0: pcap::Error| Error::from(Error::CouldntReceivePacket))
+                res.map_err(|_arg0: pcap::Error| Error::CouldntReceivePacket)
                     .and_then(|inner_res| inner_res)
             }),
 
             CaptureType::RtcLogging(ref mut stream) => stream.next().await.map(|res| {
-                res.map_err(|_arg0: tokio::time::error::Error| {
-                    Error::from(Error::CouldntReceivePacket)
-                })
+                res.map_err(|_arg0: tokio::time::error::Error| Error::CouldntReceivePacket)
             }),
-        };
-
-        packet_result
+        }
     }
 }

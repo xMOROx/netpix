@@ -5,8 +5,8 @@ use crate::streams::{
 };
 use netpix_common::mpegts::{payload::RawPayload, pes::PacketizedElementaryStream};
 use netpix_common::{
-    mpegts::psi::psi_buffer::{FragmentaryPsi, PsiBuffer},
     MpegtsPacket, Packet,
+    mpegts::psi::psi_buffer::{FragmentaryPsi, PsiBuffer},
 };
 use rustc_hash::FxHashMap;
 use std::time::Duration;
@@ -49,18 +49,15 @@ impl MpegTsStream {
                 .iter()
                 .map(|fragment| {
                     let mut frag = fragment.clone();
-                    if let Some(_pat) = &self.stream_info.pat {
-                        if self.is_pes_pid(u16::from(fragment.header.pid)) {
-                            if let Some(payload) = &fragment.payload {
-                                if let Some(_pes) = PacketizedElementaryStream::build(&payload.data)
-                                {
-                                    frag.payload.replace(RawPayload {
-                                        data: vec![],
-                                        size: payload.size,
-                                    });
-                                }
-                            }
-                        }
+                    if let Some(_pat) = &self.stream_info.pat
+                        && self.is_pes_pid(u16::from(fragment.header.pid))
+                        && let Some(payload) = &fragment.payload
+                        && let Some(_pes) = PacketizedElementaryStream::build(&payload.data)
+                    {
+                        frag.payload.replace(RawPayload {
+                            data: vec![],
+                            size: payload.size,
+                        });
                     }
                     frag
                 })

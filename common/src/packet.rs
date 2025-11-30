@@ -11,13 +11,13 @@ use std::io::Write;
 
 #[cfg(not(target_arch = "wasm32"))]
 use pnet_packet::{
+    Packet as _,
     ethernet::{EtherTypes, EthernetPacket},
     ip::IpNextHeaderProtocols,
     ipv4::Ipv4Packet,
     ipv6::Ipv6Packet,
     tcp::TcpPacket,
     udp::UdpPacket,
-    Packet as _,
 };
 
 #[derive(Encode, Decode, PartialEq, Debug, Copy, Clone)]
@@ -275,19 +275,19 @@ impl Packet {
             return;
         }
 
-        if let Some(rtcp) = RtcpPacket::build(self) {
-            if is_rtcp(&rtcp) {
-                self.session_protocol = SessionProtocol::Rtcp;
-                self.contents = SessionPacket::Rtcp(rtcp);
-                return;
-            }
+        if let Some(rtcp) = RtcpPacket::build(self)
+            && is_rtcp(&rtcp)
+        {
+            self.session_protocol = SessionProtocol::Rtcp;
+            self.contents = SessionPacket::Rtcp(rtcp);
+            return;
         }
 
-        if let Some(rtp) = RtpPacket::build(self) {
-            if is_rtp(&rtp) {
-                self.session_protocol = SessionProtocol::Rtp;
-                self.contents = SessionPacket::Rtp(rtp);
-            }
+        if let Some(rtp) = RtpPacket::build(self)
+            && is_rtp(&rtp)
+        {
+            self.session_protocol = SessionProtocol::Rtp;
+            self.contents = SessionPacket::Rtp(rtp);
         }
     }
 

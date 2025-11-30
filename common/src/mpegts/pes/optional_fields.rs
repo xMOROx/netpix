@@ -478,10 +478,10 @@ impl BitManipulation for PesExtensionData {}
 
 impl DataValidator for PesExtensionData {
     fn validate(&self) -> bool {
-        if let Some(len) = self.pes_extension_field_length {
-            if len as usize > self.size as usize {
-                return false;
-            }
+        if let Some(len) = self.pes_extension_field_length
+            && len as usize > self.size as usize
+        {
+            return false;
         }
         true
     }
