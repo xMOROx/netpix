@@ -1,7 +1,7 @@
 [package]
 name = "netpix_common"
 version = "0.5.0"
-edition = "2021"
+edition = "2024"
 license = "MIT"
 description = "Crate with common utilities for netpix"
 homepage = "https://github.com/xMOROx/netpix"
@@ -20,11 +20,11 @@ pretty_assertions = "1.4.1"
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 pcap = "2.2.0"
-rtp = "0.11.0"
-rtcp = "0.11.0"
-stun = "0.8.0"
+rtp = "0.14.0"
+rtcp = "0.14.0"
+stun = "0.9.0"
 webrtc-sdp = "0.3"
-webrtc-util = "0.9.0"
+webrtc-util = "0.12.0"
 pnet_packet = "0.35.0"
 
 
