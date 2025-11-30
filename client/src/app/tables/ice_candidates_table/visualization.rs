@@ -3,6 +3,7 @@ use egui::*;
 
 pub struct IceCandidatesVisualization {
     filter_state: Option<CandidatePairState>,
+    selected_pair: Option<super::types::CandidatePairKey>,
     split_ratio: f32,
 }
 
@@ -10,6 +11,7 @@ impl Default for IceCandidatesVisualization {
     fn default() -> Self {
         Self {
             filter_state: None,
+            selected_pair: None,
             split_ratio: 0.5,
         }
     }
@@ -122,7 +124,9 @@ impl IceCandidatesVisualization {
                     .id_salt("connectivity_diagram")
                     .auto_shrink([false; 2])
                     .show(ui, |ui| {
-                        self.show_connectivity_diagram(ui, &filtered_pairs);
+                        if let Some(k) = self.show_connectivity_diagram(ui, &filtered_pairs) {
+                            self.selected_pair = Some(k);
+                        }
                     });
             },
         );
@@ -165,13 +169,16 @@ impl IceCandidatesVisualization {
                     .id_salt("candidate_pairs_list")
                     .auto_shrink([false; 2])
                     .show(ui, |ui| {
-                        self.show_candidate_pairs_list(ui, &filtered_pairs);
+                        if let Some(k) = self.show_candidate_pairs_list(ui, &filtered_pairs) {
+                            self.selected_pair = Some(k);
+                        }
                     });
             },
         );
     }
 
-    fn show_connectivity_diagram(&self, ui: &mut Ui, pairs: &[&CandidatePairStats]) {
+    fn show_connectivity_diagram(&self, ui: &mut Ui, pairs: &[&CandidatePairStats]) -> Option<CandidatePairKey> {
+        let mut clicked: Option<CandidatePairKey> = None;
         ui.group(|ui| {
             ui.label(RichText::new("Connectivity Overview").strong().size(16.0));
 
@@ -180,18 +187,31 @@ impl IceCandidatesVisualization {
             let total_height = pairs.len() as f32 * pair_height;
 
             let (response, painter) =
-                ui.allocate_painter(Vec2::new(available_width, total_height), Sense::hover());
+                ui.allocate_painter(Vec2::new(available_width, total_height), Sense::click());
             let rect = response.rect;
 
             painter.rect_filled(rect, Rounding::same(4.0), Color32::from_rgb(30, 30, 30));
 
-            for (idx, pair) in pairs.iter().enumerate() {
+                for (idx, pair) in pairs.iter().enumerate() {
                 let y = rect.min.y + (idx as f32 * pair_height) + pair_height / 2.0;
 
                 let local_x = rect.min.x + 100.0;
                 painter.circle_filled(Pos2::new(local_x, y), 8.0, pair.state.color());
 
                 let local_text_pos = Pos2::new(local_x + 15.0, y);
+                let is_selected = match &self.selected_pair {
+                    Some(k) => *k == pair.key,
+                    None => false,
+                };
+
+                if is_selected {
+                    painter.circle_stroke(
+                        Pos2::new(local_x, y),
+                        12.0,
+                        Stroke::new(3.0, Color32::from_rgb(200, 200, 255)),
+                    );
+                }
+
                 painter.text(
                     local_text_pos,
                     Align2::LEFT_CENTER,
@@ -215,6 +235,14 @@ impl IceCandidatesVisualization {
                 painter.circle_filled(Pos2::new(remote_x, y), 8.0, pair.state.color());
 
                 let remote_text_pos = Pos2::new(remote_x - 15.0, y);
+                if is_selected {
+                    painter.circle_stroke(
+                        Pos2::new(remote_x, y),
+                        12.0,
+                        Stroke::new(3.0, Color32::from_rgb(200, 200, 255)),
+                    );
+                }
+
                 painter.text(
                     remote_text_pos,
                     Align2::RIGHT_CENTER,
@@ -257,14 +285,44 @@ impl IceCandidatesVisualization {
                     pair.state.color(),
                 );
             }
+            if response.clicked() {
+                if let Some(pos) = response.hover_pos() {
+                    let rel_y = pos.y - rect.min.y;
+                    if rel_y >= 0.0 {
+                        let idx = (rel_y / pair_height).floor() as usize;
+                        if idx < pairs.len() {
+                            clicked = Some(pairs[idx].key.clone());
+                        }
+                    }
+                }
+            }
         });
+
+        clicked
     }
 
-    fn show_candidate_pairs_list(&self, ui: &mut Ui, pairs: &[&CandidatePairStats]) {
+    fn show_candidate_pairs_list(&self, ui: &mut Ui, pairs: &[&CandidatePairStats]) -> Option<CandidatePairKey> {
+        let mut clicked: Option<CandidatePairKey> = None;
         ui.group(|ui| {
             ui.label(RichText::new("Candidate Pairs Details").strong().size(16.0));
 
             for (idx, pair) in pairs.iter().enumerate() {
+                let label = format!(
+                    "{} ↔ {}  {}",
+                    pair.key.local_candidate,
+                    pair.key.remote_candidate,
+                    pair.state.label()
+                );
+
+                let is_selected = match &self.selected_pair {
+                    Some(k) => *k == pair.key,
+                    None => false,
+                };
+
+                if ui.selectable_label(is_selected, label).clicked() {
+                    clicked = Some(pair.key.clone());
+                }
+
                 ui.group(|ui| {
                     ui.horizontal(|ui| {
                         ui.colored_label(pair.state.color(), pair.state.label());
@@ -324,5 +382,7 @@ impl IceCandidatesVisualization {
                 }
             }
         });
+        clicked
     }
 }
+
