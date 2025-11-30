@@ -1,9 +1,9 @@
 name: pcap-parse-tests
 
 on:
-  push:
-    branches: [ main ]
   pull_request:
+    types: [ opened, synchronize ]
+  push:
     branches: [ main ]
 
 jobs:
