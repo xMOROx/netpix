@@ -7,12 +7,12 @@ use netpix_common::Source;
 use std::collections::HashMap;
 use std::collections::VecDeque;
 use std::sync::{
-    atomic::{AtomicUsize, Ordering},
     Arc,
+    atomic::{AtomicUsize, Ordering},
 };
 use tokio::sync::{
-    mpsc::{self, UnboundedSender},
     RwLock,
+    mpsc::{self, UnboundedSender},
 };
 use warp::ws::{Message, WebSocket};
 

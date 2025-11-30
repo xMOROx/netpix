@@ -10,7 +10,7 @@ use tokio::fs::File;
 use tokio::io::{AsyncReadExt, AsyncSeekExt};
 use tokio::sync::mpsc;
 use tokio::time::error::Error;
-use tokio::time::{sleep, Duration};
+use tokio::time::{Duration, sleep};
 
 const READ_BUFFER_SIZE: usize = 1024;
 const POLL_INTERVAL_MS: u64 = 200;

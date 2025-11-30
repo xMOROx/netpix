@@ -1,6 +1,6 @@
 use super::{
     constants::*,
-    types::{MpegTsInfo, OpenModal, RowKey, LINE_HEIGHT},
+    types::{LINE_HEIGHT, MpegTsInfo, OpenModal, RowKey},
 };
 use egui_extras::TableBody;
 use netpix_common::mpegts::{

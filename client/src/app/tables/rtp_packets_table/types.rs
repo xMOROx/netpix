@@ -1,5 +1,5 @@
 use crate::define_filter_context;
-use netpix_common::{packet::SessionPacket, RtpPacket, RtpStreamKey};
+use netpix_common::{RtpPacket, RtpStreamKey, packet::SessionPacket};
 use web_time::Duration;
 
 define_filter_context!(RtpFilterContext,

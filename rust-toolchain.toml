@@ -1,4 +1,4 @@
 [toolchain]
 
-channel = "1.83.0"
-target = ["x84_64-unknown-linux-gnu"]
+channel = "1.89.0"
+target = ["x86_64-unknown-linux-gnu"]

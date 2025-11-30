@@ -120,8 +120,8 @@ impl fmt::Display for AudioType {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::mpegts::descriptors::tags::DescriptorTag;
     use crate::mpegts::descriptors::DescriptorHeader;
+    use crate::mpegts::descriptors::tags::DescriptorTag;
 
     #[test]
     fn test_iso_639_language_descriptor_unmarshall() {

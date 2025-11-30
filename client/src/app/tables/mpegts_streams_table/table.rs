@@ -1,23 +1,23 @@
 use super::{
     display::build_bitrate_plot,
-    filters::{parse_filter, FilterContext},
+    filters::{FilterContext, parse_filter},
 };
 use crate::{
     app::{
-        common::{TableBase, TableConfig},
         FilterHelpContent, FilterInput, TABLE_HEADER_TEXT_SIZE,
+        common::{TableBase, TableConfig},
     },
     declare_table, declare_table_struct, define_column,
     filter_system::FilterExpression,
     impl_table_base,
     streams::{
-        mpegts_stream::substream::MpegtsSubStream, stream_statistics::StreamStatistics, RefStreams,
+        RefStreams, mpegts_stream::substream::MpegtsSubStream, stream_statistics::StreamStatistics,
     },
 };
 use egui::{RichText, Window};
 use egui_extras::{Column, TableBody, TableBuilder, TableRow};
 use ewebsock::WsSender;
-use netpix_common::mpegts::psi::pmt::stream_types::{stream_type_into_unique_letter, StreamType};
+use netpix_common::mpegts::psi::pmt::stream_types::{StreamType, stream_type_into_unique_letter};
 use std::{any::Any, collections::HashMap};
 
 declare_table_struct!(

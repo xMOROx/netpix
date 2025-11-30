@@ -1,8 +1,8 @@
 #![allow(dead_code)]
 use netpix_common::packet::Packet;
 use std::collections::{
-    btree_map::{Keys, Values},
     BTreeMap,
+    btree_map::{Keys, Values},
 };
 
 #[derive(Debug, Default)]

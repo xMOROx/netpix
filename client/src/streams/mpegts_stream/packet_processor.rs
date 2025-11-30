@@ -6,18 +6,18 @@ use crate::streams::mpegts_stream::{
 };
 use netpix_common::mpegts::{payload::RawPayload, pes::PacketizedElementaryStream};
 use netpix_common::{
+    Packet, PacketAssociationTable,
     mpegts::{
+        MpegtsFragment,
         aggregator::MpegtsAggregator,
         header::PIDTable,
         psi::{
-            pat::{fragmentary_pat::FragmentaryProgramAssociationTable, ProgramAssociationTable},
-            pmt::{fragmentary_pmt::FragmentaryProgramMapTable, ProgramMapTable},
+            pat::{ProgramAssociationTable, fragmentary_pat::FragmentaryProgramAssociationTable},
+            pmt::{ProgramMapTable, fragmentary_pmt::FragmentaryProgramMapTable},
             psi_buffer::{FragmentaryPsi, PsiBuffer},
         },
-        MpegtsFragment,
     },
     packet::SessionPacket,
-    Packet, PacketAssociationTable,
 };
 use std::time::Duration;
 
@@ -124,13 +124,13 @@ impl MpegtsPacketProcessor {
             return;
         }
 
-        if let Some(payload) = &fragment.payload {
-            if let Some(pmt_fragment) = FragmentaryProgramMapTable::unmarshall(
+        if let Some(payload) = &fragment.payload
+            && let Some(pmt_fragment) = FragmentaryProgramMapTable::unmarshall(
                 &payload.data,
                 fragment.header.payload_unit_start_indicator,
-            ) {
-                self.aggregator.add_pmt(pid, pmt_fragment);
-            }
+            )
+        {
+            self.aggregator.add_pmt(pid, pmt_fragment);
         }
     }
 
@@ -140,12 +140,12 @@ impl MpegtsPacketProcessor {
         stream_info: &mut MpegTsStreamInfo,
     ) {
         for program in &pat.programs {
-            if let Some(program_map_pid) = program.program_map_pid {
-                if let Some(program_map_table) = self.aggregator.get_pmt(program_map_pid) {
-                    stream_info
-                        .pmt
-                        .insert(program_map_pid.into(), program_map_table.clone());
-                }
+            if let Some(program_map_pid) = program.program_map_pid
+                && let Some(program_map_table) = self.aggregator.get_pmt(program_map_pid)
+            {
+                stream_info
+                    .pmt
+                    .insert(program_map_pid.into(), program_map_table.clone());
             }
         }
     }
@@ -271,20 +271,20 @@ impl MpegtsPacketProcessor {
         es_pid: u16,
         pmt_pid: u16,
     ) {
-        if let SessionPacket::Mpegts(mpegts) = &packet.contents {
-            if !substream.is_packet_processed(packet.id) {
-                for fragment in &mpegts.fragments {
-                    let context = FragmentProcessingContext {
-                        substream,
-                        packet,
-                        fragment,
-                        es_pid,
-                        pmt_pid,
-                    };
-                    Self::process_fragment_for_substream(context);
-                }
-                substream.mark_packet_processed(packet.id);
+        if let SessionPacket::Mpegts(mpegts) = &packet.contents
+            && !substream.is_packet_processed(packet.id)
+        {
+            for fragment in &mpegts.fragments {
+                let context = FragmentProcessingContext {
+                    substream,
+                    packet,
+                    fragment,
+                    es_pid,
+                    pmt_pid,
+                };
+                Self::process_fragment_for_substream(context);
             }
+            substream.mark_packet_processed(packet.id);
         }
     }
 
@@ -315,13 +315,13 @@ impl MpegtsPacketProcessor {
         if context.fragment.header.pid == PIDTable::from(context.es_pid) {
             // For PES packets, keep only headers
             let mut fragment = context.fragment.clone();
-            if let Some(payload) = &fragment.payload {
-                if let Some(_pes) = PacketizedElementaryStream::build(&payload.data) {
-                    fragment.payload.replace(RawPayload {
-                        data: vec![],
-                        size: payload.size,
-                    });
-                }
+            if let Some(payload) = &fragment.payload
+                && let Some(_pes) = PacketizedElementaryStream::build(&payload.data)
+            {
+                fragment.payload.replace(RawPayload {
+                    data: vec![],
+                    size: payload.size,
+                });
             }
 
             context

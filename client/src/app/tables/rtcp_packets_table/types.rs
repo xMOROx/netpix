@@ -1,5 +1,5 @@
 use crate::define_filter_context;
-use netpix_common::{rtcp::*, Packet, RtcpPacket};
+use netpix_common::{Packet, RtcpPacket, rtcp::*};
 
 define_filter_context!(RtcpFilterContext,
     packet: RtcpPacket,
