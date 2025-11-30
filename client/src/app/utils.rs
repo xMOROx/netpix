@@ -4,7 +4,7 @@ use crate::filter_system::ParseError;
 use egui::{Align2, Color32, RichText, TextEdit, Vec2};
 use netpix_common::{RtpStreamKey, Source};
 
-use super::{tab::Tab, SOURCE_KEY, TAB_KEY};
+use super::{SOURCE_KEY, TAB_KEY, tab::Tab};
 
 pub fn get_initial_state(cc: &eframe::CreationContext<'_>) -> (Tab, Option<Source>) {
     if let Some(storage) = cc.storage {

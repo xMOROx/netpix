@@ -60,28 +60,15 @@ impl<'a> TimestampReader<'a> {
     }
 
     fn validate_marker_bits(&self, positions: &[usize], mask: u8) -> bool {
-        positions.iter().all(|&pos| {
-            self.reader
-                .get_bits(pos, mask, 0)
-                .map_or(false, |bit| bit == mask)
-        })
+        positions
+            .iter()
+            .all(|&pos| self.reader.get_bits(pos, mask, 0) == Some(mask))
     }
 
     fn validate_escr_marker_bits(&self) -> bool {
-        self.reader
-            .get_bits(0, 0b00000100, 2)
-            .map_or(false, |bit| bit == 1)
-            && self
-                .reader
-                .get_bits(2, 0b00000100, 2)
-                .map_or(false, |bit| bit == 1)
-            && self
-                .reader
-                .get_bits(4, 0b00000100, 2)
-                .map_or(false, |bit| bit == 1)
-            && self
-                .reader
-                .get_bits(5, 0b00000001, 0)
-                .map_or(false, |bit| bit == 1)
+        (self.reader.get_bits(0, 0b00000100, 2) == Some(1))
+            && (self.reader.get_bits(2, 0b00000100, 2) == Some(1))
+            && (self.reader.get_bits(4, 0b00000100, 2) == Some(1))
+            && (self.reader.get_bits(5, 0b00000001, 0) == Some(1))
     }
 }

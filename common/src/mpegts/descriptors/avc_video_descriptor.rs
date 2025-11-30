@@ -48,8 +48,8 @@ implement_descriptor! {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::mpegts::descriptors::tags::DescriptorTag;
     use crate::mpegts::descriptors::DescriptorHeader;
+    use crate::mpegts::descriptors::tags::DescriptorTag;
 
     #[test]
     fn test_should_display_audio_stream_descriptor() {

@@ -3,8 +3,8 @@ use crate::app::common::PlotBase;
 use crate::{
     app::is_rtp_stream_visible,
     streams::{
-        rtpStream::{RtpInfo, RtpStream},
         RefStreams, Streams,
+        rtpStream::{RtpInfo, RtpStream},
     },
 };
 use eframe::{
@@ -18,8 +18,8 @@ use egui_plot::{
 };
 use ewebsock::WsSender;
 use netpix_common::{
-    packet::SessionPacket, rtcp::ReceptionReport, rtp::payload_type::MediaType, Packet, RtcpPacket,
-    RtpPacket, RtpStreamKey,
+    Packet, RtcpPacket, RtpPacket, RtpStreamKey, packet::SessionPacket, rtcp::ReceptionReport,
+    rtp::payload_type::MediaType,
 };
 use std::any::Any;
 use std::{
@@ -627,31 +627,31 @@ fn build_stream_points(
             *previous_stream_max_y = y;
         }
 
-        if let Some(prev_id) = maybe_prev_id {
-            if prev_id != rtcp_info.id {
-                match settings_x_axis {
-                    RtpTimestamp => {}
-                    RawTimestamp => {
-                        let saved_on_hover = on_hover.clone();
-                        points_data.push(PointData {
-                            x,
-                            y_low: y,
-                            y_top: y,
-                            on_hover: saved_on_hover,
-                            color: Color32::from_rgb(200, 0, 200),
-                            radius: 3.5,
-                            is_rtcp: true,
-                            marker_shape: MarkerShape::Square,
-                        });
-                        on_hover = String::new();
-                        points_x_and_y_top.push((x, y));
-                        let x = x as i64;
-                        if x > *slider_max {
-                            *slider_max = x;
-                        }
+        if let Some(prev_id) = maybe_prev_id
+            && prev_id != rtcp_info.id
+        {
+            match settings_x_axis {
+                RtpTimestamp => {}
+                RawTimestamp => {
+                    let saved_on_hover = on_hover.clone();
+                    points_data.push(PointData {
+                        x,
+                        y_low: y,
+                        y_top: y,
+                        on_hover: saved_on_hover,
+                        color: Color32::from_rgb(200, 0, 200),
+                        radius: 3.5,
+                        is_rtcp: true,
+                        marker_shape: MarkerShape::Square,
+                    });
+                    on_hover = String::new();
+                    points_x_and_y_top.push((x, y));
+                    let x = x as i64;
+                    if x > *slider_max {
+                        *slider_max = x;
                     }
-                    SequenceNumber => {}
                 }
+                SequenceNumber => {}
             }
         }
         maybe_prev_id = Some(rtcp_info.id);
@@ -743,8 +743,7 @@ fn get_x_and_y(
                 let last_y_top = if rtp.packet.timestamp != prev_rtp.timestamp {
                     this_stream_y_baseline
                 } else {
-                    let prev_y_top = points_x_and_y_top.last().unwrap().to_owned().1;
-                    prev_y_top
+                    points_x_and_y_top.last().unwrap().to_owned().1
                 };
 
                 (

@@ -1,8 +1,8 @@
 use crate::{
     app::{
+        FilterHelpContent, FilterInput, TABLE_HEADER_TEXT_SIZE,
         common::*,
         tables::rtp_streams_table::{filters::*, types::*},
-        FilterHelpContent, FilterInput, TABLE_HEADER_TEXT_SIZE,
     },
     declare_table, declare_table_struct, define_column,
     filter_system::FilterExpression,
@@ -125,13 +125,11 @@ impl_table_base!(
             // Alias column - using clone to avoid borrow issues
             let mut alias = stream.alias.clone();
             row.col(|ui| {
-                if ui.add(TextEdit::singleline(&mut alias).frame(false)).changed() {
-                    if let Ok(mut streams) = self.streams.try_borrow_mut() {
-                        if let Some(stream) = streams.rtp_streams.get_mut(key) {
+                if ui.add(TextEdit::singleline(&mut alias).frame(false)).changed()
+                    && let Ok(mut streams) = self.streams.try_borrow_mut()
+                        && let Some(stream) = streams.rtp_streams.get_mut(key) {
                             stream.alias = alias.clone();
                         }
-                    }
-                }
             });
 
             // Rest of the columns

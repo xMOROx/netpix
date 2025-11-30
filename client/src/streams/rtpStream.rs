@@ -1,10 +1,10 @@
 #![allow(dead_code)]
 use crate::utils::ntp_to_f64;
 use netpix_common::{
-    packet::TransportProtocol,
-    rtcp::{source_description::SdesType, SourceDescription},
-    rtp::payload_type::PayloadType,
     Packet, RtcpPacket, RtpPacket, Sdp,
+    packet::TransportProtocol,
+    rtcp::{SourceDescription, source_description::SdesType},
+    rtp::payload_type::PayloadType,
 };
 use std::{
     cmp::{max, min},
@@ -241,10 +241,10 @@ impl RtpStream {
                 .push(rtp_info.packet.payload_type.clone())
         }
 
-        if let Some(sdp) = &self.sdp {
-            if let Some(pt) = sdp.payload_types.get(id) {
-                return pt.clone();
-            }
+        if let Some(sdp) = &self.sdp
+            && let Some(pt) = sdp.payload_types.get(id)
+        {
+            return pt.clone();
         };
 
         rtp_info.packet.payload_type.clone()

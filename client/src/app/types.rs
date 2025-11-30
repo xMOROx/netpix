@@ -6,6 +6,7 @@ use netpix_common::{Request, Response, Source};
 use crate::streams::RefStreams;
 
 use super::{
+    SOURCE_KEY, TAB_KEY,
     common::{PlotRegistry, TableRegistry},
     get_initial_state,
     plots::RtpStreamsPlot,
@@ -15,7 +16,6 @@ use super::{
         PacketsTable, RtcpPacketsTable, RtpPacketsTable, RtpStreamsTable, StunPacketsTable,
     },
     ui_components::types::{AppBottomBar, AppSidePanel, AppTopBar},
-    SOURCE_KEY, TAB_KEY,
 };
 
 pub use super::common::types::*;

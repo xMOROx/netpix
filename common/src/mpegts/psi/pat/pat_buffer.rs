@@ -1,8 +1,8 @@
 #[cfg(test)]
 mod tests;
 
-use crate::mpegts::psi::pat::fragmentary_pat::FragmentaryProgramAssociationTable;
 use crate::mpegts::psi::pat::ProgramAssociationTable;
+use crate::mpegts::psi::pat::fragmentary_pat::FragmentaryProgramAssociationTable;
 use crate::mpegts::psi::psi_buffer::PsiBuffer;
 use crate::utils::{DataAccumulator, DataValidator};
 use bincode::{Decode, Encode};
@@ -96,7 +96,7 @@ impl PatBuffer {
     }
 
     pub fn is_fragment_inside(&self, fragment: &FragmentaryProgramAssociationTable) -> bool {
-        self.pat_fragments.first().map_or(false, |first| {
+        self.pat_fragments.first().is_some_and(|first| {
             (self.pat_fragments.len() as u8) >= fragment.header.section_number
                 && first.transport_stream_id == fragment.transport_stream_id
         })

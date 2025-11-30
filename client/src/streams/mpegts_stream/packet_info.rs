@@ -1,10 +1,10 @@
 use crate::streams::stream_statistics::{Bitrate, Bytes, PacketsTime, Statistics};
 use netpix_common::{
+    MpegtsPacket, Packet, PacketAssociationTable,
     mpegts::{
         header::{AdaptationFieldControl, PIDTable},
         psi::{pat::ProgramAssociationTable, pmt::ProgramMapTable},
     },
-    MpegtsPacket, Packet, PacketAssociationTable,
 };
 use rustc_hash::FxHashMap;
 use std::time::Duration;

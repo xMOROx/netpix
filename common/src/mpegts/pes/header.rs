@@ -65,11 +65,11 @@ impl DataParser for PesHeader {
         };
 
         let mut header = header;
-        if header.pes_extension_flag {
-            if let Some((fields, _)) = OptionalFields::parse(&data[1..]) {
-                header.optional_fields = Some(fields);
-                header.size += header.pes_header_data_length as usize;
-            }
+        if header.pes_extension_flag
+            && let Some((fields, _)) = OptionalFields::parse(&data[1..])
+        {
+            header.optional_fields = Some(fields);
+            header.size += header.pes_header_data_length as usize;
         }
 
         Some(header)

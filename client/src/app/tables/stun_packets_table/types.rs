@@ -1,4 +1,4 @@
-use netpix_common::{packet::Packet, StunPacket};
+use netpix_common::{StunPacket, packet::Packet};
 
 pub struct StunFilterContext<'a> {
     pub packet: &'a StunPacket,

@@ -1,6 +1,6 @@
 use egui::{ComboBox, Label, TextWrapMode, Ui, Widget};
 
-use crate::app::{side_button, tab::Tab, App, SOURCE_KEY, TAB_KEY};
+use crate::app::{App, SOURCE_KEY, TAB_KEY, side_button, tab::Tab};
 
 pub struct AppSidePanel {}
 pub struct AppTopBar {}
@@ -90,10 +90,10 @@ impl AppTopBar {
                 ui.menu_button(label, |ui| {
                     for tab in sections {
                         let resp = ui.selectable_value(&mut app.tab, tab, tab.display_name());
-                        if resp.clicked() {
-                            if let Some(storage) = frame.storage_mut() {
-                                storage.set_string(TAB_KEY, tab.to_string());
-                            }
+                        if resp.clicked()
+                            && let Some(storage) = frame.storage_mut()
+                        {
+                            storage.set_string(TAB_KEY, tab.to_string());
                         }
                     }
                 });

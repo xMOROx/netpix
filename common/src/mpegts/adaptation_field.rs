@@ -74,20 +74,20 @@ impl AdaptationField {
 
         field.merge_control_flags(flags);
 
-        if flags.pcr_flag {
-            if let Some((base, ext)) = Self::read_pcr(&reader, index) {
-                field.program_clock_reference_base = Some(base);
-                field.program_clock_reference_extension = Some(ext);
-                index += 6;
-            }
+        if flags.pcr_flag
+            && let Some((base, ext)) = Self::read_pcr(&reader, index)
+        {
+            field.program_clock_reference_base = Some(base);
+            field.program_clock_reference_extension = Some(ext);
+            index += 6;
         }
 
-        if flags.opcr_flag {
-            if let Some((base, ext)) = Self::read_pcr(&reader, index) {
-                field.original_program_clock_reference_base = Some(base);
-                field.original_program_clock_reference_extension = Some(ext);
-                index += 6;
-            }
+        if flags.opcr_flag
+            && let Some((base, ext)) = Self::read_pcr(&reader, index)
+        {
+            field.original_program_clock_reference_base = Some(base);
+            field.original_program_clock_reference_extension = Some(ext);
+            index += 6;
         }
         index = Self::parse_optional_fields(&reader, index, &mut field)?;
 
@@ -185,12 +185,12 @@ impl AdaptationFieldExtension {
             ..extension
         };
 
-        if extension.ltw_flag {
-            if let Some((valid, offset)) = Self::read_ltw(&reader, index) {
-                result.ltw_valid_flag = Some(valid);
-                result.ltw_offset = Some(offset);
-                index += 2;
-            }
+        if extension.ltw_flag
+            && let Some((valid, offset)) = Self::read_ltw(&reader, index)
+        {
+            result.ltw_valid_flag = Some(valid);
+            result.ltw_offset = Some(offset);
+            index += 2;
         }
 
         if extension.piecewise_rate_flag {
@@ -198,12 +198,12 @@ impl AdaptationFieldExtension {
             index += 3;
         }
 
-        if extension.seamless_splice_flag {
-            if let Some((splice_type, dts)) = Self::read_splice_info(&reader, index) {
-                result.splice_type = Some(splice_type);
-                result.dts_next_access_unit = Some(dts);
-                index += 5;
-            }
+        if extension.seamless_splice_flag
+            && let Some((splice_type, dts)) = Self::read_splice_info(&reader, index)
+        {
+            result.splice_type = Some(splice_type);
+            result.dts_next_access_unit = Some(dts);
+            index += 5;
         }
 
         if extension.af_descriptor_not_present_float {

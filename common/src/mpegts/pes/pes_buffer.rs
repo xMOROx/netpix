@@ -77,17 +77,16 @@ impl PesBuffer {
             return;
         };
 
-        if packet.header.payload_unit_start_indicator {
-            if let Some(fields) =
+        if packet.header.payload_unit_start_indicator
+            && let Some(fields) =
                 PacketizedElementaryStream::unmarshall_required_fields(&payload.data[..])
-            {
-                let mut pes_packet = PesPacketPayload::new();
-                pes_packet.set_packet_length(fields.pes_packet_length);
-                pes_packet.append(&payload.data[..]);
-                pes_packet.set_completable(fields.pes_packet_length != 0);
-                self.payload = pes_packet;
-                return;
-            }
+        {
+            let mut pes_packet = PesPacketPayload::new();
+            pes_packet.set_packet_length(fields.pes_packet_length);
+            pes_packet.append(&payload.data[..]);
+            pes_packet.set_completable(fields.pes_packet_length != 0);
+            self.payload = pes_packet;
+            return;
         }
 
         self.payload.append(&payload.data[..]);
