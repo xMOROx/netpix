@@ -32,10 +32,7 @@ impl TableBase for IceCandidatesTable {
                 .borrow()
                 .packets
                 .values()
-                .filter(|p| matches!(
-                    &p.contents,
-                    netpix_common::packet::SessionPacket::Stun(_)
-                ))
+                .filter(|p| matches!(&p.contents, netpix_common::packet::SessionPacket::Stun(_)))
                 .count();
 
             if self.cached_data.is_none() || current_stun_count != self.last_stun_packet_count {
