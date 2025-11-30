@@ -93,9 +93,6 @@ impl IceCandidatesTable {
         };
 
         for (packet, stun) in stun_packets {
-            let local_is_server = is_stun_server(&packet.source_addr.to_string());
-            let remote_is_server = is_stun_server(&packet.destination_addr.to_string());
-
             let a = packet.source_addr.to_string();
             let b = packet.destination_addr.to_string();
             let (left, right) = if a <= b { (a, b) } else { (b, a) };
@@ -120,7 +117,9 @@ impl IceCandidatesTable {
                         last_seen: packet.timestamp,
                     });
 
-            self.update_pair_stats(entry, stun, local_is_server, remote_is_server);
+            let involves_server = is_stun_server(&packet.source_addr.to_string())
+                || is_stun_server(&packet.destination_addr.to_string());
+            self.update_pair_stats(entry, stun, involves_server);
 
             if packet.timestamp > entry.last_seen {
                 entry.last_seen = packet.timestamp;
@@ -134,10 +133,8 @@ impl IceCandidatesTable {
         &self,
         stats: &mut CandidatePairStats,
         stun: &netpix_common::StunPacket,
-        local_is_server: bool,
-        remote_is_server: bool,
+        involves_server: bool,
     ) {
-        let involves_server = local_is_server || remote_is_server;
 
         let has_username = stun
             .attributes
