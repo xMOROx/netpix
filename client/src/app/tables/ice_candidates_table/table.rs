@@ -96,15 +96,12 @@ impl IceCandidatesTable {
             let local_is_server = is_stun_server(&packet.source_addr.to_string());
             let remote_is_server = is_stun_server(&packet.destination_addr.to_string());
 
-            let key = match (local_is_server, remote_is_server) {
-                (true, false) => CandidatePairKey {
-                    local_candidate: packet.destination_addr.to_string(),
-                    remote_candidate: packet.source_addr.to_string(),
-                },
-                _ => CandidatePairKey {
-                    local_candidate: packet.source_addr.to_string(),
-                    remote_candidate: packet.destination_addr.to_string(),
-                },
+            let a = packet.source_addr.to_string();
+            let b = packet.destination_addr.to_string();
+            let (left, right) = if a <= b { (a, b) } else { (b, a) };
+            let key = CandidatePairKey {
+                local_candidate: left.clone(),
+                remote_candidate: right.clone(),
             };
 
             let entry =

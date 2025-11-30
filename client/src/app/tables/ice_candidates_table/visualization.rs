@@ -273,14 +273,14 @@ impl IceCandidatesVisualization {
                     });
 
                     ui.horizontal(|ui| {
-                        ui.label("Local:");
+                        ui.label("Endpoint A:");
                         ui.monospace(
                             RichText::new(&pair.key.local_candidate).color(Color32::LIGHT_BLUE),
                         );
                     });
 
                     ui.horizontal(|ui| {
-                        ui.label("Remote:");
+                        ui.label("Endpoint B:");
                         ui.monospace(
                             RichText::new(&pair.key.remote_candidate)
                                 .color(Color32::from_rgb(100, 200, 255)),
