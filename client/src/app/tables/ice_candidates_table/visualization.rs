@@ -177,7 +177,11 @@ impl IceCandidatesVisualization {
         );
     }
 
-    fn show_connectivity_diagram(&self, ui: &mut Ui, pairs: &[&CandidatePairStats]) -> Option<CandidatePairKey> {
+    fn show_connectivity_diagram(
+        &self,
+        ui: &mut Ui,
+        pairs: &[&CandidatePairStats],
+    ) -> Option<CandidatePairKey> {
         let mut clicked: Option<CandidatePairKey> = None;
         ui.group(|ui| {
             ui.label(RichText::new("Connectivity Overview").strong().size(16.0));
@@ -192,7 +196,7 @@ impl IceCandidatesVisualization {
 
             painter.rect_filled(rect, Rounding::same(4.0), Color32::from_rgb(30, 30, 30));
 
-                for (idx, pair) in pairs.iter().enumerate() {
+            for (idx, pair) in pairs.iter().enumerate() {
                 let y = rect.min.y + (idx as f32 * pair_height) + pair_height / 2.0;
 
                 let local_x = rect.min.x + 100.0;
@@ -301,7 +305,11 @@ impl IceCandidatesVisualization {
         clicked
     }
 
-    fn show_candidate_pairs_list(&self, ui: &mut Ui, pairs: &[&CandidatePairStats]) -> Option<CandidatePairKey> {
+    fn show_candidate_pairs_list(
+        &self,
+        ui: &mut Ui,
+        pairs: &[&CandidatePairStats],
+    ) -> Option<CandidatePairKey> {
         let mut clicked: Option<CandidatePairKey> = None;
         ui.group(|ui| {
             ui.label(RichText::new("Candidate Pairs Details").strong().size(16.0));
@@ -385,4 +393,3 @@ impl IceCandidatesVisualization {
         clicked
     }
 }
-
