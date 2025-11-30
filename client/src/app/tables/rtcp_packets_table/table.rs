@@ -65,7 +65,7 @@ impl_table_base!(
         // Collect RTCP packets with metadata
         for packet in streams.packets.values() {
             let rtcp = match &packet.contents {
-                SessionPacket::Rtcp(ref rtcp) => rtcp,
+                SessionPacket::Rtcp(rtcp) => rtcp,
                 _ => continue,
             };
 

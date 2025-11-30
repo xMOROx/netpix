@@ -125,7 +125,7 @@ impl_table_base!(
 
         let packets_info: Vec<PacketInfo> = mpegts_packets
             .iter()
-            .map(|(&key, packet)| PacketInfo {
+            .map(|&(&key, ref packet)| PacketInfo {
                 packet,
                 timestamp: packet.time.saturating_sub(first_ts),
                 key,
