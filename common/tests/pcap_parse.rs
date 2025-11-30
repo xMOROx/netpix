@@ -1,11 +1,7 @@
 use std::panic;
 use std::path::Path;
 
-// This test is ignored by default to prevent CI failures on known malformed pcaps.
-// Run locally with: `cargo test -p netpix_common --test pcap_parse -- --ignored --nocapture`
-
 #[test]
-#[ignore]
 fn parse_pcaps_without_panics() {
     let pcap_dir = Path::new("../pcap_examples");
     let entries = std::fs::read_dir(pcap_dir).expect("failed to read pcap_examples");
