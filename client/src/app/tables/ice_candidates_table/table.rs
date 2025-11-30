@@ -135,7 +135,17 @@ impl IceCandidatesTable {
         stun: &netpix_common::StunPacket,
         involves_server: bool,
     ) {
-
+        fn priority(s: CandidatePairState) -> u8 {
+            match s {
+                CandidatePairState::Frozen => 0,
+                CandidatePairState::Gathering => 1,
+                CandidatePairState::Gathered => 2,
+                CandidatePairState::InProgress => 3,
+                CandidatePairState::Nominated => 4,
+                CandidatePairState::Failed => 5,
+                CandidatePairState::Disconnected => 6,
+            }
+        }
         let has_username = stun
             .attributes
             .iter()
@@ -177,11 +187,17 @@ impl IceCandidatesTable {
         ) {
             ("Request", true, false, false, false) => {
                 stats.checks_sent += 1;
-                stats.state = CandidatePairState::Gathering;
+                let new_state = CandidatePairState::Gathering;
+                if priority(new_state) > priority(stats.state) {
+                    stats.state = new_state;
+                }
             }
             ("Success Response", true, true, false, false) => {
                 stats.responses_received += 1;
-                stats.state = CandidatePairState::Gathered;
+                let new_state = CandidatePairState::Gathered;
+                if priority(new_state) > priority(stats.state) {
+                    stats.state = new_state;
+                }
             }
             ("Request", false, false, true, false) => {
                 stats.checks_received += 1;
@@ -197,7 +213,10 @@ impl IceCandidatesTable {
             }
             ("Request", false, false, _, true) => {
                 stats.checks_received += 1;
-                stats.state = CandidatePairState::Nominated;
+                let new_state = CandidatePairState::Nominated;
+                if priority(new_state) > priority(stats.state) {
+                    stats.state = new_state;
+                }
             }
             ("Error Response", _, _, _, _) => {
                 stats.failures += 1;
