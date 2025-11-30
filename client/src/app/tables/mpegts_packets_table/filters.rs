@@ -256,9 +256,8 @@ impl FilterParser for FilterType {
 
             p if p.starts_with('p') && p.len() == 2 => {
                 let index_char = p.chars().nth(1).unwrap();
-                ('1'..='7')
-                    .contains(&index_char)
-                    .then(|| {
+                if ('1'..='7').contains(&index_char) {
+                    {
                         let packet_index = (index_char as usize - '0' as usize) - 1;
                         (!value.is_empty())
                             .then_some(Ok(FilterType::PacketPid(packet_index, value.to_string())))
@@ -267,12 +266,14 @@ impl FilterParser for FilterType {
                                     "PID filter value cannot be empty (e.g. p1:256)".into(),
                                 ))
                             })
-                    })
-                    .unwrap_or_else(|| {
+                    }
+                } else {
+                    {
                         Err(ParseError::InvalidSyntax(
                             "Invalid PID position. Must be p1 through p7 (e.g. p1:256)".into(),
                         ))
-                    })
+                    }
+                }
             }
 
             "pid" => value.parse::<u16>().map(FilterType::Pid).map_err(|_| {

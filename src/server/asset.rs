@@ -1,5 +1,5 @@
 use rust_embed::RustEmbed;
-use warp::{http::header::HeaderValue, path::Tail, reply, Rejection, Reply};
+use warp::{Rejection, Reply, http::header::HeaderValue, path::Tail, reply};
 
 #[derive(RustEmbed)]
 #[folder = "dist"]
@@ -13,7 +13,7 @@ pub async fn serve(path: Tail) -> Result<impl Reply, Rejection> {
     serve_impl(path.as_str()).await
 }
 
-async fn serve_impl(path: &str) -> Result<impl Reply + 'static  + use<>, Rejection> {
+async fn serve_impl(path: &str) -> Result<impl Reply + 'static + use<>, Rejection> {
     let asset = Asset::get(path).ok_or_else(warp::reject::not_found)?;
     let mime = mime_guess::from_path(path).first_or_octet_stream();
 

@@ -1,8 +1,8 @@
 use super::filters::parse_filter;
 use crate::{
     app::{
-        common::*, tables::stun_packets_table::StunFilterContext, FilterHelpContent, FilterInput,
-        TABLE_HEADER_TEXT_SIZE,
+        FilterHelpContent, FilterInput, TABLE_HEADER_TEXT_SIZE, common::*,
+        tables::stun_packets_table::StunFilterContext,
     },
     declare_table, declare_table_struct, define_column,
     filter_system::FilterExpression,

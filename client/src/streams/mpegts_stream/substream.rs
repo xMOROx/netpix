@@ -1,18 +1,18 @@
 #![allow(dead_code)]
 use crate::streams::stream_statistics::*;
 use netpix_common::{
+    Packet, PacketAssociationTable,
     mpegts::{
+        MpegtsFragment,
         header::PIDTable,
         psi::{
             pat::ProgramAssociationTable,
             pmt::{
-                stream_types::{stream_type_into_unique_letter, StreamType},
                 ProgramMapTable,
+                stream_types::{StreamType, stream_type_into_unique_letter},
             },
         },
-        MpegtsFragment,
     },
-    Packet, PacketAssociationTable,
 };
 use rustc_hash::{FxHashMap, FxHashSet};
 use std::{

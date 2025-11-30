@@ -106,7 +106,7 @@ impl PmtBuffer {
     }
 
     pub fn is_fragment_inside(&self, fragment: &FragmentaryProgramMapTable) -> bool {
-        self.pmt_fragments.first().map_or(false, |first| {
+        self.pmt_fragments.first().is_some_and(|first| {
             (self.pmt_fragments.len() as u8) >= fragment.header.section_number
                 && first.fields.program_number == fragment.fields.program_number
         })

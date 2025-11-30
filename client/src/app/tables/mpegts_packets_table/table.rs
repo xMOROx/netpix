@@ -1,13 +1,13 @@
 use super::{
     constants::*,
     display::format_packet_text,
-    filters::{parse_filter, FilterContext},
+    filters::{FilterContext, parse_filter},
     types::PacketInfo,
 };
 use crate::{
     app::{
-        common::TableConfig, tables::mpegts_packets_table::display::category_from_stream_type,
-        FilterHelpContent, FilterInput, TableBase, TABLE_HEADER_TEXT_SIZE,
+        FilterHelpContent, FilterInput, TABLE_HEADER_TEXT_SIZE, TableBase, common::TableConfig,
+        tables::mpegts_packets_table::display::category_from_stream_type,
     },
     declare_table, declare_table_struct, define_column,
     filter_system::FilterExpression,
@@ -125,7 +125,7 @@ impl_table_base!(
 
         let packets_info: Vec<PacketInfo> = mpegts_packets
             .iter()
-            .map(|&(&key, ref packet)| PacketInfo {
+            .map(|&(&key, packet)| PacketInfo {
                 packet,
                 timestamp: packet.time.saturating_sub(first_ts),
                 key,

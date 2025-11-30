@@ -1,11 +1,11 @@
 use super::{
-    filters::{parse_filter, FilterContext},
+    filters::{FilterContext, parse_filter},
     types::PacketInfo,
 };
 use crate::{
     app::{
-        common::{TableBase, TableConfig},
         FilterHelpContent, FilterInput, TABLE_HEADER_TEXT_SIZE,
+        common::{TableBase, TableConfig},
     },
     declare_table, declare_table_struct, define_column,
     filter_system::FilterExpression,
@@ -16,8 +16,8 @@ use egui::RichText;
 use egui_extras::{Column, TableBody, TableBuilder, TableRow};
 use ewebsock::{WsMessage, WsSender};
 use netpix_common::{
-    packet::{Packet, SessionProtocol},
     Request,
+    packet::{Packet, SessionProtocol},
 };
 use std::any::Any;
 
