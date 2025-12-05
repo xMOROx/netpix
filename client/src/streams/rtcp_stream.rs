@@ -1,29 +1,34 @@
 use crate::streams::rtpStream::RtcpInfo;
 use crate::utils::{ntp_to_f64, ntp_to_unix_time};
-use chrono::{Duration, TimeDelta};
-use core::time;
+use chrono;
+use std::time;
 use egui_plot::PlotPoint;
-use netpix_common::rtcp::{ReceiverReport, ReceptionReport, SenderReport};
+use netpix_common::rtcp::{ReceiverEstimatedMaximumBitrate, ReceiverReport, ReceptionReport, SenderReport};
 use netpix_common::{Packet, RtcpPacket};
 use std::net::SocketAddr;
 use std::ops::Div;
+use netpix_common::rtcp::payload_feedbacks::PayloadFeedback;
 
 #[derive(Debug, Clone)]
 pub struct RtcpStream {
     pub source_addr: SocketAddr,
     pub destination_addr: SocketAddr,
     pub ssrc: u32,
+    pub base_time: f64,
     // --- Data from Sender Reports
-    pub last_sr_timestamp: Option<Duration>,
+    pub last_sr_timestamp: Option<chrono::Duration>,
     pub last_sr_octet_count: Option<u32>,
     pub current_avg_bitrate_bps: f64,
-    pub bitrate_history: Vec<(u64, f64)>,
+    pub bitrate_history: Vec<PlotPoint>,
 
     // --- Data from Receiver Reports---
     pub cumulative_lost: Option<u32>,
     pub fraction_lost: Option<f32>,
     pub loss_history: Vec<PlotPoint>,
     pub jitter_history: Vec<PlotPoint>,
+
+    // --- Data from Receiver Estimated Maximum Bitrate---
+    pub estimated_max_bitrate: Vec<PlotPoint>,
 }
 
 impl RtcpStream {
@@ -32,6 +37,7 @@ impl RtcpStream {
             source_addr: packet.source_addr,
             destination_addr: packet.destination_addr,
             ssrc,
+            base_time: 0.0,
             last_sr_timestamp: None,
             last_sr_octet_count: None,
             current_avg_bitrate_bps: 0.0,
@@ -40,37 +46,75 @@ impl RtcpStream {
             fraction_lost: None,
             loss_history: Vec::new(),
             jitter_history: Vec::new(),
+            estimated_max_bitrate: Vec::new(),
         }
     }
 
-    pub fn update_with_sr(&mut self, packet: &RtcpPacket) {
-        if let RtcpPacket::SenderReport(report) = packet {
-            if report.ssrc == self.ssrc {
-                let current_event_time_duration = ntp_to_unix_time(report.ntp_time);
+    fn set_base_time(&mut self, ntp_time: &u64, timestamp: &time::Duration){
+       self.base_time =  ntp_to_f64(*ntp_time) - timestamp.as_secs_f64();
+    }
 
-                if let (Some(last_event_time_duration), Some(last_octets)) =
-                    (self.last_sr_timestamp, self.last_sr_octet_count)
-                {
-                    if let Some(delta_duration) =
-                        current_event_time_duration.checked_sub(&last_event_time_duration)
-                    {
-                        let delta_time_secs =
-                            delta_duration.num_microseconds().unwrap_or(0) as f64 / 1_000_000.0;
+    fn get_ntp_time_from_timestamp(&self, timestamp: &time::Duration) -> f64{
+        self.base_time + timestamp.as_secs_f64()
+    }
 
-                        if delta_time_secs > 0.0 {
-                            let delta_octets = report.octet_count.wrapping_sub(last_octets);
-
-                            let bitrate_bps = (delta_octets as f64 * 8.0) / delta_time_secs;
-                            self.current_avg_bitrate_bps = bitrate_bps;
-
-                            self.bitrate_history.push((report.ntp_time, bitrate_bps));
-                        }
+    pub fn update(&mut self, packet: &RtcpPacket, timestamp: time::Duration){
+        match packet{
+            RtcpPacket::SenderReport(sr) =>{
+                self.update_with_sr(&sr,timestamp);
+            },
+            RtcpPacket::PayloadSpecificFeedback(pf) => {
+                match pf {
+                    PayloadFeedback::ReceiverEstimatedMaximumBitrate(remb) => {
+                        self.update_with_remb(&remb,timestamp);
                     }
+                    _ => {},
                 }
-                self.last_sr_timestamp = Some(current_event_time_duration);
-                self.last_sr_octet_count = Some(report.octet_count);
+            },
+            _ => {}
+        }
+
+    }
+
+    pub fn update_with_sr(&mut self, report: &SenderReport, timestamp: time::Duration) {
+        let current_event_time_duration = ntp_to_unix_time(report.ntp_time);
+
+        if self.base_time == 0.0 {
+            self.set_base_time(&report.ntp_time, &timestamp);
+        }
+
+        if let (Some(last_event_time_duration), Some(last_octets)) =
+            (self.last_sr_timestamp, self.last_sr_octet_count)
+        {
+            if let Some(delta_duration) =
+                current_event_time_duration.checked_sub(&last_event_time_duration)
+            {
+                let delta_time_secs =
+                    delta_duration.num_microseconds().unwrap_or(0) as f64 / 1_000_000.0;
+
+                if delta_time_secs > 0.0 {
+                    let delta_octets = report.octet_count.wrapping_sub(last_octets);
+
+                    let bitrate_bps = (delta_octets as f64 * 8.0) / delta_time_secs;
+                    self.current_avg_bitrate_bps = bitrate_bps;
+
+                    self.bitrate_history.push(PlotPoint::new(
+                        self.get_ntp_time_from_timestamp(&timestamp),
+                        bitrate_bps,
+                    ));
+                }
             }
         }
+        self.last_sr_timestamp = Some(current_event_time_duration);
+        self.last_sr_octet_count = Some(report.octet_count);
+    }
+
+    pub fn update_with_remb(&mut self, packet: &ReceiverEstimatedMaximumBitrate, timestamp: time::Duration) {
+        // We ignore packet.ssrcs
+        self.estimated_max_bitrate.push(PlotPoint::new(
+            self.get_ntp_time_from_timestamp(&timestamp),
+            packet.bitrate as f64,
+        ));
     }
 
     pub fn update_with_rr(&mut self, timestamp: time::Duration, report: &ReceptionReport) {

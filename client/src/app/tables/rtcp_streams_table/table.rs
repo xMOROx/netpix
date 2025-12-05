@@ -39,7 +39,6 @@ impl_table_base!(
 
         let headers = [
             ("SSRC", "Synchronization Source Identifier (hex)"),
-            ("Cumulative Lost", "Total number of packets lost (from Receiver Reports)"),
             ("Avg Bitrate (kbps)", "Average bitrate calculated from Sender Reports"),
             ("Plots", "Graphs showing bitrate and loss over time"),
         ];
@@ -85,25 +84,11 @@ impl_table_base!(
         if let Some((_key, stream_data)) = filtered_streams.get(id) {
 
             row.col(|ui| { ui.label(format!("0x{:08X}", stream_data.ssrc)); });
-            row.col(|ui| {
-                if let Some(lost) = stream_data.cumulative_lost {
-                    ui.label(lost.to_string());
-                } else { ui.label("-"); }
-            });
             row.col(|ui| { ui.label(format!("{:.1}", stream_data.current_avg_bitrate_bps / 1000.0)); });
 
             row.col(|ui| {
         ui.vertical_centered_justified(|ui| {
-            let points: Vec<PlotPoint> = stream_data
-                .bitrate_history
-                .iter()
-                .map(|(ntp, bitrate)| {
-                    PlotPoint::new(ntp_to_f64(*ntp), *bitrate as f64)
-                })
-                .collect();
-
-
-            let max_y = points.iter().fold(0.0, |acc : f64, p| acc.max(p.y));
+            let max_y = stream_data.bitrate_history.iter().fold(0.0, |acc : f64, p| acc.max(p.y));
 
             let top_bound = if max_y > 0.0 {
                 max_y * 1.3
@@ -114,9 +99,9 @@ impl_table_base!(
             // VERY EXPENSIVE!
             // TO DO: Change to PlotPoints::Borrowed after updating rust version
             // https://docs.rs/egui_plot/latest/egui_plot/enum.PlotPoints.html#variant.Borrowed
-            let line = Line::new(PlotPoints::Owned(points.clone()));
+            let line_avg = Line::new(PlotPoints::Owned(stream_data.bitrate_history.clone()));
 
-            let markers = egui_plot::Points::new(PlotPoints::Owned(points.clone()))
+            let markers = egui_plot::Points::new(PlotPoints::Owned(stream_data.bitrate_history.clone()))
                 .radius(2.5)
                 .color(egui::Color32::from_rgb(255, 100, 100));
 
@@ -148,7 +133,7 @@ impl_table_base!(
             .allow_drag(false)
             .allow_zoom(false)
             .show(ui, |plot_ui| {
-                plot_ui.line(line);
+                plot_ui.line(line_avg);
                 plot_ui.points(markers);
             })
             .response;
@@ -170,7 +155,6 @@ declare_table!(RtcpStreamsTable, FilterType, {
     stick_to_bottom(true);
     columns(
         column(Some(120.0), 120.0, None, false, true), // SSRC
-        column(Some(150.0), 150.0, None, false, true), // Cumulative Lost
         column(Some(150.0), 150.0, None, false, true), // Avg Bitrate
         column(None, 600.0, None, false, false),       // Plots
     )
