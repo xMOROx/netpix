@@ -2,9 +2,9 @@ use super::filters::parse_filter;
 use crate::filter_system::FilterExpression;
 use crate::{
     app::{
+        FilterHelpContent, FilterInput, TABLE_HEADER_TEXT_SIZE,
         common::*,
         tables::rtcp_streams_table::{filters::*, types::*},
-        FilterHelpContent, FilterInput, TABLE_HEADER_TEXT_SIZE,
     },
     declare_table, declare_table_struct, define_column, impl_table_base,
     streams::RefStreams,
@@ -16,7 +16,7 @@ use egui_extras::{Column, TableBody, TableBuilder, TableRow};
 use egui_plot::{Line, Plot, PlotPoint, PlotPoints};
 use ewebsock::WsSender;
 use log::info;
-use netpix_common::{packet::SessionPacket, rtcp::*, RtcpPacket};
+use netpix_common::{RtcpPacket, packet::SessionPacket, rtcp::*};
 use rustc_hash::FxHashMap;
 use std::any::Any;
 
@@ -112,7 +112,7 @@ impl_table_base!(
             .show_background(false)
             .show_axes([true, true])
             .x_axis_formatter(|mark,_range| {
-                format!("{}",ntp_to_time_string(f64_to_ntp(mark.value)))
+                ntp_to_time_string(f64_to_ntp(mark.value)).to_string()
             })
             .y_axis_formatter(|mark, _range| {
                 let real_bps = mark.value;
@@ -135,8 +135,7 @@ impl_table_base!(
             .show(ui, |plot_ui| {
                 plot_ui.line(line_avg);
                 plot_ui.points(markers);
-            })
-            .response;
+            });
             ui.add_space(7.0);
                 });
             });
@@ -166,10 +165,7 @@ impl RtcpStreamsTable {
             return true;
         }
         parse_filter(self.filter_input.get_filter())
-            .map(|filter| {
-                let matches = filter.matches(stream_data);
-                matches
-            })
+            .map(|filter| filter.matches(stream_data))
             .unwrap_or(true)
     }
 }

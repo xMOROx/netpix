@@ -144,10 +144,7 @@ impl RtcpPacketsTable {
         }
 
         parse_filter(self.filter_input.get_filter())
-            .map(|filter| {
-                let matches = filter.matches(ctx);
-                matches
-            })
+            .map(|filter| filter.matches(ctx))
             .unwrap_or(true)
     }
 }

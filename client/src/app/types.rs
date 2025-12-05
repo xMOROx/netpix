@@ -13,7 +13,7 @@ use super::{
     tab::Tab,
     tables::{
         MpegTsInformationTable, MpegTsPacketsTable, MpegTsStreamsTable, PacketsTable,
-        RtcpPacketsTable, RtcpStreamsTable, RtpPacketsTable, RtpStreamsTable, StunPacketsTable
+        RtcpPacketsTable, RtcpStreamsTable, RtpPacketsTable, RtpStreamsTable, StunPacketsTable,
     },
     ui_components::types::{AppBottomBar, AppSidePanel, AppTopBar},
 };

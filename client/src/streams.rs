@@ -2,6 +2,7 @@
 use crate::streams::rtcp_stream::RtcpStream;
 use mpegts_stream::MpegTsStream;
 use netpix_common::rtcp::ReceptionReport;
+use netpix_common::rtcp::payload_feedbacks::PayloadFeedback;
 use netpix_common::{
     MpegtsStreamKey, Packet, RtcpPacket, RtpStreamKey,
     packet::{SessionPacket, TransportProtocol},
@@ -9,7 +10,6 @@ use netpix_common::{
 use packets::Packets;
 use rtpStream::RtpStream;
 use std::{cell::RefCell, collections::HashMap, net::SocketAddr, rc::Rc};
-use netpix_common::rtcp::payload_feedbacks::PayloadFeedback;
 
 pub mod mpegts_stream;
 mod packets;
@@ -125,21 +125,13 @@ fn handle_packet(
                         vec![sr.ssrc]
                     }
                     RtcpPacket::ReceiverReport(rr) => {
-                            // Right now no data from RR is used in RTCP streams,
-                            // so there is no use to process this
-                            // insert_or_update_rtcp_stream(rtcp_streams, rr.ssrc, packet, pack);
-                            update_rtcp_streams_with_rr(rtcp_streams,packet,&rr.reports);
+                        // Right now no data from RR is used in RTCP streams,
+                        // so there is no use to process this
+                        // insert_or_update_rtcp_stream(rtcp_streams, rr.ssrc, packet, pack);
+                        update_rtcp_streams_with_rr(rtcp_streams, packet, &rr.reports);
                         vec![rr.ssrc]
                     }
-                    RtcpPacket::PayloadSpecificFeedback(pf) => {
-                        match pf{
-                            // PayloadFeedback::ReceiverEstimatedMaximumBitrate(remb) =>{
-                            //     insert_or_update_rtcp_stream(rtcp_streams, remb.sender_ssrc, packet, pack);
-                            //     vec![remb.sender_ssrc]
-                            // }
-                            _ => Vec::new(),
-                        }
-                    }
+                    RtcpPacket::PayloadSpecificFeedback(_pf) => Vec::new(),
                     RtcpPacket::SourceDescription(sd) => {
                         sd.chunks.iter().map(|chunk| chunk.source).collect()
                     }
@@ -178,10 +170,10 @@ fn insert_or_update_rtcp_stream(
     );
 
     if let Some(stream) = rtcp_streams.get_mut(&key_same_port) {
-        stream.update(pack,packet.timestamp);
+        stream.update(pack, packet.timestamp);
     } else {
         let mut new_stream = RtcpStream::new(ssrc, packet);
-        new_stream.update(pack,packet.timestamp);
+        new_stream.update(pack, packet.timestamp);
         rtcp_streams.insert(key_same_port, new_stream);
     }
 }
