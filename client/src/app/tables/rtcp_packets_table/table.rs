@@ -26,6 +26,7 @@ use netpix_common::{
     },
 };
 use std::any::Any;
+use netpix_common::packet::PacketDirection;
 
 declare_table_struct!(RtcpPacketsTable);
 
@@ -99,6 +100,9 @@ impl_table_base!(
         body.heterogeneous_rows(heights, |mut row| {
             let info = &rtcp_packets[row.index()];
 
+            let meta = &info.packet.metadata;
+            let is_synthetic = meta.is_synthetic_addr;
+
             row.col(|ui| {
                 ui.label(format!("{} ({})", info.id, info.compound_index));
             });
@@ -106,11 +110,27 @@ impl_table_base!(
                 let timestamp = info.packet.timestamp - first_ts;
                 ui.label(format!("{:.4}", timestamp.as_secs_f64()));
             });
-            row.col(|ui| {
-                ui.label(info.packet.source_addr.to_string());
+           row.col(|ui| {
+                if is_synthetic {
+                    match meta.direction {
+                        PacketDirection::Incoming => ui.strong("Remote (Incoming)"),
+                        PacketDirection::Outgoing => ui.label("Local"),
+                        _ => ui.label("?"),
+                    };
+                } else {
+                    ui.label(info.packet.source_addr.to_string());
+                }
             });
             row.col(|ui| {
-                ui.label(info.packet.destination_addr.to_string());
+                if is_synthetic {
+                    match meta.direction {
+                        PacketDirection::Incoming => ui.label("Local"),
+                        PacketDirection::Outgoing => ui.strong("Remote (Outgoing)"),
+                        _ => ui.label("?"),
+                    };
+                } else {
+                    ui.label(info.packet.destination_addr.to_string());
+                }
             });
             row.col(|ui| {
                 ui.label(info.rtcp_packet.get_type_name().to_string());
