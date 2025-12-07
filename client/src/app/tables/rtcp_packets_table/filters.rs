@@ -45,7 +45,9 @@ declare_filter_type! {
     pub enum FilterType {
         Source(String),
         Destination(String),
-        Type(String)
+        Type(String),
+        Direction(String),
+        SSRC(String),
     }
 }
 
@@ -81,6 +83,18 @@ impl<'a> FilterExpression<'a> for FilterType {
                     return true;
                 }
                 ctx.packet.get_type_name().to_lowercase().contains(value)
+            }
+            FilterType::Direction(value) => {
+                if value.is_empty() {
+                    return true;
+                }
+                ctx.direction.to_lowercase().contains(value)
+            }
+            FilterType::SSRC(value) => {
+                if value.is_empty() {
+                    return true;
+                }
+                ctx.ssrc.to_lowercase().contains(value)
             }
             FilterType::And(left, right) => left.matches(ctx) && right.matches(ctx),
             FilterType::Or(left, right) => left.matches(ctx) || right.matches(ctx),
@@ -123,11 +137,31 @@ impl FilterParser for FilterType {
                     ))
                 }),
 
+            "dir" => (!value.is_empty())
+                .then_some(Ok(FilterType::Direction(value.to_lowercase())))
+                .unwrap_or_else(|| {
+                    Err(ParseError::InvalidSyntax(
+                        "Invalid direction must be incoming or outgoing"
+                            .into(),
+                    ))
+                }),
+
+            "ssrc" => (!value.is_empty())
+                .then_some(Ok(FilterType::SSRC(value.to_lowercase())))
+                .unwrap_or_else(|| {
+                    Err(ParseError::InvalidSyntax(
+                        "Invalid SSRC format (e.g. ssrc:1a99de77e"
+                            .into(),
+                    ))
+                }),
+
             unknown => Err(ParseError::InvalidSyntax(format!(
                 "Unknown filter type: '{}'.\nAvailable filters:\n\
                  - source: Source IP filter (e.g. source:192.168)\n\
                  - dest: Destination IP filter (e.g. dest:10.0.0)\n\
-                 - type: RTCP packet type filter (e.g. type:sender)",
+                 - type: RTCP packet type filter (e.g. type:sender)\n\
+                 - direction: e.g. direction:incoming direction:outgoing\n\
+                 - ssrc: Identifying ID for data",
                 unknown
             ))),
         }

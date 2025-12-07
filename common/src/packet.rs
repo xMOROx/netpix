@@ -102,6 +102,16 @@ pub enum PacketDirection {
     Unknown,
 }
 
+impl PacketDirection{
+    pub fn to_string(&self) -> String {
+        match self{
+            PacketDirection::Incoming => "incoming".to_string(),
+            PacketDirection::Outgoing => "outgoing".to_string(),
+            PacketDirection::Unknown => "unknown".to_string(),
+        }
+    }
+}
+
 #[derive(Encode, Decode, Debug, Clone)]
 pub struct PacketMetadata {
     pub is_synthetic_addr: bool,

@@ -71,10 +71,16 @@ impl_table_base!(
             };
 
             for (idx, rtcp_packet) in rtcp.iter().enumerate() {
+                let ssrc_string = rtcp_packet.get_ssrc()
+                    .map(|s| format!("{:x}", s))
+                    .unwrap_or_default();
+
                 let ctx = RtcpFilterContext {
                     packet: rtcp_packet,
                     source_addr: &packet.source_addr.to_string(),
                     destination_addr: &packet.destination_addr.to_string(),
+                    direction: &packet.metadata.direction.to_string(),
+                    ssrc: &ssrc_string,
                 };
 
                 if !self.packet_matches_filter(&ctx) {

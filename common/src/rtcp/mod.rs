@@ -54,6 +54,22 @@ impl RtcpPacket {
             Other(_) => "Other",
         }
     }
+
+    pub fn get_ssrc(&self) -> Option<u32> {
+        use RtcpPacket::*;
+
+        match self {
+            SenderReport(sr) => Some(sr.ssrc),
+            ReceiverReport(rr) => Some(rr.ssrc),
+            ExtendedReport(xr) => Some(xr.sender_ssrc),
+            PayloadSpecificFeedback(pf) => Some(pf.get_ssrc()),
+            SourceDescription(_) => None,
+            Goodbye(_) => None,
+            ApplicationDefined => None,
+            TransportSpecificFeedback(_) => None,
+            Other(_) => None,
+        }
+    }
 }
 
 #[cfg(not(target_arch = "wasm32"))]
