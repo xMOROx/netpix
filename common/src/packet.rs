@@ -310,7 +310,6 @@ impl Packet {
         }
 
         if let Some(rtcp) = RtcpPacket::build(self)
-            && is_rtcp(&rtcp)
         {
             self.session_protocol = SessionProtocol::Rtcp;
             self.contents = SessionPacket::Rtcp(rtcp);

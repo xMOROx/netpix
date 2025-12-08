@@ -24,6 +24,7 @@ pub use reception_report::ReceptionReport;
 pub use sender_report::SenderReport;
 pub use source_description::SourceDescription;
 pub use transport_feedback::TransportFeedback;
+use crate::RtcpPacket::ApplicationDefined;
 
 #[derive(Decode, Encode, Debug, Clone)]
 pub enum RtcpPacket {
@@ -66,9 +67,27 @@ impl RtcpPacket {
             SourceDescription(_) => None,
             Goodbye(_) => None,
             ApplicationDefined => None,
-            TransportSpecificFeedback(_) => None,
+            TransportSpecificFeedback(tf) => Some(tf.sender_ssrc),
             Other(_) => None,
         }
+    }
+
+    pub fn get_ssrc_merged(&self) -> String {
+        use RtcpPacket::*;
+
+        let ssrcs = match self {
+            SenderReport(sr) => &sr.get_ssrcs(),
+            ReceiverReport(rr) => &rr.get_ssrcs(),
+            ExtendedReport(xr) => &xr.get_ssrcs(),
+            PayloadSpecificFeedback(pf) => &pf.get_ssrcs(),
+            TransportSpecificFeedback(tf) => &vec![tf.sender_ssrc, tf.media_ssrc],
+            _ => &vec![],
+        };
+
+        ssrcs.iter()
+            .map(|n| format!("{:x}", n))
+            .collect::<Vec<String>>()
+            .join(" | ")
     }
 }
 
@@ -109,9 +128,7 @@ impl RtcpPacket {
         use rtcp::receiver_report::ReceiverReport;
         use rtcp::sender_report::SenderReport;
         use rtcp::source_description::SourceDescription;
-        use rtcp::transport_feedbacks::rapid_resynchronization_request::RapidResynchronizationRequest;
-        use rtcp::transport_feedbacks::transport_layer_cc::TransportLayerCc;
-        use rtcp::transport_feedbacks::transport_layer_nack::TransportLayerNack;
+
 
         let packet_type = packet.header().packet_type;
 
@@ -146,22 +163,8 @@ impl RtcpPacket {
                 return RtcpPacket::ApplicationDefined;
             }
             PacketType::TransportSpecificFeedback => {
-                if let Some(_pack) = packet.downcast_ref::<RapidResynchronizationRequest>() {
-                    return RtcpPacket::TransportSpecificFeedback(
-                        TransportFeedback::RapidResynchronizationRequest,
-                    );
-                }
-
-                if let Some(_pack) = packet.downcast_ref::<TransportLayerCc>() {
-                    return RtcpPacket::TransportSpecificFeedback(
-                        TransportFeedback::TransportLayerCc,
-                    );
-                }
-
-                if let Some(_pack) = packet.downcast_ref::<TransportLayerNack>() {
-                    return RtcpPacket::TransportSpecificFeedback(
-                        TransportFeedback::TransportLayerNack,
-                    );
+                if let Some(pack) = TransportFeedback::new(packet) {
+                    return RtcpPacket::TransportSpecificFeedback(pack);
                 }
             }
             PacketType::PayloadSpecificFeedback => {

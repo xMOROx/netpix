@@ -12,7 +12,7 @@ use crate::{
 use egui::{RichText, Ui};
 use egui_extras::{Column, TableBody, TableBuilder, TableRow};
 use ewebsock::WsSender;
-use netpix_common::rtcp::ExtendedReport;
+use netpix_common::rtcp::{ExtendedReport, TransportFeedback};
 use netpix_common::rtcp::extended_reports::BlockType;
 use netpix_common::rtcp::payload_feedbacks::PayloadFeedback;
 use netpix_common::{
@@ -36,6 +36,8 @@ impl_table_base!(
         .filter("source", "Filter by source IP address")
         .filter("dest", "Filter by destination IP address")
         .filter("type", "Filter by RTCP packet type")
+        .filter("ssrc", "Filter by SSRC of packet")
+        .filter("direction", "Filter by direction")
         .example("source:192.168 AND type:sender")
         .example("dest:10.0.0 OR type:receiver")
         .build(),
@@ -71,16 +73,12 @@ impl_table_base!(
             };
 
             for (idx, rtcp_packet) in rtcp.iter().enumerate() {
-                let ssrc_string = rtcp_packet.get_ssrc()
-                    .map(|s| format!("{:x}", s))
-                    .unwrap_or_default();
-
                 let ctx = RtcpFilterContext {
                     packet: rtcp_packet,
                     source_addr: &packet.source_addr.to_string(),
                     destination_addr: &packet.destination_addr.to_string(),
                     direction: &packet.metadata.direction.to_string(),
-                    ssrc: &ssrc_string,
+                    ssrc: &rtcp_packet.get_ssrc_merged(),
                 };
 
                 if !self.packet_matches_filter(&ctx) {
@@ -220,6 +218,7 @@ fn get_row_height(packet: &RtcpPacket) -> f32 {
                 }
             }
         },
+        RtcpPacket::TransportSpecificFeedback(_) => 3.0,
         _ => 1.0,
     };
 
@@ -242,7 +241,7 @@ fn build_packet(ui: &mut Ui, packet: &RtcpPacket) {
         },
         RtcpPacket::ExtendedReport(xr) => build_extended_report(ui, xr),
         RtcpPacket::TransportSpecificFeedback(tf) => {
-            ui.label(tf.get_type_name());
+            build_transport_feedback(ui,tf);
         }
         RtcpPacket::Other(packet_type) => {
             ui.label(format!("Packet type: {:?}", packet_type));
@@ -471,6 +470,15 @@ fn build_extended_report(ui: &mut Ui, xr: &ExtendedReport) {
         }
     }
 }
+
+fn build_transport_feedback(ui: &mut Ui, tf: &TransportFeedback) {
+    ui.vertical(|ui| {
+        build_label(ui, "Type:", tf.get_type_name());
+        build_label(ui, "Sender SSRC:", format!("{:x}", tf.sender_ssrc));
+        build_label(ui, "Media SSRC:", format!("{:x}", tf.media_ssrc));
+    });
+}
+
 fn build_label(ui: &mut Ui, bold: impl Into<String>, normal: impl Into<String>) {
     let source_label = RichText::new(bold.into()).strong();
     ui.horizontal(|ui| {
