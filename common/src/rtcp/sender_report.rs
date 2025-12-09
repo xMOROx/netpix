@@ -13,7 +13,6 @@ pub struct SenderReport {
     // as we won't be able to decode them anyways
 }
 
-
 impl SenderReport {
     #[cfg(not(target_arch = "wasm32"))]
     pub fn new(packet: &rtcp::sender_report::SenderReport) -> Self {

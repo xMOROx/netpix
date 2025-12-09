@@ -148,8 +148,7 @@ impl FilterParser for FilterType {
                 .then_some(Ok(FilterType::Direction(value.to_lowercase())))
                 .unwrap_or_else(|| {
                     Err(ParseError::InvalidSyntax(
-                        "Invalid direction must be incoming or outgoing"
-                            .into(),
+                        "Invalid direction must be incoming or outgoing".into(),
                     ))
                 }),
 
@@ -157,8 +156,7 @@ impl FilterParser for FilterType {
                 .then_some(Ok(FilterType::SSRC(value.to_lowercase())))
                 .unwrap_or_else(|| {
                     Err(ParseError::InvalidSyntax(
-                        "Invalid SSRC format (e.g. ssrc:1a99de77e"
-                            .into(),
+                        "Invalid SSRC format (e.g. ssrc:1a99de77e".into(),
                     ))
                 }),
 
@@ -166,8 +164,7 @@ impl FilterParser for FilterType {
                 .then_some(Ok(FilterType::Alias(value.to_lowercase())))
                 .unwrap_or_else(|| {
                     Err(ParseError::InvalidSyntax(
-                        "Invalid Alias format (e.g. alias:A)"
-                            .into(),
+                        "Invalid Alias format (e.g. alias:A)".into(),
                     ))
                 }),
 

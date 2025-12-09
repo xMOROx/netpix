@@ -83,7 +83,8 @@ impl RtcpPacket {
             _ => &vec![],
         };
 
-        ssrcs.iter()
+        ssrcs
+            .iter()
             .map(|n| format!("{:x}", n))
             .collect::<Vec<String>>()
             .join(" | ")
@@ -127,7 +128,6 @@ impl RtcpPacket {
         use rtcp::receiver_report::ReceiverReport;
         use rtcp::sender_report::SenderReport;
         use rtcp::source_description::SourceDescription;
-
 
         let packet_type = packet.header().packet_type;
 

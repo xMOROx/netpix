@@ -42,13 +42,13 @@ impl PayloadFeedback {
             PayloadFeedback::FullIntraRequest(fir) => fir.sender_ssrc,
         }
     }
-    
+
     pub fn get_ssrcs(&self) -> Vec<u32> {
         match self {
-            PayloadFeedback::PictureLossIndication(pli) => vec![pli.sender_ssrc,pli.media_ssrc],
+            PayloadFeedback::PictureLossIndication(pli) => vec![pli.sender_ssrc, pli.media_ssrc],
             PayloadFeedback::ReceiverEstimatedMaximumBitrate(remb) => vec![remb.sender_ssrc],
-            PayloadFeedback::SliceLossIndication(sli) => vec![sli.sender_ssrc,sli.media_ssrc],
-            PayloadFeedback::FullIntraRequest(fir) => vec![fir.sender_ssrc,fir.media_ssrc],
+            PayloadFeedback::SliceLossIndication(sli) => vec![sli.sender_ssrc, sli.media_ssrc],
+            PayloadFeedback::FullIntraRequest(fir) => vec![fir.sender_ssrc, fir.media_ssrc],
         }
     }
 }

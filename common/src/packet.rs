@@ -102,9 +102,9 @@ pub enum PacketDirection {
     Unknown,
 }
 
-impl PacketDirection{
+impl PacketDirection {
     pub fn to_string(&self) -> String {
-        match self{
+        match self {
             PacketDirection::Incoming => "incoming".to_string(),
             PacketDirection::Outgoing => "outgoing".to_string(),
             PacketDirection::Unknown => "unknown".to_string(),
@@ -309,7 +309,8 @@ impl Packet {
             return;
         }
 
-        if let Some(rtcp) = RtcpPacket::build(self)
+        if let Some(rtcp)  = RtcpPacket::build(self)
+            && is_rtcp(&rtcp)
         {
             self.session_protocol = SessionProtocol::Rtcp;
             self.contents = SessionPacket::Rtcp(rtcp);

@@ -3,10 +3,10 @@ use bincode::{Decode, Encode};
 use std::any::Any;
 
 #[derive(Decode, Encode, Debug, Clone)]
-pub struct TransportFeedback{
+pub struct TransportFeedback {
     pub sender_ssrc: u32,
     pub media_ssrc: u32,
-    pub feedback_type: TransportFeedbackType
+    pub feedback_type: TransportFeedbackType,
 }
 
 impl TransportFeedback {
@@ -43,7 +43,7 @@ impl TransportFeedback {
         None
     }
 
-    pub fn get_type_name(&self) -> &str{
+    pub fn get_type_name(&self) -> &str {
         self.feedback_type.get_type_name()
     }
 }
@@ -55,12 +55,14 @@ pub enum TransportFeedbackType {
     RapidResynchronizationRequest,
 }
 
-impl TransportFeedbackType{
+impl TransportFeedbackType {
     pub fn get_type_name(&self) -> &str {
         match self {
             TransportFeedbackType::TransportLayerCc => "Transport Layer Cc",
             TransportFeedbackType::TransportLayerNack => "Transport Layer Nack",
-            TransportFeedbackType::RapidResynchronizationRequest => "Rapid Resynchronization Request",
+            TransportFeedbackType::RapidResynchronizationRequest => {
+                "Rapid Resynchronization Request"
+            }
         }
     }
 }
