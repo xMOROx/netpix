@@ -13,8 +13,8 @@ pub struct SenderReport {
     // as we won't be able to decode them anyways
 }
 
-#[cfg(not(target_arch = "wasm32"))]
 impl SenderReport {
+    #[cfg(not(target_arch = "wasm32"))]
     pub fn new(packet: &rtcp::sender_report::SenderReport) -> Self {
         let reports = packet.reports.iter().map(ReceptionReport::new).collect();
 
@@ -26,5 +26,13 @@ impl SenderReport {
             octet_count: packet.octet_count,
             reports,
         }
+    }
+
+    pub fn get_ssrcs(&self) -> Vec<u32> {
+        let mut ssrcs = Vec::with_capacity(1 + self.reports.len());
+        ssrcs.push(self.ssrc);
+        ssrcs.extend(self.reports.iter().map(|r| r.ssrc));
+
+        ssrcs
     }
 }

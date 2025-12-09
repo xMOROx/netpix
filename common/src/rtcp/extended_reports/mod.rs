@@ -57,6 +57,19 @@ impl ExtendedReport {
             reports,
         }
     }
+
+    pub fn get_ssrcs(&self) -> Vec<u32> {
+        let mut ssrcs = Vec::with_capacity(1 + self.reports.len());
+        ssrcs.push(self.sender_ssrc);
+
+        for block in &self.reports {
+            if let BlockType::DLRR(dlrr_block) = block {
+                ssrcs.extend(dlrr_block.reports.iter().map(|r| r.ssrc));
+            }
+        }
+
+        ssrcs
+    }
 }
 
 #[derive(Decode, Encode, Debug, Clone)]
