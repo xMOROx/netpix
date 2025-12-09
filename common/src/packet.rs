@@ -102,16 +102,16 @@ pub enum PacketDirection {
     Unknown,
 }
 
-impl PacketDirection {
-    pub fn to_string(&self) -> String {
-        match self {
-            PacketDirection::Incoming => "incoming".to_string(),
-            PacketDirection::Outgoing => "outgoing".to_string(),
-            PacketDirection::Unknown => "unknown".to_string(),
-        }
+impl fmt::Display for PacketDirection {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let direction_str = match self {
+            PacketDirection::Incoming => "incoming",
+            PacketDirection::Outgoing => "outgoing",
+            PacketDirection::Unknown => "unknown",
+        };
+        write!(f, "{}", direction_str)
     }
 }
-
 #[derive(Encode, Decode, Debug, Clone)]
 pub struct PacketMetadata {
     pub is_synthetic_addr: bool,
