@@ -1,7 +1,7 @@
 use crate::bitstream::{BlobDecoder, FixedLengthDeltaDecoder};
 use crate::types::{LogRtcpPacket, RtcpPacketType};
 use crate::webrtc::rtclog2::EventStream;
-use netpix_common::packet::{Packet, SessionPacket, SessionProtocol, TransportProtocol};
+use netpix_common::packet::{Packet, PacketDirection, PacketMetadata, SessionPacket, SessionProtocol, TransportProtocol};
 use prost::{DecodeError, Message};
 use std::io::SeekFrom;
 use std::net::{IpAddr, Ipv4Addr, SocketAddr};
@@ -166,9 +166,23 @@ impl Parser {
                 let payload = packets.raw_packet.unwrap();
                 let length = payload.len();
 
-                let (source_addr, destination_addr) = match packets.type_ {
-                    RtcpPacketType::Outgoing => (out_addr, inc_addr),
-                    _ => (inc_addr, out_addr),
+                let (source_addr, destination_addr, metadata) = match packets.type_ {
+                    RtcpPacketType::Outgoing => (
+                        out_addr,
+                        inc_addr,
+                        PacketMetadata {
+                            direction: PacketDirection::Outgoing,
+                            is_synthetic_addr: true,
+                        }
+                    ),
+                    _ => (
+                        inc_addr,
+                        out_addr,
+                        PacketMetadata {
+                            direction: PacketDirection::Incoming,
+                            is_synthetic_addr: true,
+                        }
+                    ),
                 };
 
                 self.packets.push(Packet {
@@ -182,6 +196,7 @@ impl Parser {
                     session_protocol: SessionProtocol::Rtcp,
                     contents: SessionPacket::Unknown,
                     creation_time: SystemTime::now(),
+                    metadata: metadata.clone(),
                 });
 
                 for (i, blob) in blobs.iter().enumerate() {
@@ -195,7 +210,7 @@ impl Parser {
 
                     self.packets.push(Packet {
                         payload: Some(payload),
-                        id: 0, // Assign the unique, incrementing ID.
+                        id: 0,
                         timestamp: Duration::from_millis(timestamp_ms),
                         length,
                         source_addr,
@@ -204,6 +219,7 @@ impl Parser {
                         session_protocol: SessionProtocol::Rtcp,
                         contents: SessionPacket::Unknown,
                         creation_time: SystemTime::now(),
+                        metadata: metadata.clone(),
                     });
                 }
             }

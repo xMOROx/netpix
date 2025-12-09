@@ -9,8 +9,8 @@ pub struct ReceiverReport {
     // as we won't be able to decode them anyways
 }
 
-#[cfg(not(target_arch = "wasm32"))]
 impl ReceiverReport {
+    #[cfg(not(target_arch = "wasm32"))]
     pub fn new(packet: &rtcp::receiver_report::ReceiverReport) -> Self {
         let reports = packet.reports.iter().map(ReceptionReport::new).collect();
 
@@ -18,5 +18,13 @@ impl ReceiverReport {
             ssrc: packet.ssrc,
             reports,
         }
+    }
+
+    pub fn get_ssrcs(&self) -> Vec<u32> {
+        let mut ssrcs = Vec::with_capacity(1 + self.reports.len());
+        ssrcs.push(self.ssrc);
+        ssrcs.extend(self.reports.iter().map(|r| r.ssrc));
+
+        ssrcs
     }
 }

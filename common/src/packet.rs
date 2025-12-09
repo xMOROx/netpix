@@ -95,6 +95,38 @@ pub enum SessionPacket {
     Stun(StunPacket),
 }
 
+#[derive(Encode, Decode, Debug, Clone, PartialEq)]
+pub enum PacketDirection {
+    Incoming,
+    Outgoing,
+    Unknown,
+}
+
+impl fmt::Display for PacketDirection {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let direction_str = match self {
+            PacketDirection::Incoming => "incoming",
+            PacketDirection::Outgoing => "outgoing",
+            PacketDirection::Unknown => "unknown",
+        };
+        write!(f, "{}", direction_str)
+    }
+}
+#[derive(Encode, Decode, Debug, Clone)]
+pub struct PacketMetadata {
+    pub is_synthetic_addr: bool,
+    pub direction: PacketDirection,
+}
+
+impl Default for PacketMetadata {
+    fn default() -> Self {
+        Self {
+            is_synthetic_addr: false,
+            direction: PacketDirection::Unknown,
+        }
+    }
+}
+
 #[derive(Encode, Decode, Debug, Clone)]
 pub struct Packet {
     pub payload: Option<Vec<u8>>,
@@ -107,6 +139,7 @@ pub struct Packet {
     pub session_protocol: SessionProtocol,
     pub contents: SessionPacket,
     pub creation_time: SystemTime,
+    pub metadata: PacketMetadata,
 }
 
 #[cfg(not(target_arch = "wasm32"))]
@@ -250,6 +283,7 @@ impl Packet {
             session_protocol: SessionProtocol::Unknown,
             contents: SessionPacket::Unknown,
             creation_time: SystemTime::now(),
+            metadata: Default::default(),
         })
     }
 

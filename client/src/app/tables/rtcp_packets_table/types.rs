@@ -4,7 +4,10 @@ use netpix_common::{Packet, RtcpPacket, rtcp::*};
 define_filter_context!(RtcpFilterContext,
     packet: RtcpPacket,
     source_addr: str,
-    destination_addr: str
+    destination_addr: str,
+    direction: str,
+    ssrc: str,
+    alias: str
 );
 
 #[derive(Clone)]
