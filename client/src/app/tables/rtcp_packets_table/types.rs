@@ -6,7 +6,8 @@ define_filter_context!(RtcpFilterContext,
     source_addr: str,
     destination_addr: str,
     direction: str,
-    ssrc: str
+    ssrc: str,
+    alias: str
 );
 
 #[derive(Clone)]

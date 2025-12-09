@@ -24,7 +24,6 @@ pub use reception_report::ReceptionReport;
 pub use sender_report::SenderReport;
 pub use source_description::SourceDescription;
 pub use transport_feedback::TransportFeedback;
-use crate::RtcpPacket::ApplicationDefined;
 
 #[derive(Decode, Encode, Debug, Clone)]
 pub enum RtcpPacket {
