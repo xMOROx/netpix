@@ -5,7 +5,7 @@ use std::collections::{
     btree_map::{Keys, Values},
 };
 
-const MAX_PACKETS: usize = 20_000;
+const MAX_PACKETS: usize = 10_000;
 
 #[derive(Debug, Default)]
 pub struct Packets {
