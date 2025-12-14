@@ -764,13 +764,17 @@ fn get_x_and_y(
                 };
 
                 (
-                    rtp.packet.timestamp.wrapping_sub(first_rtp_packet.timestamp) as f64,
+                    rtp.packet
+                        .timestamp
+                        .wrapping_sub(first_rtp_packet.timestamp) as f64,
                     last_y_top,
                     last_y_top + height,
                 )
             } else {
                 (
-                    rtp.packet.timestamp.wrapping_sub(first_rtp_packet.timestamp) as f64,
+                    rtp.packet
+                        .timestamp
+                        .wrapping_sub(first_rtp_packet.timestamp) as f64,
                     this_stream_y_baseline,
                     this_stream_y_baseline + height,
                 )
