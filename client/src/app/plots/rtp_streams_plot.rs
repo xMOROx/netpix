@@ -424,9 +424,11 @@ impl RtpStreamsPlot {
                     RawTimestamp => {
                         rtp_packet.time.as_secs_f64() - first_packet.timestamp.as_secs_f64()
                     }
-                    SequenceNumber => {
-                        rtp_packet.packet.sequence_number.wrapping_sub(first_rtp_packet.sequence_number) as f64
-                    }
+                    SequenceNumber => rtp_packet
+                        .packet
+                        .sequence_number
+                        .wrapping_sub(first_rtp_packet.sequence_number)
+                        as f64,
                 };
                 if stream_separator_length < max_x {
                     stream_separator_length = max_x
@@ -780,7 +782,9 @@ fn get_x_and_y(
             this_stream_y_baseline + height,
         ),
         SequenceNumber => (
-            rtp.packet.sequence_number.wrapping_sub(first_rtp_packet.sequence_number) as f64,
+            rtp.packet
+                .sequence_number
+                .wrapping_sub(first_rtp_packet.sequence_number) as f64,
             this_stream_y_baseline,
             this_stream_y_baseline + height,
         ),
