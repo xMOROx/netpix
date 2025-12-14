@@ -58,10 +58,8 @@ impl Packets {
     pub fn add_packet(&mut self, packet: Packet) {
         self.packets.insert(packet.id, packet);
 
-        while self.packets.len() > MAX_PACKETS {
-            if let Some(&first_key) = self.packets.keys().next() {
-                self.packets.remove(&first_key);
-            }
+        if self.packets.len() > MAX_PACKETS {
+            self.packets.pop_first();
         }
     }
 }
