@@ -5,6 +5,8 @@ use std::collections::{
     btree_map::{Keys, Values},
 };
 
+const MAX_PACKETS: usize = 20_000;
+
 #[derive(Debug, Default)]
 pub struct Packets {
     packets: BTreeMap<usize, Packet>,
@@ -55,5 +57,11 @@ impl Packets {
 
     pub fn add_packet(&mut self, packet: Packet) {
         self.packets.insert(packet.id, packet);
+
+        while self.packets.len() > MAX_PACKETS {
+            if let Some(&first_key) = self.packets.keys().next() {
+                self.packets.remove(&first_key);
+            }
+        }
     }
 }
