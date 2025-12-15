@@ -174,8 +174,14 @@ impl_table_base!(
             });
 
             row.col(|ui| {
-                let lost = stream.get_expected_count() - stream.rtp_packets.len();
-                let lost_fraction = lost as f64 / stream.get_expected_count() as f64;
+                let expected = stream.get_expected_count();
+                let actual = stream.rtp_packets.len();
+                let lost = expected.saturating_sub(actual);
+                let lost_fraction = if expected > 0 {
+                    lost as f64 / expected as f64
+                } else {
+                    0.0
+                };
                 ui.label(format!("{:.3}%", lost_fraction * 100.0));
             });
 

@@ -9,7 +9,7 @@ use rtpStream::RtpStream;
 use std::{cell::RefCell, collections::HashMap, net::SocketAddr, rc::Rc};
 
 pub mod mpegts_stream;
-mod packets;
+pub mod packets;
 #[allow(non_snake_case)]
 pub mod rtpStream;
 pub mod stream_statistics;
