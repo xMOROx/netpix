@@ -119,7 +119,9 @@ impl RtpStream {
     }
 
     pub fn get_expected_count(&self) -> usize {
-        (self.last_sequence_number + 1 - self.first_sequence_number) as usize
+        self.last_sequence_number
+            .wrapping_sub(self.first_sequence_number)
+            .wrapping_add(1) as usize
     }
 
     pub fn get_mean_jitter(&self) -> Option<f64> {
@@ -314,11 +316,11 @@ impl RtpStream {
             // FIXME: we only check last 10 packets, may lead to bugs
             .take(10)
             .for_each(|pack| {
-                if pack.packet.sequence_number + 1 == rtp_info.packet.sequence_number {
+                if pack.packet.sequence_number.wrapping_add(1) == rtp_info.packet.sequence_number {
                     rtp_info.prev_lost = false;
                 }
 
-                if pack.packet.sequence_number == rtp_info.packet.sequence_number + 1 {
+                if pack.packet.sequence_number == rtp_info.packet.sequence_number.wrapping_add(1) {
                     pack.prev_lost = false;
                 }
             });

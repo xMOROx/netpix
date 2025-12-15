@@ -17,6 +17,7 @@ pub enum Tab {
 pub enum RtpSection {
     Packets,
     RtcpPackets,
+    RtcpStreams,
     Streams,
     Plot,
 }
@@ -30,6 +31,7 @@ pub enum MpegTsSection {
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum IceSection {
     StunPackets,
+    Candidates,
 }
 
 impl Tab {
@@ -82,6 +84,7 @@ impl Tab {
                 RtpSection::RtcpPackets => "rtcp_packets",
                 RtpSection::Streams => "rtp_streams",
                 RtpSection::Plot => "rtp_streams_plot",
+                RtpSection::RtcpStreams => "rtcp_streams",
             },
             Tab::MpegTsSection(section) => match section {
                 MpegTsSection::Packets => "mpegts_packets",
@@ -90,6 +93,7 @@ impl Tab {
             },
             Tab::IceSection(section) => match section {
                 IceSection::StunPackets => "stun_packets",
+                IceSection::Candidates => "ice_candidates",
             },
         }
     }
@@ -111,6 +115,7 @@ impl fmt::Display for RtpSection {
         let ret = match self {
             Self::Packets => "🔈RTP Packets",
             Self::RtcpPackets => "📃 RTCP Packets",
+            Self::RtcpStreams => "📈 RTCP Streams",
             Self::Streams => "🔴 RTP Streams",
             Self::Plot => "📈 RTP Plot",
         };
@@ -133,7 +138,14 @@ impl fmt::Display for MpegTsSection {
 
 impl Section for RtpSection {
     fn iter() -> impl Iterator<Item = Self> {
-        [Self::Packets, Self::RtcpPackets, Self::Streams, Self::Plot].into_iter()
+        [
+            Self::Packets,
+            Self::RtcpPackets,
+            Self::Streams,
+            Self::Plot,
+            Self::RtcpStreams,
+        ]
+        .into_iter()
     }
 
     fn display_name(&self) -> String {
@@ -153,12 +165,13 @@ impl Section for MpegTsSection {
 
 impl Section for IceSection {
     fn iter() -> impl Iterator<Item = Self> {
-        [Self::StunPackets].into_iter()
+        [Self::StunPackets, Self::Candidates].into_iter()
     }
 
     fn display_name(&self) -> String {
         match self {
-            Self::StunPackets => "🔄 🌐 STUN Packets".to_string(),
+            Self::StunPackets => "🔄 STUN Packets".to_string(),
+            Self::Candidates => "🌐 ICE Candidates".to_string(),
         }
     }
 }

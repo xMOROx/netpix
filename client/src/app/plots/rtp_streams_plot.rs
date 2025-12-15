@@ -28,6 +28,20 @@ use std::{
     fmt::{Display, Error, Formatter},
 };
 
+fn find_first_available_rtp<'a>(
+    rtp_packets: &'a [RtpInfo],
+    packets: &'a crate::streams::packets::Packets,
+) -> Option<(usize, &'a RtpInfo, &'a Packet, &'a RtpPacket)> {
+    for (idx, rtp_info) in rtp_packets.iter().enumerate() {
+        if let Some(packet) = packets.get(rtp_info.id) {
+            if let SessionPacket::Rtp(ref rtp_packet) = packet.contents {
+                return Some((idx, rtp_info, packet, rtp_packet));
+            }
+        }
+    }
+    None
+}
+
 struct PointData {
     x: f64,
     y_low: f64,
@@ -396,13 +410,13 @@ impl RtpStreamsPlot {
         let mut stream_separator_length = 0.0;
         streams.rtp_streams.iter().for_each(|(_, stream)| {
             let rtp_packets = &stream.rtp_packets;
-            let first_rtp_id = rtp_packets.first().unwrap();
-            let first_packet = streams.packets.get(first_rtp_id.id).unwrap();
-            let SessionPacket::Rtp(ref first_rtp_packet) = first_packet.contents else {
-                unreachable!();
+            let Some((first_idx, _, first_packet, first_rtp_packet)) =
+                find_first_available_rtp(rtp_packets, &streams.packets)
+            else {
+                return;
             };
 
-            for rtp_packet in &stream.rtp_packets {
+            for rtp_packet in rtp_packets.iter().skip(first_idx) {
                 let max_x = match self.x_axis {
                     RtpTimestamp => {
                         rtp_packet.packet.timestamp as f64 - first_rtp_packet.timestamp as f64
@@ -410,10 +424,11 @@ impl RtpStreamsPlot {
                     RawTimestamp => {
                         rtp_packet.time.as_secs_f64() - first_packet.timestamp.as_secs_f64()
                     }
-                    SequenceNumber => {
-                        rtp_packet.packet.sequence_number as f64
-                            - first_rtp_packet.sequence_number as f64
-                    }
+                    SequenceNumber => rtp_packet
+                        .packet
+                        .sequence_number
+                        .wrapping_sub(first_rtp_packet.sequence_number)
+                        as f64,
                 };
                 if stream_separator_length < max_x {
                     stream_separator_length = max_x
@@ -490,17 +505,18 @@ fn get_highest_y(
         return highest_y;
     }
 
-    let first_rtp_id = rtp_packets.first().unwrap();
-    let first_packet = streams.packets.get(first_rtp_id.id).unwrap();
-    let SessionPacket::Rtp(ref first_rtp_packet) = first_packet.contents else {
-        unreachable!();
+    let Some((first_idx, _, first_packet, first_rtp_packet)) =
+        find_first_available_rtp(rtp_packets, &streams.packets)
+    else {
+        return highest_y;
     };
 
     rtp_packets
         .iter()
         .enumerate()
+        .skip(first_idx)
         .for_each(|(packet_ix, packet)| {
-            let previous_packet = if packet_ix == 0 {
+            let previous_packet = if packet_ix == first_idx {
                 None
             } else {
                 let prev_rtp_id = rtp_packets.get(packet_ix - 1).unwrap().id;
@@ -542,10 +558,10 @@ fn build_stream_points(
         return;
     }
 
-    let first_rtp_id = rtp_packets.first().unwrap();
-    let first_packet = streams.packets.get(first_rtp_id.id).unwrap();
-    let SessionPacket::Rtp(ref first_rtp_packet) = first_packet.contents else {
-        unreachable!();
+    let Some((first_idx, _, first_packet, first_rtp_packet)) =
+        find_first_available_rtp(rtp_packets, &streams.packets)
+    else {
+        return;
     };
 
     let mut on_hover = String::new();
@@ -659,8 +675,9 @@ fn build_stream_points(
     rtp_packets
         .iter()
         .enumerate()
+        .skip(first_idx)
         .for_each(|(packet_ix, packet)| {
-            let previous_packet = if packet_ix == 0 {
+            let previous_packet = if packet_ix == first_idx {
                 None
             } else {
                 let prev_rtp_id = rtp_packets.get(packet_ix - 1).unwrap().id;
@@ -747,13 +764,17 @@ fn get_x_and_y(
                 };
 
                 (
-                    rtp.packet.timestamp as f64 - first_rtp_packet.timestamp as f64,
+                    rtp.packet
+                        .timestamp
+                        .wrapping_sub(first_rtp_packet.timestamp) as f64,
                     last_y_top,
                     last_y_top + height,
                 )
             } else {
                 (
-                    rtp.packet.timestamp as f64 - first_rtp_packet.timestamp as f64,
+                    rtp.packet
+                        .timestamp
+                        .wrapping_sub(first_rtp_packet.timestamp) as f64,
                     this_stream_y_baseline,
                     this_stream_y_baseline + height,
                 )
@@ -765,7 +786,9 @@ fn get_x_and_y(
             this_stream_y_baseline + height,
         ),
         SequenceNumber => (
-            (rtp.packet.sequence_number - first_rtp_packet.sequence_number) as f64,
+            rtp.packet
+                .sequence_number
+                .wrapping_sub(first_rtp_packet.sequence_number) as f64,
             this_stream_y_baseline,
             this_stream_y_baseline + height,
         ),
