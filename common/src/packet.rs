@@ -95,7 +95,22 @@ pub enum SessionPacket {
     Stun(StunPacket),
 }
 
-#[derive(Encode, Decode, Debug, Clone, PartialEq)]
+#[derive(Encode, Decode, Debug, Clone)]
+pub enum StreamType{
+    Video,
+    VideoControl,
+    Audio,
+    AudioControl,
+    RTX,
+}
+
+#[derive(Encode, Decode, Debug, Clone)]
+pub struct StreamMetaData{
+    pub ssrc: u32,
+    pub stream_type: StreamType,
+}
+
+#[derive(Encode, Decode, Debug, Clone)]
 pub enum PacketDirection {
     Incoming,
     Outgoing,
@@ -116,6 +131,7 @@ impl fmt::Display for PacketDirection {
 pub struct PacketMetadata {
     pub is_synthetic_addr: bool,
     pub direction: PacketDirection,
+    pub stream_meta_data: Option<StreamMetaData>
 }
 
 impl Default for PacketMetadata {
@@ -123,6 +139,7 @@ impl Default for PacketMetadata {
         Self {
             is_synthetic_addr: false,
             direction: PacketDirection::Unknown,
+            stream_meta_data: None
         }
     }
 }
