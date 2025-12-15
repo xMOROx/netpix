@@ -18,7 +18,7 @@ const POLL_INTERVAL_MS: u64 = 200;
 
 pub struct Parser {
     pub packets: Vec<Packet>,
-    pub stream_meta: HashMap<u32,StreamMetaData>,
+    stream_meta: HashMap<u32,StreamMetaData>,
     pack_num: usize,
 }
 
@@ -61,6 +61,10 @@ impl Parser {
             Err(e) => return Err(e),
         };
 
+
+        let mut meta_packets: Vec<Packet> = self.stream_meta.keys().into_iter().map(|k| self.stream_meta.get(k).unwrap().clone()).map(Into::into).collect();
+
+        self.packets.append(&mut meta_packets);
         self.packets.sort_by_key(|p| p.timestamp);
 
         for (i, packet) in self.packets.iter_mut().enumerate() {
@@ -184,7 +188,6 @@ impl Parser {
                         PacketMetadata {
                             direction: PacketDirection::Outgoing,
                             is_synthetic_addr: true,
-                            stream_meta_data: None
                         }
                     ),
                     _ => (
@@ -193,7 +196,6 @@ impl Parser {
                         PacketMetadata {
                             direction: PacketDirection::Incoming,
                             is_synthetic_addr: true,
-                            stream_meta_data: None
                         }
                     ),
                 };

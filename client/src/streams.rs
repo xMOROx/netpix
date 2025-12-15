@@ -10,7 +10,9 @@ use netpix_common::{
 use packets::Packets;
 use rtpStream::RtpStream;
 use std::{cell::RefCell, collections::HashMap, net::SocketAddr, rc::Rc};
+use std::cell::RefMut;
 use eframe::epaint::{Color32, Hsva};
+use netpix_common::packet::StreamMetaData;
 
 pub mod mpegts_stream;
 pub mod packets;
@@ -46,6 +48,7 @@ impl Streams {
                 &mut self.rtp_streams,
                 &mut self.mpeg_ts_streams,
                 &mut self.rtcp_streams,
+                self.alias_helper.borrow_mut(),
                 &packet,
             );
             self.packets.add_packet(packet);
@@ -69,6 +72,7 @@ impl Streams {
                 &mut new_rtp_streams,
                 &mut new_mpegts_streams,
                 &mut new_rtcp_streams,
+                self.alias_helper.borrow_mut(),
                 packet,
             )
         });
@@ -85,6 +89,7 @@ fn handle_packet(
     rtp_streams: &mut HashMap<RtpStreamKey, RtpStream>,
     mpegts_streams: &mut HashMap<MpegtsStreamKey, MpegTsStream>,
     rtcp_streams: &mut HashMap<RtpStreamKey, RtcpStream>,
+    stream_helper: RefMut<StreamAliasHelper>,
     packet: &Packet,
 ) {
     match packet.contents {
@@ -153,6 +158,9 @@ fn handle_packet(
                     }
                 }
             }
+        }
+        SessionPacket::Meta(ref meta) => {
+            stream_helper.put_meta(meta.clone());
         }
         _ => {}
     };
@@ -235,6 +243,7 @@ fn int_to_letter(unique_id: usize) -> String {
 #[derive(Default, Clone, Debug)]
 pub struct StreamAliasHelper {
     cache: RefCell<std::collections::HashMap<u32, String>>,
+    meta: RefCell<HashMap<u32, String>>,
 }
 
 impl StreamAliasHelper {
@@ -250,6 +259,21 @@ impl StreamAliasHelper {
 
         cache.insert(ssrc, alias.clone());
         alias
+    }
+
+    pub fn put_meta(&self, meta_data: StreamMetaData) {
+        let mut meta = self.meta.borrow_mut();
+
+        meta.insert(meta_data.ssrc,meta_data.stream_type.to_string());
+    }
+
+    pub fn get_meta(&self, ssrc: u32) -> Option<String> {
+        let meta = self.meta.borrow();
+        if let Some(meta_data) = meta.get(&ssrc) {
+            return Some(meta_data.clone());
+        }
+
+        None
     }
 
     fn index_to_letter(&self, mut index: u32) -> String {

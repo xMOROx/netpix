@@ -1,14 +1,13 @@
 use super::{MpegtsPacket, RtcpPacket, RtpPacket, StunPacket};
 use bincode::{Decode, Encode};
 
-use std::net::SocketAddr;
+use std::net::{IpAddr, SocketAddr};
 use std::str::FromStr;
 use std::time::Duration;
 use std::{fmt, time::SystemTime};
-
+use std::fmt::{Display, Formatter};
 #[cfg(not(target_arch = "wasm32"))]
 use std::io::Write;
-
 #[cfg(not(target_arch = "wasm32"))]
 use pnet_packet::{
     Packet as _,
@@ -27,6 +26,7 @@ pub enum SessionProtocol {
     Rtcp,
     Mpegts,
     Stun,
+    Meta,
 }
 
 impl FromStr for SessionProtocol {
@@ -38,6 +38,7 @@ impl FromStr for SessionProtocol {
             "rtcp" => Ok(Self::Rtcp),
             "mpeg-ts" => Ok(Self::Mpegts),
             "stun" => Ok(Self::Stun),
+            "meta" => Ok(Self::Meta),
             _ => Err(()),
         }
     }
@@ -51,6 +52,7 @@ impl SessionProtocol {
             Self::Rtcp,
             Self::Mpegts,
             Self::Stun,
+            Self::Meta,
         ]
     }
 }
@@ -63,6 +65,7 @@ impl fmt::Display for SessionProtocol {
             Self::Rtcp => "RTCP",
             Self::Mpegts => "MPEG-TS",
             Self::Stun => "STUN",
+            Self::Meta => "META",
         };
 
         write!(f, "{}", res)
@@ -93,6 +96,7 @@ pub enum SessionPacket {
     Rtcp(Vec<RtcpPacket>),
     Mpegts(MpegtsPacket),
     Stun(StunPacket),
+    Meta(StreamMetaData)
 }
 
 #[derive(Encode, Decode, Debug, Clone)]
@@ -104,10 +108,48 @@ pub enum StreamType{
     RTX,
 }
 
+impl Display for StreamType {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        let res = match self {
+            StreamType::Video => "Video",
+            StreamType::VideoControl => "Video Control",
+            StreamType::Audio => "Audio",
+            StreamType::AudioControl => "Audio Control",
+            StreamType::RTX => "RTX",
+        };
+
+        write!(f, "{}", res)
+    }
+}
+
 #[derive(Encode, Decode, Debug, Clone)]
 pub struct StreamMetaData{
     pub ssrc: u32,
     pub stream_type: StreamType,
+}
+
+impl From<StreamMetaData> for Packet{
+    fn from(value: StreamMetaData) -> Self {
+
+        let metadata = PacketMetadata{
+            is_synthetic_addr: true,
+            direction: PacketDirection::Unknown,
+        };
+
+        Packet{
+            payload: None,
+            id: 0,
+            timestamp: Default::default(),
+            length: 0,
+            source_addr: SocketAddr::new("0.0.0.0".parse().unwrap(), 0),
+            destination_addr: SocketAddr::new("0.0.0.0".parse().unwrap(), 0),
+            transport_protocol: TransportProtocol::Tcp,
+            session_protocol: SessionProtocol::Meta,
+            contents: SessionPacket::Meta(value),
+            creation_time: SystemTime::now(),
+            metadata,
+        }
+    }
 }
 
 #[derive(Encode, Decode, Debug, Clone)]
@@ -131,7 +173,6 @@ impl fmt::Display for PacketDirection {
 pub struct PacketMetadata {
     pub is_synthetic_addr: bool,
     pub direction: PacketDirection,
-    pub stream_meta_data: Option<StreamMetaData>
 }
 
 impl Default for PacketMetadata {
@@ -139,7 +180,6 @@ impl Default for PacketMetadata {
         Self {
             is_synthetic_addr: false,
             direction: PacketDirection::Unknown,
-            stream_meta_data: None
         }
     }
 }
@@ -375,7 +415,8 @@ impl Packet {
             SessionProtocol::Unknown => {
                 self.session_protocol = packet_type;
                 self.contents = SessionPacket::Unknown;
-            }
+            },
+            SessionProtocol::Meta => {}
         }
     }
 

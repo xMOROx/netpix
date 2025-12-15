@@ -120,6 +120,7 @@ impl_table_base!(
             let ssrc = info.rtcp_packet.get_ssrc().unwrap_or(0);
             let row_color = alias_helper.get_color(ssrc);
             let alias = alias_helper.get_alias(ssrc);
+            let src_desc = alias_helper.get_meta(ssrc).unwrap_or("Unknown".to_string());
 
 
 
@@ -133,7 +134,7 @@ impl_table_base!(
            row.col(|ui| {
                 if is_synthetic {
                     match meta.direction {
-                        PacketDirection::Incoming => ui.strong("Remote (Incoming)"),
+                        PacketDirection::Incoming => ui.strong("Remote"),
                         PacketDirection::Outgoing => ui.label("Local"),
                         _ => ui.label("?"),
                     };
@@ -145,7 +146,7 @@ impl_table_base!(
                 if is_synthetic {
                     match meta.direction {
                         PacketDirection::Incoming => ui.label("Local"),
-                        PacketDirection::Outgoing => ui.strong("Remote (Outgoing)"),
+                        PacketDirection::Outgoing => ui.strong("Remote"),
                         _ => ui.label("?"),
                     };
                 } else {
@@ -156,9 +157,7 @@ impl_table_base!(
                 ui.label(info.rtcp_packet.get_type_name().to_string());
             });
             row.col(|ui| {
-                ui.centered_and_justified(|ui|{
-                    ui.colored_label(row_color,alias);
-                });
+                build_alias_row(ui,&alias,row_color,ssrc ,meta.direction.clone() ,&src_desc);
             });
             row.col(|ui| {
                 build_packet(ui, info.rtcp_packet,&alias_helper);
@@ -560,5 +559,52 @@ fn build_label(ui: &mut Ui, bold: impl Into<String>, normal: impl Into<String>) 
     ui.horizontal(|ui| {
         ui.label(source_label);
         ui.label(normal.into());
+    });
+}
+
+fn build_alias_row(
+    ui: &mut Ui,
+    alias: &str,
+    row_color: Color32,
+    ssrc: u32,
+    direction: PacketDirection,
+    stream_type: &str
+) {
+    ui.centered_and_justified(|ui| {
+        ui.push_id(ssrc, |ui| {
+            ui.menu_button(RichText::new(alias).color(row_color), |ui| {
+                ui.set_min_width(200.0);
+
+                ui.vertical(|ui| {
+                    ui.label(RichText::new("Stream Information").strong().size(14.0));
+                    ui.separator();
+
+                    ui.horizontal(|ui| {
+                        ui.label(RichText::new("SSRC:").strong());
+                        ui.label(format!("0x{:08X} ({})", ssrc, ssrc));
+                    });
+
+                    ui.horizontal(|ui| {
+                        ui.label(RichText::new("Direction:").strong());
+                        match direction {
+                            PacketDirection::Incoming => {
+                                ui.colored_label(Color32::from_rgb(110, 210, 110), "Incoming");
+                            }
+                            PacketDirection::Outgoing => {
+                                ui.colored_label(Color32::from_rgb(210, 110, 110), "Outgoing");
+                            }
+                            _ => {
+                                ui.label(format!("{:?}", direction));
+                            }
+                        }
+                    });
+
+                    ui.horizontal(|ui| {
+                        ui.label(RichText::new("Source Type:").strong());
+                        ui.label(stream_type);
+                    });
+                });
+            });
+        });
     });
 }
