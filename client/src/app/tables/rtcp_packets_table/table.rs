@@ -145,7 +145,7 @@ impl_table_base!(
            row.col(|ui| {
                 if is_synthetic {
                     match meta.direction {
-                        PacketDirection::Incoming => ui.strong("Remote (Incoming)"),
+                        PacketDirection::Incoming => ui.strong("Remote"),
                         PacketDirection::Outgoing => ui.label("Local"),
                         _ => ui.label("?"),
                     };
@@ -157,7 +157,7 @@ impl_table_base!(
                 if is_synthetic {
                     match meta.direction {
                         PacketDirection::Incoming => ui.label("Local"),
-                        PacketDirection::Outgoing => ui.strong("Remote (Outgoing)"),
+                        PacketDirection::Outgoing => ui.strong("Remote"),
                         _ => ui.label("?"),
                     };
                 } else {
@@ -168,9 +168,7 @@ impl_table_base!(
                 ui.label(info.rtcp_packet.get_type_name().to_string());
             });
             row.col(|ui| {
-                ui.centered_and_justified(|ui|{
-                    ui.colored_label(row_color,alias);
-                });
+                build_alias_row(ui, &alias, row_color, ssrc, meta.direction.clone());
             });
             row.col(|ui| {
                 build_packet(ui, info.rtcp_packet,&mut self.alias_helper);
@@ -259,63 +257,7 @@ fn get_row_height(packet: &RtcpPacket) -> f32 {
     length * 20.0
 }
 
-#[derive(Default)]
-pub struct StreamAliasHelper {
-    cache: RefCell<HashMap<u32, String>>,
-}
 
-impl StreamAliasHelper {
-    pub fn get_alias(&self, ssrc: u32) -> String {
-        let mut cache = self.cache.borrow_mut();
-
-        if let Some(alias) = cache.get(&ssrc) {
-            return alias.clone();
-        }
-
-        let index = cache.len() as u32;
-        let alias = self.index_to_letter(index);
-
-        cache.insert(ssrc, alias.clone());
-        alias
-    }
-
-    fn index_to_letter(&self, mut index: u32) -> String {
-        let mut result = Vec::with_capacity(4);
-        loop {
-            let remainder = index % 26;
-            result.push((b'A' + remainder as u8) as char);
-            if index < 26 {
-                break;
-            }
-            index = (index / 26) - 1;
-        }
-        result.into_iter().rev().collect()
-    }
-
-    pub fn get_color(&self, ssrc: u32) -> Color32 {
-        let mut cache = self.cache.borrow_mut();
-
-        let index = if let Some(_) = cache.get(&ssrc) {
-            0
-        } else {
-            let index = cache.len() as u32;
-            let alias = self.index_to_letter(index);
-            cache.insert(ssrc, alias);
-            0
-        };
-
-        let hash = (ssrc as u64).wrapping_mul(11400714819323198485);
-        let hue = (hash as f32) / (u64::MAX as f32); // 0.0 - 1.0
-
-        // High saturation and value for visibility against dark backgrounds
-        // Maybe different logic for dark mode?
-        Color32::from(Hsva::new(hue, 0.7, 0.9, 1.0))
-    }
-
-    pub fn print_ssrc(&self, ssrc: u32) -> String {
-        format!("{:x} | alias: {}", ssrc, self.get_alias(ssrc))
-    }
-}
 pub fn build_packet(ui: &mut Ui, packet: &RtcpPacket, alias_helper: &mut StreamAliasHelper) {
     match packet {
         RtcpPacket::SenderReport(report) => build_sender_report(ui, report, alias_helper),
@@ -623,6 +565,68 @@ fn build_ssrc_row(ui: &mut Ui, label: &str, ssrc: u32, helper: &StreamAliasHelpe
     });
 }
 
+fn build_alias_row(
+    ui: &mut Ui,
+    alias: &str,
+    row_color: Color32,
+    ssrc: u32,
+    direction: PacketDirection,
+) {
+    ui.centered_and_justified(|ui| {
+        // We use push_id with SSRC to ensure each row's menu state is unique.
+        ui.push_id(ssrc, |ui| {
+            // menu_button creates a clickable text that opens a popup.
+            // It looks almost identical to a label but provides the click interaction.
+            ui.menu_button(RichText::new(alias).color(row_color), |ui| {
+                ui.set_min_width(200.0);
+
+                ui.vertical(|ui| {
+                    ui.label(RichText::new("Stream Information").strong().size(14.0));
+                    ui.separator();
+
+                    // 1. SSRC Information
+                    ui.horizontal(|ui| {
+                        ui.label(RichText::new("SSRC:").strong());
+                        ui.label(format!("0x{:08X} ({})", ssrc, ssrc));
+                    });
+
+                    // 2. Direction Information
+                    ui.horizontal(|ui| {
+                        ui.label(RichText::new("Direction:").strong());
+                        match direction {
+                            PacketDirection::Incoming => {
+                                ui.colored_label(Color32::from_rgb(110, 210, 110), "Incoming");
+                            }
+                            PacketDirection::Outgoing => {
+                                ui.colored_label(Color32::from_rgb(210, 110, 110), "Outgoing");
+                            }
+                            _ => {
+                                ui.label(format!("{:?}", direction));
+                            }
+                        }
+                    });
+
+                    // 3. Mocked Source Type
+                    // We use the SSRC to deterministically pick a mock type
+                    // so it doesn't change when you re-open the menu.
+                    ui.horizontal(|ui| {
+                        ui.label(RichText::new("Source Type:").strong());
+
+                        let mock_type = match ssrc % 5 {
+                            1 => "Audio Control",
+                            2 => "Video Control",
+                            3 => "Audio Main",
+                            4 => "Video Main",
+                            _ => "RTX (Retransmission)",
+                        };
+
+                        ui.label(mock_type);
+                    });
+                });
+            });
+        });
+    });
+}
 fn build_label(ui: &mut Ui, bold: impl Into<String>, normal: impl Into<String>) {
     let source_label = RichText::new(bold.into()).strong();
     ui.horizontal(|ui| {

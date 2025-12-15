@@ -20,25 +20,45 @@ use netpix_common::{RtcpPacket, packet::SessionPacket, rtcp::*};
 use rustc_hash::FxHashMap;
 use std::any::Any;
 
-declare_table_struct!(RtcpStreamsTable);
+pub struct RtcpStreamsTable {
+    streams: RefStreams,
+    filter_input: FilterInput,
+    config: TableConfig,
+    ws_sender: WsSender,
+    pub alias_helper: StreamAliasHelper,
+}
 
 // This macro implicitly uses `parse_filter` from the current scope.
 // We ensure the correct one is in scope via the `use` statement above.
 impl_table_base!(
-    RtcpStreamsTable, // Struct name
+    RtcpStreamsTable;
+    alias_helper: StreamAliasHelper;
+
     FilterHelpContent::builder("RTCP Stream Filters") // Help content expression
         .filter("ssrc", "Filter by SSRC (hexadecimal or decimal)")
         .example("ssrc:0x1234abcd")
         .example("ssrc:305441741")
         .build(),
-    "rtcp_streams", // Table ID (string literal)
-    "RTCP Streams"  // Display Name (string literal)
-    ; // Separator before required blocks
-    // The `build_header` block is now in the expected position
+    "rtcp_streams",
+    "RTCP Streams"
+    ;
+
+    ui: |self, ctx| {
+        if self.filter_input.show(ctx) {
+            self.check_filter();
+        }
+
+        egui::CentralPanel::default().show(ctx, |ui| {
+            self.build_table(ui);
+        });
+    }
+    ;
+
     build_header: |self, header| {
 
         let headers = [
             ("SSRC", "Synchronization Source Identifier (hex)"),
+            ("Direction", "Are packets incoming or outgoing"),
             ("Avg Bitrate (kbps)", "Average bitrate calculated from Sender Reports"),
             ("Plots", "Graphs showing bitrate and loss over time"),
         ];
@@ -83,7 +103,18 @@ impl_table_base!(
         let id = row.index();
         if let Some((_key, stream_data)) = filtered_streams.get(id) {
 
-            row.col(|ui| { ui.label(format!("0x{:08X}", stream_data.ssrc)); });
+            let row_color = self.alias_helper.get_color(stream_data.ssrc);
+            let alias = self.alias_helper.get_alias(stream_data.ssrc);
+
+            row.col(|ui| {
+                    ui.label(format!("0x{:08X}", stream_data.ssrc));
+                    ui.centered_and_justified(|ui|{
+                        ui.colored_label(row_color,alias);
+                    });
+            });
+            row.col(|ui| {
+                random_label_example(ui,stream_data.ssrc);
+            });
             row.col(|ui| { ui.label(format!("{:.1}", stream_data.current_avg_bitrate_bps / 1000.0)); });
 
             row.col(|ui| {
@@ -154,6 +185,7 @@ declare_table!(RtcpStreamsTable, FilterType, {
     stick_to_bottom(true);
     columns(
         column(Some(120.0), 120.0, None, false, true), // SSRC
+        column(Some(70.0), 70.0, None, false, true),
         column(Some(150.0), 150.0, None, false, true), // Avg Bitrate
         column(None, 600.0, None, false, false),       // Plots
     )
@@ -168,4 +200,32 @@ impl RtcpStreamsTable {
             .map(|filter| filter.matches(stream_data))
             .unwrap_or(true)
     }
+}
+
+
+pub fn random_label_example(ui: &mut egui::Ui, ssrc: u32) {
+    // LOGIC FIX: Don't use thread_rng() here! It will re-generate on every frame
+    // (mouse movement, scroll) causing the text to flicker rapidly.
+
+    // Instead, use the SSRC to make a deterministic "random" choice.
+    // We mix the bits slightly so consecutive SSRCs don't look too similar.
+    let is_outgoing = (ssrc.wrapping_mul(1664525).wrapping_add(1013904223)) % 2 == 0;
+
+    let label_text = if is_outgoing {
+        "Outgoing"
+    } else {
+        "Incoming"
+    };
+
+    ui.columns(1, |columns| {
+        columns[0].vertical_centered_justified(|ui| {
+            let color = if is_outgoing {
+                egui::Color32::from_rgb(20, 150, 20) // Green
+            } else {
+                egui::Color32::from_rgb(150, 20, 20) // Red
+            };
+
+            ui.label(egui::RichText::new(label_text).color(color).strong());
+        });
+    });
 }
