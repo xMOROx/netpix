@@ -53,6 +53,8 @@ impl_table_base!(
     ; // Separator
     build_table_body: |self, body| {
         let streams = self.streams.borrow();
+        let alias_helper = streams.alias_helper.borrow();
+
         let filtered_streams: Vec<_> = streams
             .rtcp_streams
             .iter()
@@ -82,8 +84,16 @@ impl_table_base!(
     body.rows(row_height, filtered_streams.len(), |mut row| {
         let id = row.index();
         if let Some((_key, stream_data)) = filtered_streams.get(id) {
+            let row_color = alias_helper.get_color(stream_data.ssrc);
+            let alias = alias_helper.get_alias(stream_data.ssrc);
 
-            row.col(|ui| { ui.label(format!("0x{:08X}", stream_data.ssrc)); });
+            row.col(|ui| {
+                    ui.label(format!("0x{:08X}", stream_data.ssrc));
+                    ui.centered_and_justified(|ui|{
+                        ui.colored_label(row_color,alias);
+                    });
+            });
+
             row.col(|ui| { ui.label(format!("{:.1}", stream_data.current_avg_bitrate_bps / 1000.0)); });
 
             row.col(|ui| {

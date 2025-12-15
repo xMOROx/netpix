@@ -30,18 +30,12 @@ use netpix_common::{
 use std::any::Any;
 use std::cell::RefCell;
 use std::collections::HashMap;
+use crate::streams::StreamAliasHelper;
 
-pub struct RtcpPacketsTable {
-    streams: RefStreams,
-    filter_input: FilterInput,
-    config: TableConfig,
-    ws_sender: WsSender,
-    pub alias_helper: StreamAliasHelper,
-}
+declare_table_struct!(RtcpPacketsTable);
 
 impl_table_base!(
-    RtcpPacketsTable;
-    alias_helper: StreamAliasHelper;
+    RtcpPacketsTable,
     FilterHelpContent::builder("RTCP Packet Filters")
         .filter("source", "Filter by source IP address")
         .filter("dest", "Filter by destination IP address")
@@ -53,16 +47,6 @@ impl_table_base!(
         .example("dest:10.0.0 OR type:receiver")
         .build(),
     "rtcp_packets", "RTCP Packets"
-    ;
-    ui: |self, ctx| {
-        if self.filter_input.show(ctx) {
-            self.check_filter();
-        }
-
-        egui::CentralPanel::default().show(ctx, |ui| {
-            self.build_table(ui);
-        });
-    }
     ;
     build_header: |self, header| {
         let headers = [
@@ -86,6 +70,7 @@ impl_table_base!(
     build_table_body: |self, body| {
 
         let streams = &self.streams.borrow();
+        let mut alias_helper = streams.alias_helper.borrow();
         let mut rtcp_packets = Vec::new();
 
         for packet in streams.packets.values() {
@@ -95,7 +80,7 @@ impl_table_base!(
             };
 
             for (idx, rtcp_packet) in rtcp.iter().enumerate() {
-                let alias = self.alias_helper.get_alias(rtcp_packet.get_ssrc().unwrap_or(0));
+                let alias = alias_helper.get_alias(rtcp_packet.get_ssrc().unwrap_or(0));
                 let ctx = RtcpFilterContext {
                     packet: rtcp_packet,
                     source_addr: &packet.source_addr.to_string(),
@@ -131,9 +116,12 @@ impl_table_base!(
             let meta = &info.packet.metadata;
             let is_synthetic = meta.is_synthetic_addr;
 
+
             let ssrc = info.rtcp_packet.get_ssrc().unwrap_or(0);
-            let row_color = self.alias_helper.get_color(ssrc);
-            let alias = self.alias_helper.get_alias(ssrc);
+            let row_color = alias_helper.get_color(ssrc);
+            let alias = alias_helper.get_alias(ssrc);
+
+
 
             row.col(|ui| {
                 ui.label(format!("{} ({})", info.id, info.compound_index));
@@ -173,7 +161,7 @@ impl_table_base!(
                 });
             });
             row.col(|ui| {
-                build_packet(ui, info.rtcp_packet,&mut self.alias_helper);
+                build_packet(ui, info.rtcp_packet,&alias_helper);
             });
         });
     }
@@ -259,64 +247,8 @@ fn get_row_height(packet: &RtcpPacket) -> f32 {
     length * 20.0
 }
 
-#[derive(Default)]
-pub struct StreamAliasHelper {
-    cache: RefCell<HashMap<u32, String>>,
-}
 
-impl StreamAliasHelper {
-    pub fn get_alias(&self, ssrc: u32) -> String {
-        let mut cache = self.cache.borrow_mut();
-
-        if let Some(alias) = cache.get(&ssrc) {
-            return alias.clone();
-        }
-
-        let index = cache.len() as u32;
-        let alias = self.index_to_letter(index);
-
-        cache.insert(ssrc, alias.clone());
-        alias
-    }
-
-    fn index_to_letter(&self, mut index: u32) -> String {
-        let mut result = Vec::with_capacity(4);
-        loop {
-            let remainder = index % 26;
-            result.push((b'A' + remainder as u8) as char);
-            if index < 26 {
-                break;
-            }
-            index = (index / 26) - 1;
-        }
-        result.into_iter().rev().collect()
-    }
-
-    pub fn get_color(&self, ssrc: u32) -> Color32 {
-        let mut cache = self.cache.borrow_mut();
-
-        let index = if let Some(_) = cache.get(&ssrc) {
-            0
-        } else {
-            let index = cache.len() as u32;
-            let alias = self.index_to_letter(index);
-            cache.insert(ssrc, alias);
-            0
-        };
-
-        let hash = (ssrc as u64).wrapping_mul(11400714819323198485);
-        let hue = (hash as f32) / (u64::MAX as f32); // 0.0 - 1.0
-
-        // High saturation and value for visibility against dark backgrounds
-        // Maybe different logic for dark mode?
-        Color32::from(Hsva::new(hue, 0.7, 0.9, 1.0))
-    }
-
-    pub fn print_ssrc(&self, ssrc: u32) -> String {
-        format!("{:x} | alias: {}", ssrc, self.get_alias(ssrc))
-    }
-}
-pub fn build_packet(ui: &mut Ui, packet: &RtcpPacket, alias_helper: &mut StreamAliasHelper) {
+pub fn build_packet(ui: &mut Ui, packet: &RtcpPacket, alias_helper: &StreamAliasHelper) {
     match packet {
         RtcpPacket::SenderReport(report) => build_sender_report(ui, report, alias_helper),
         RtcpPacket::ReceiverReport(report) => build_receiver_report(ui, report, alias_helper),
@@ -349,7 +281,7 @@ pub fn build_packet(ui: &mut Ui, packet: &RtcpPacket, alias_helper: &mut StreamA
     };
 }
 
-fn build_sender_report(ui: &mut Ui, report: &SenderReport, alias_helper: &mut StreamAliasHelper) {
+fn build_sender_report(ui: &mut Ui, report: &SenderReport, alias_helper: &StreamAliasHelper) {
     build_ssrc_row(ui, "Source:", report.ssrc, alias_helper);
     ui.horizontal(|ui| {
         ui.vertical(|ui| {
@@ -369,7 +301,7 @@ fn build_sender_report(ui: &mut Ui, report: &SenderReport, alias_helper: &mut St
 fn build_receiver_report(
     ui: &mut Ui,
     report: &ReceiverReport,
-    alias_helper: &mut StreamAliasHelper,
+    alias_helper: &StreamAliasHelper,
 ) {
     build_ssrc_row(ui, "Source:", report.ssrc, alias_helper);
     ui.separator();
@@ -379,7 +311,7 @@ fn build_receiver_report(
 fn build_reception_reports(
     ui: &mut Ui,
     reports: &Vec<ReceptionReport>,
-    alias_helper: &mut StreamAliasHelper,
+    alias_helper: &StreamAliasHelper,
 ) {
     if reports.is_empty() {
         let text = RichText::new("No reception reports").strong();
@@ -425,7 +357,7 @@ fn build_reception_reports(
 fn build_source_description(
     ui: &mut Ui,
     desc: &SourceDescription,
-    alias_helper: &mut StreamAliasHelper,
+    alias_helper: &StreamAliasHelper,
 ) {
     let mut first = true;
     ui.horizontal(|ui| {
@@ -445,7 +377,7 @@ fn build_source_description(
     });
 }
 
-fn build_goodbye(ui: &mut Ui, bye: &Goodbye, alias_helper: &mut StreamAliasHelper) {
+fn build_goodbye(ui: &mut Ui, bye: &Goodbye, alias_helper: &StreamAliasHelper) {
     ui.horizontal(|ui| {
         ui.label(RichText::new("Sources:").strong());
         for (i, ssrc) in bye.sources.iter().enumerate() {
@@ -463,7 +395,7 @@ fn build_goodbye(ui: &mut Ui, bye: &Goodbye, alias_helper: &mut StreamAliasHelpe
 fn build_picture_loss_indication(
     ui: &mut Ui,
     pli: &PictureLossIndication,
-    alias_helper: &mut StreamAliasHelper,
+    alias_helper: &StreamAliasHelper,
 ) {
     build_ssrc_row(ui, "Sender SSRC:", pli.sender_ssrc, alias_helper);
     build_ssrc_row(ui, "Media SSRC:", pli.media_ssrc, alias_helper);
@@ -472,7 +404,7 @@ fn build_picture_loss_indication(
 fn build_receiver_estimated_maximum_bitrate(
     ui: &mut Ui,
     remb: &ReceiverEstimatedMaximumBitrate,
-    alias_helper: &mut StreamAliasHelper,
+    alias_helper: &StreamAliasHelper,
 ) {
     build_ssrc_row(ui, "Sender SSRC:", remb.sender_ssrc, alias_helper);
     let kbps = remb.bitrate / 1000.0;
@@ -495,7 +427,7 @@ fn build_receiver_estimated_maximum_bitrate(
 fn build_slice_loss_indication(
     ui: &mut Ui,
     sli: &SliceLossIndication,
-    alias_helper: &mut StreamAliasHelper,
+    alias_helper: &StreamAliasHelper,
 ) {
     build_ssrc_row(ui, "Sender SSRC:", sli.sender_ssrc, alias_helper);
     build_ssrc_row(ui, "Media SSRC:", sli.media_ssrc, alias_helper);
@@ -525,7 +457,7 @@ fn build_slice_loss_indication(
 fn build_full_intra_request(
     ui: &mut Ui,
     fir: &FullIntraRequest,
-    alias_helper: &mut StreamAliasHelper,
+    alias_helper: &StreamAliasHelper,
 ) {
     build_ssrc_row(ui, "Sender SSRC:", fir.sender_ssrc, alias_helper);
     build_ssrc_row(ui, "Media SSRC:", fir.media_ssrc, alias_helper);
@@ -551,7 +483,7 @@ fn build_full_intra_request(
     }
 }
 
-fn build_extended_report(ui: &mut Ui, xr: &ExtendedReport, alias_helper: &mut StreamAliasHelper) {
+fn build_extended_report(ui: &mut Ui, xr: &ExtendedReport, alias_helper: &StreamAliasHelper) {
     build_ssrc_row(ui, "Sender SSRC:", xr.sender_ssrc, alias_helper);
 
     if xr.reports.is_empty() {
@@ -606,7 +538,7 @@ fn build_extended_report(ui: &mut Ui, xr: &ExtendedReport, alias_helper: &mut St
 fn build_transport_feedback(
     ui: &mut Ui,
     tf: &TransportFeedback,
-    alias_helper: &mut StreamAliasHelper,
+    alias_helper: &StreamAliasHelper,
 ) {
     ui.vertical(|ui| {
         build_label(ui, "Type:", tf.get_type_name());

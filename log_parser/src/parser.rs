@@ -184,7 +184,7 @@ impl Parser {
                         PacketMetadata {
                             direction: PacketDirection::Outgoing,
                             is_synthetic_addr: true,
-
+                            stream_meta_data: None
                         }
                     ),
                     _ => (
@@ -193,6 +193,7 @@ impl Parser {
                         PacketMetadata {
                             direction: PacketDirection::Incoming,
                             is_synthetic_addr: true,
+                            stream_meta_data: None
                         }
                     ),
                 };
