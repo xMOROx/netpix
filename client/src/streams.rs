@@ -12,7 +12,7 @@ use rtpStream::RtpStream;
 use std::{cell::RefCell, collections::HashMap, net::SocketAddr, rc::Rc};
 
 pub mod mpegts_stream;
-mod packets;
+pub mod packets;
 pub mod rtcp_stream;
 #[allow(non_snake_case)]
 pub mod rtpStream;

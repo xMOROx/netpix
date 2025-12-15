@@ -12,8 +12,9 @@ use super::{
     plots::RtpStreamsPlot,
     tab::Tab,
     tables::{
-        IceCandidatesTable, MpegTsInformationTable, MpegTsPacketsTable, MpegTsStreamsTable, PacketsTable,
-        RtcpPacketsTable, RtcpStreamsTable, RtpPacketsTable, RtpStreamsTable, StunPacketsTable,
+        IceCandidatesTable, MpegTsInformationTable, MpegTsPacketsTable, MpegTsStreamsTable,
+        PacketsTable, RtcpPacketsTable, RtcpStreamsTable, RtpPacketsTable, RtpStreamsTable,
+        StunPacketsTable,
     },
     ui_components::types::{AppBottomBar, AppSidePanel, AppTopBar},
 };
