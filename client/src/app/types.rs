@@ -13,7 +13,8 @@ use super::{
     tab::Tab,
     tables::{
         IceCandidatesTable, MpegTsInformationTable, MpegTsPacketsTable, MpegTsStreamsTable,
-        PacketsTable, RtcpPacketsTable, RtpPacketsTable, RtpStreamsTable, StunPacketsTable,
+        PacketsTable, RtcpPacketsTable, RtcpStreamsTable, RtpPacketsTable, RtpStreamsTable,
+        StunPacketsTable,
     },
     ui_components::types::{AppBottomBar, AppSidePanel, AppTopBar},
 };
@@ -72,6 +73,7 @@ impl App {
         table_registry.register::<PacketsTable>(streams.clone(), ws_sender.clone());
         table_registry.register::<RtpPacketsTable>(streams.clone(), ws_sender.clone());
         table_registry.register::<RtcpPacketsTable>(streams.clone(), ws_sender.clone());
+        table_registry.register::<RtcpStreamsTable>(streams.clone(), ws_sender.clone());
         table_registry.register::<RtpStreamsTable>(streams.clone(), ws_sender.clone());
         table_registry.register::<MpegTsPacketsTable>(streams.clone(), ws_sender.clone());
         table_registry.register::<MpegTsStreamsTable>(streams.clone(), ws_sender.clone());
