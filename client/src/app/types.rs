@@ -1,8 +1,8 @@
-use egui::{ComboBox, Label, TextWrapMode, Ui, Widget};
+use egui::{Color32, ComboBox, Label, RichText, TextWrapMode, Ui, Widget};
 use ewebsock::{WsEvent, WsMessage, WsReceiver, WsSender};
 use log::{error, warn};
 use netpix_common::{Request, Response, Source};
-
+use netpix_common::packet::PacketDirection;
 use crate::streams::RefStreams;
 
 use super::{
@@ -167,4 +167,51 @@ impl App {
         let msg = WsMessage::Binary(msg);
         self.ws_sender.send(msg);
     }
+}
+
+pub fn build_alias_row(
+    ui: &mut Ui,
+    alias: &str,
+    row_color: Color32,
+    ssrc: u32,
+    direction: PacketDirection,
+    stream_type: &str
+) {
+    ui.centered_and_justified(|ui| {
+        ui.push_id(ssrc, |ui| {
+            ui.menu_button(RichText::new(alias).color(row_color), |ui| {
+                ui.set_min_width(200.0);
+
+                ui.vertical(|ui| {
+                    ui.label(RichText::new("Stream Information").strong().size(14.0));
+                    ui.separator();
+
+                    ui.horizontal(|ui| {
+                        ui.label(RichText::new("SSRC:").strong());
+                        ui.label(format!("0x{:08X} ({})", ssrc, ssrc));
+                    });
+
+                    ui.horizontal(|ui| {
+                        ui.label(RichText::new("Direction:").strong());
+                        match direction {
+                            PacketDirection::Incoming => {
+                                ui.colored_label(Color32::from_rgb(110, 210, 110), "Incoming");
+                            }
+                            PacketDirection::Outgoing => {
+                                ui.colored_label(Color32::from_rgb(210, 110, 110), "Outgoing");
+                            }
+                            _ => {
+                                ui.label(format!("{:?}", direction));
+                            }
+                        }
+                    });
+
+                    ui.horizontal(|ui| {
+                        ui.label(RichText::new("Source Type:").strong());
+                        ui.label(stream_type);
+                    });
+                });
+            });
+        });
+    });
 }

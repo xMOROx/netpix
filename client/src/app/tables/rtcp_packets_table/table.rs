@@ -30,6 +30,7 @@ use netpix_common::{
 use std::any::Any;
 use std::cell::RefCell;
 use std::collections::HashMap;
+use crate::app::types::build_alias_row;
 use crate::streams::StreamAliasHelper;
 
 declare_table_struct!(RtcpPacketsTable);
@@ -559,52 +560,5 @@ fn build_label(ui: &mut Ui, bold: impl Into<String>, normal: impl Into<String>) 
     ui.horizontal(|ui| {
         ui.label(source_label);
         ui.label(normal.into());
-    });
-}
-
-fn build_alias_row(
-    ui: &mut Ui,
-    alias: &str,
-    row_color: Color32,
-    ssrc: u32,
-    direction: PacketDirection,
-    stream_type: &str
-) {
-    ui.centered_and_justified(|ui| {
-        ui.push_id(ssrc, |ui| {
-            ui.menu_button(RichText::new(alias).color(row_color), |ui| {
-                ui.set_min_width(200.0);
-
-                ui.vertical(|ui| {
-                    ui.label(RichText::new("Stream Information").strong().size(14.0));
-                    ui.separator();
-
-                    ui.horizontal(|ui| {
-                        ui.label(RichText::new("SSRC:").strong());
-                        ui.label(format!("0x{:08X} ({})", ssrc, ssrc));
-                    });
-
-                    ui.horizontal(|ui| {
-                        ui.label(RichText::new("Direction:").strong());
-                        match direction {
-                            PacketDirection::Incoming => {
-                                ui.colored_label(Color32::from_rgb(110, 210, 110), "Incoming");
-                            }
-                            PacketDirection::Outgoing => {
-                                ui.colored_label(Color32::from_rgb(210, 110, 110), "Outgoing");
-                            }
-                            _ => {
-                                ui.label(format!("{:?}", direction));
-                            }
-                        }
-                    });
-
-                    ui.horizontal(|ui| {
-                        ui.label(RichText::new("Source Type:").strong());
-                        ui.label(stream_type);
-                    });
-                });
-            });
-        });
     });
 }

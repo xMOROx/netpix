@@ -10,6 +10,7 @@ use netpix_common::{Packet, RtcpPacket};
 use std::net::SocketAddr;
 use std::ops::Div;
 use std::time;
+use netpix_common::packet::PacketDirection;
 
 #[derive(Debug, Clone)]
 pub struct RtcpStream {
@@ -17,6 +18,7 @@ pub struct RtcpStream {
     pub destination_addr: SocketAddr,
     pub ssrc: u32,
     pub base_time: f64,
+    pub direction: PacketDirection,
     // --- Data from Sender Reports
     pub last_sr_timestamp: Option<chrono::Duration>,
     pub last_sr_octet_count: Option<u32>,
@@ -34,12 +36,13 @@ pub struct RtcpStream {
 }
 
 impl RtcpStream {
-    pub fn new(ssrc: u32, packet: &Packet) -> Self {
+    pub fn new(ssrc: u32, packet: &Packet,direction: PacketDirection) -> Self {
         Self {
             source_addr: packet.source_addr,
             destination_addr: packet.destination_addr,
             ssrc,
             base_time: 0.0,
+            direction,
             last_sr_timestamp: None,
             last_sr_octet_count: None,
             current_avg_bitrate_bps: 0.0,

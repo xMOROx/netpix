@@ -182,7 +182,8 @@ fn insert_or_update_rtcp_stream(
     if let Some(stream) = rtcp_streams.get_mut(&key_same_port) {
         stream.update(pack, packet.timestamp);
     } else {
-        let mut new_stream = RtcpStream::new(ssrc, packet);
+        let direction = packet.metadata.direction.clone();
+        let mut new_stream = RtcpStream::new(ssrc, packet, direction);
         new_stream.update(pack, packet.timestamp);
         rtcp_streams.insert(key_same_port, new_stream);
     }

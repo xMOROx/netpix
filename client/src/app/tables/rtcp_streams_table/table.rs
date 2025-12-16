@@ -19,22 +19,25 @@ use log::info;
 use netpix_common::{RtcpPacket, packet::SessionPacket, rtcp::*};
 use rustc_hash::FxHashMap;
 use std::any::Any;
+use eframe::epaint::Color32;
+use netpix_common::packet::PacketDirection;
+use crate::app::types::build_alias_row;
 
 declare_table_struct!(RtcpStreamsTable);
 
-// This macro implicitly uses `parse_filter` from the current scope.
-// We ensure the correct one is in scope via the `use` statement above.
 impl_table_base!(
-    RtcpStreamsTable, // Struct name
-    FilterHelpContent::builder("RTCP Stream Filters") // Help content expression
-        .filter("ssrc", "Filter by SSRC (hexadecimal or decimal)")
-        .example("ssrc:0x1234abcd")
-        .example("ssrc:305441741")
+    RtcpStreamsTable,
+    FilterHelpContent::builder("RTCP Stream Filters")
+        .filter("ssrc", "Filter by SSRC of packet")
+        .filter("dir", "Filter by direction")
+        .filter("alias", "Filter by alias")
+        .example("ssrc:0001A6B")
+        .example("dir: out")
+        .example("alias: B")
         .build(),
-    "rtcp_streams", // Table ID (string literal)
-    "RTCP Streams"  // Display Name (string literal)
-    ; // Separator before required blocks
-    // The `build_header` block is now in the expected position
+    "rtcp_streams",
+    "RTCP Streams"
+    ;
     build_header: |self, header| {
 
         let headers = [
@@ -50,7 +53,7 @@ impl_table_base!(
             });
         }
     }
-    ; // Separator
+    ;
     build_table_body: |self, body| {
         let streams = self.streams.borrow();
         let alias_helper = streams.alias_helper.borrow();
@@ -61,8 +64,9 @@ impl_table_base!(
             .filter(|(_, stream)| {
                 let ctx = RtcpStreamFilterContext {
                     stream,
-                    source_addr: &stream.source_addr.to_string(),
-                    destination_addr: &stream.destination_addr.to_string(),
+                    direction: &stream.direction.to_string(),
+                    ssrc: &stream.ssrc.to_string(),
+                    alias: &alias_helper.get_alias(stream.ssrc),
                 };
                 self.stream_matches_filter(&ctx)
             })
@@ -86,12 +90,10 @@ impl_table_base!(
         if let Some((_key, stream_data)) = filtered_streams.get(id) {
             let row_color = alias_helper.get_color(stream_data.ssrc);
             let alias = alias_helper.get_alias(stream_data.ssrc);
+            let src_desc = alias_helper.get_meta(stream_data.ssrc).unwrap_or("Unknown".to_string());
 
             row.col(|ui| {
-                    ui.label(format!("0x{:08X}", stream_data.ssrc));
-                    ui.centered_and_justified(|ui|{
-                        ui.colored_label(row_color,alias);
-                    });
+                    build_alias_row(ui, &alias, row_color, stream_data.ssrc, stream_data.direction.clone(), &src_desc);
             });
 
             row.col(|ui| { ui.label(format!("{:.1}", stream_data.current_avg_bitrate_bps / 1000.0)); });
