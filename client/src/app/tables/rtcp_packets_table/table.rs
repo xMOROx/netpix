@@ -69,10 +69,10 @@ impl_table_base!(
     }
     ;
     build_table_body: |self, body| {
-
         let streams = &self.streams.borrow();
         let alias_helper = streams.alias_helper.borrow();
         let mut rtcp_packets = Vec::new();
+        let base_ts = streams.packets.get_timestamp();
 
         for packet in streams.packets.values() {
             let rtcp = match &packet.contents {
@@ -109,7 +109,6 @@ impl_table_base!(
         }
 
         let heights = rtcp_packets.iter().map(|info| get_row_height(info.rtcp_packet));
-        let first_ts = streams.packets.first().unwrap().timestamp;
 
         body.heterogeneous_rows(heights, |mut row| {
             let info = &rtcp_packets[row.index()];
@@ -129,13 +128,13 @@ impl_table_base!(
                 ui.label(format!("{} ({})", info.id, info.compound_index));
             });
             row.col(|ui| {
-                let timestamp = info.packet.timestamp - first_ts;
+                let timestamp = info.packet.timestamp - base_ts;
                 ui.label(format!("{:.4}", timestamp.as_secs_f64()));
             });
            row.col(|ui| {
                 if is_synthetic {
                     match meta.direction {
-                        PacketDirection::Incoming => ui.strong("Remote"),
+                        PacketDirection::Incoming => ui.label("Remote"),
                         PacketDirection::Outgoing => ui.label("Local"),
                         _ => ui.label("?"),
                     };
@@ -147,7 +146,7 @@ impl_table_base!(
                 if is_synthetic {
                     match meta.direction {
                         PacketDirection::Incoming => ui.label("Local"),
-                        PacketDirection::Outgoing => ui.strong("Remote"),
+                        PacketDirection::Outgoing => ui.label("Remote"),
                         _ => ui.label("?"),
                     };
                 } else {
