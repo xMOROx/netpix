@@ -1,13 +1,6 @@
 use super::{MpegtsPacket, RtcpPacket, RtpPacket, StunPacket};
 use bincode::{Decode, Encode};
 
-use std::net::{IpAddr, SocketAddr};
-use std::str::FromStr;
-use std::time::Duration;
-use std::{fmt, time::SystemTime};
-use std::fmt::{Display, Formatter};
-#[cfg(not(target_arch = "wasm32"))]
-use std::io::Write;
 #[cfg(not(target_arch = "wasm32"))]
 use pnet_packet::{
     Packet as _,
@@ -18,6 +11,13 @@ use pnet_packet::{
     tcp::TcpPacket,
     udp::UdpPacket,
 };
+use std::fmt::{Display, Formatter};
+#[cfg(not(target_arch = "wasm32"))]
+use std::io::Write;
+use std::net::SocketAddr;
+use std::str::FromStr;
+use std::time::Duration;
+use std::{fmt, time::SystemTime};
 
 #[derive(Encode, Decode, PartialEq, Debug, Copy, Clone)]
 pub enum SessionProtocol {
@@ -96,11 +96,11 @@ pub enum SessionPacket {
     Rtcp(Vec<RtcpPacket>),
     Mpegts(MpegtsPacket),
     Stun(StunPacket),
-    Meta(StreamMetaData)
+    Meta(StreamMetaData),
 }
 
 #[derive(Encode, Decode, Debug, Clone)]
-pub enum StreamType{
+pub enum StreamType {
     Video,
     VideoControl,
     Audio,
@@ -123,20 +123,19 @@ impl Display for StreamType {
 }
 
 #[derive(Encode, Decode, Debug, Clone)]
-pub struct StreamMetaData{
+pub struct StreamMetaData {
     pub ssrc: u32,
     pub stream_type: StreamType,
 }
 
-impl From<StreamMetaData> for Packet{
+impl From<StreamMetaData> for Packet {
     fn from(value: StreamMetaData) -> Self {
-
-        let metadata = PacketMetadata{
+        let metadata = PacketMetadata {
             is_synthetic_addr: true,
             direction: PacketDirection::Unknown,
         };
 
-        Packet{
+        Packet {
             payload: None,
             id: 0,
             timestamp: Default::default(),
@@ -415,7 +414,7 @@ impl Packet {
             SessionProtocol::Unknown => {
                 self.session_protocol = packet_type;
                 self.contents = SessionPacket::Unknown;
-            },
+            }
             SessionProtocol::Meta => {}
         }
     }

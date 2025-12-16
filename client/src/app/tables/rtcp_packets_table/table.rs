@@ -71,7 +71,7 @@ impl_table_base!(
     build_table_body: |self, body| {
 
         let streams = &self.streams.borrow();
-        let mut alias_helper = streams.alias_helper.borrow();
+        let alias_helper = streams.alias_helper.borrow();
         let mut rtcp_packets = Vec::new();
 
         for packet in streams.packets.values() {
@@ -550,8 +550,7 @@ fn build_transport_feedback(
 fn build_ssrc_row(ui: &mut Ui, label: &str, ssrc: u32, helper: &StreamAliasHelper) {
     ui.horizontal(|ui| {
         ui.label(RichText::new(label).strong());
-        ui.label(format!("{:x}", ssrc))
-            .on_hover_text(format!("Alias: {}", helper.get_alias(ssrc)));
+        ui.label(format!("{} | {:x}",helper.get_alias(ssrc), ssrc));
     });
 }
 

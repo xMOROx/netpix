@@ -293,20 +293,17 @@ impl StreamAliasHelper {
     pub fn get_color(&self, ssrc: u32) -> Color32 {
         let mut cache = self.cache.borrow_mut();
 
-        let index = if let Some(_) = cache.get(&ssrc) {
-            0
-        } else {
+        if !cache.contains_key(&ssrc) {
             let index = cache.len() as u32;
             let alias = self.index_to_letter(index);
             cache.insert(ssrc, alias);
-            0
         };
 
         let hash = (ssrc as u64).wrapping_mul(11400714819323198485);
         let hue = (hash as f32) / (u64::MAX as f32); // 0.0 - 1.0
 
         // High saturation and value for visibility against dark backgrounds
-        // Maybe different logic for dark mode?
+        // Maybe different logic for light mode?
         Color32::from(Hsva::new(hue, 0.7, 0.9, 1.0))
     }
 
