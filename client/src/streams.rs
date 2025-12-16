@@ -1,6 +1,8 @@
 #![allow(dead_code)]
 use crate::streams::rtcp_stream::RtcpStream;
+use eframe::epaint::{Color32, Hsva};
 use mpegts_stream::MpegTsStream;
+use netpix_common::packet::StreamMetaData;
 use netpix_common::rtcp::ReceptionReport;
 use netpix_common::rtcp::payload_feedbacks::PayloadFeedback;
 use netpix_common::{
@@ -9,10 +11,8 @@ use netpix_common::{
 };
 use packets::Packets;
 use rtpStream::RtpStream;
-use std::{cell::RefCell, collections::HashMap, net::SocketAddr, rc::Rc};
 use std::cell::RefMut;
-use eframe::epaint::{Color32, Hsva};
-use netpix_common::packet::StreamMetaData;
+use std::{cell::RefCell, collections::HashMap, net::SocketAddr, rc::Rc};
 
 pub mod mpegts_stream;
 pub mod packets;
@@ -29,7 +29,7 @@ pub struct Streams {
     pub rtp_streams: HashMap<RtpStreamKey, RtpStream>,
     pub mpeg_ts_streams: HashMap<MpegtsStreamKey, MpegTsStream>,
     pub rtcp_streams: HashMap<RtpStreamKey, RtcpStream>,
-    pub alias_helper: Rc<RefCell<StreamAliasHelper>>
+    pub alias_helper: Rc<RefCell<StreamAliasHelper>>,
 }
 
 impl Streams {
@@ -265,7 +265,7 @@ impl StreamAliasHelper {
     pub fn put_meta(&self, meta_data: StreamMetaData) {
         let mut meta = self.meta.borrow_mut();
 
-        meta.insert(meta_data.ssrc,meta_data.stream_type.to_string());
+        meta.insert(meta_data.ssrc, meta_data.stream_type.to_string());
     }
 
     pub fn get_meta(&self, ssrc: u32) -> Option<String> {

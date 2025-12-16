@@ -1,4 +1,5 @@
 use super::filters::parse_filter;
+use crate::app::types::build_alias_row;
 use crate::filter_system::FilterExpression;
 use crate::{
     app::{
@@ -11,17 +12,16 @@ use crate::{
     utils::{f64_to_ntp, ntp_to_f64, ntp_to_time_string},
 };
 use eframe::emath::Vec2;
+use eframe::epaint::Color32;
 use egui::{RichText, Ui};
 use egui_extras::{Column, TableBody, TableBuilder, TableRow};
 use egui_plot::{Line, Plot, PlotPoint, PlotPoints};
 use ewebsock::WsSender;
 use log::info;
+use netpix_common::packet::PacketDirection;
 use netpix_common::{RtcpPacket, packet::SessionPacket, rtcp::*};
 use rustc_hash::FxHashMap;
 use std::any::Any;
-use eframe::epaint::Color32;
-use netpix_common::packet::PacketDirection;
-use crate::app::types::build_alias_row;
 
 declare_table_struct!(RtcpStreamsTable);
 

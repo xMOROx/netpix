@@ -2,6 +2,7 @@ use crate::streams::rtpStream::RtcpInfo;
 use crate::utils::{ntp_to_f64, ntp_to_unix_time};
 use chrono;
 use egui_plot::PlotPoint;
+use netpix_common::packet::PacketDirection;
 use netpix_common::rtcp::payload_feedbacks::PayloadFeedback;
 use netpix_common::rtcp::{
     ReceiverEstimatedMaximumBitrate, ReceiverReport, ReceptionReport, SenderReport,
@@ -10,7 +11,6 @@ use netpix_common::{Packet, RtcpPacket};
 use std::net::SocketAddr;
 use std::ops::Div;
 use std::time;
-use netpix_common::packet::PacketDirection;
 
 #[derive(Debug, Clone)]
 pub struct RtcpStream {
@@ -36,7 +36,7 @@ pub struct RtcpStream {
 }
 
 impl RtcpStream {
-    pub fn new(ssrc: u32, packet: &Packet,direction: PacketDirection) -> Self {
+    pub fn new(ssrc: u32, packet: &Packet, direction: PacketDirection) -> Self {
         Self {
             source_addr: packet.source_addr,
             destination_addr: packet.destination_addr,

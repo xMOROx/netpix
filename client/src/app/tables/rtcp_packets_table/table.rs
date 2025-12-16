@@ -1,5 +1,7 @@
 use super::filters::parse_filter;
+use crate::app::types::build_alias_row;
 use crate::filter_system::FilterExpression;
+use crate::streams::StreamAliasHelper;
 use crate::{
     app::{
         FilterHelpContent, FilterInput, TABLE_HEADER_TEXT_SIZE, common::*,
@@ -30,8 +32,6 @@ use netpix_common::{
 use std::any::Any;
 use std::cell::RefCell;
 use std::collections::HashMap;
-use crate::app::types::build_alias_row;
-use crate::streams::StreamAliasHelper;
 
 declare_table_struct!(RtcpPacketsTable);
 
@@ -246,7 +246,6 @@ fn get_row_height(packet: &RtcpPacket) -> f32 {
     length * 20.0
 }
 
-
 pub fn build_packet(ui: &mut Ui, packet: &RtcpPacket, alias_helper: &StreamAliasHelper) {
     match packet {
         RtcpPacket::SenderReport(report) => build_sender_report(ui, report, alias_helper),
@@ -297,11 +296,7 @@ fn build_sender_report(ui: &mut Ui, report: &SenderReport, alias_helper: &Stream
     build_reception_reports(ui, &report.reports, alias_helper);
 }
 
-fn build_receiver_report(
-    ui: &mut Ui,
-    report: &ReceiverReport,
-    alias_helper: &StreamAliasHelper,
-) {
+fn build_receiver_report(ui: &mut Ui, report: &ReceiverReport, alias_helper: &StreamAliasHelper) {
     build_ssrc_row(ui, "Source:", report.ssrc, alias_helper);
     ui.separator();
     build_reception_reports(ui, &report.reports, alias_helper);
@@ -453,11 +448,7 @@ fn build_slice_loss_indication(
     }
 }
 
-fn build_full_intra_request(
-    ui: &mut Ui,
-    fir: &FullIntraRequest,
-    alias_helper: &StreamAliasHelper,
-) {
+fn build_full_intra_request(ui: &mut Ui, fir: &FullIntraRequest, alias_helper: &StreamAliasHelper) {
     build_ssrc_row(ui, "Sender SSRC:", fir.sender_ssrc, alias_helper);
     build_ssrc_row(ui, "Media SSRC:", fir.media_ssrc, alias_helper);
 
@@ -534,11 +525,7 @@ fn build_extended_report(ui: &mut Ui, xr: &ExtendedReport, alias_helper: &Stream
     }
 }
 
-fn build_transport_feedback(
-    ui: &mut Ui,
-    tf: &TransportFeedback,
-    alias_helper: &StreamAliasHelper,
-) {
+fn build_transport_feedback(ui: &mut Ui, tf: &TransportFeedback, alias_helper: &StreamAliasHelper) {
     ui.vertical(|ui| {
         build_label(ui, "Type:", tf.get_type_name());
         build_ssrc_row(ui, "Sender SSRC:", tf.sender_ssrc, alias_helper);
@@ -549,7 +536,7 @@ fn build_transport_feedback(
 fn build_ssrc_row(ui: &mut Ui, label: &str, ssrc: u32, helper: &StreamAliasHelper) {
     ui.horizontal(|ui| {
         ui.label(RichText::new(label).strong());
-        ui.label(format!("{} | {:x}",helper.get_alias(ssrc), ssrc));
+        ui.label(format!("{} | {:x}", helper.get_alias(ssrc), ssrc));
     });
 }
 

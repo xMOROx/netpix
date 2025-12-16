@@ -58,7 +58,7 @@ impl Packets {
     }
 
     pub fn add_packet(&mut self, packet: Packet) {
-        if self.base_timestamp.is_none() && !packet.timestamp.is_zero(){
+        if self.base_timestamp.is_none() && !packet.timestamp.is_zero() {
             self.base_timestamp = Some(packet.timestamp);
         }
         self.packets.insert(packet.id, packet);

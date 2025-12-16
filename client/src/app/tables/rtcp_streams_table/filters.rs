@@ -1,8 +1,8 @@
+use crate::app::tables::RtcpStreamFilterContext;
 use crate::{
     declare_filter_type,
     filter_system::{self, CommonFilterParser, FilterExpression, FilterParser, ParseError},
 };
-use crate::app::tables::RtcpStreamFilterContext;
 
 declare_filter_type! {
     pub enum FilterType {

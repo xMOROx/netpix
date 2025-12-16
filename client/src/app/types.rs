@@ -1,9 +1,9 @@
+use crate::streams::RefStreams;
 use egui::{Color32, ComboBox, Label, RichText, TextWrapMode, Ui, Widget};
 use ewebsock::{WsEvent, WsMessage, WsReceiver, WsSender};
 use log::{error, warn};
-use netpix_common::{Request, Response, Source};
 use netpix_common::packet::PacketDirection;
-use crate::streams::RefStreams;
+use netpix_common::{Request, Response, Source};
 
 use super::{
     SOURCE_KEY, TAB_KEY,
@@ -175,7 +175,7 @@ pub fn build_alias_row(
     row_color: Color32,
     ssrc: u32,
     direction: PacketDirection,
-    stream_type: &str
+    stream_type: &str,
 ) {
     ui.centered_and_justified(|ui| {
         ui.push_id(ssrc, |ui| {
