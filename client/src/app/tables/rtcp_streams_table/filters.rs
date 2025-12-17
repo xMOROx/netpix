@@ -67,7 +67,7 @@ impl FilterParser for FilterType {
                 .then_some(Ok(FilterType::SSRC(value.to_lowercase())))
                 .unwrap_or_else(|| {
                     Err(ParseError::InvalidSyntax(
-                        "Invalid SSRC format (e.g. ssrc:1a99de77e".into(),
+                        "Invalid SSRC format (e.g. ssrc:1a99de77e)".into(),
                     ))
                 }),
 

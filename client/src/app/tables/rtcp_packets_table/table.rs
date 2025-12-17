@@ -72,7 +72,7 @@ impl_table_base!(
         let streams = &self.streams.borrow();
         let alias_helper = streams.alias_helper.borrow();
         let mut rtcp_packets = Vec::new();
-        let base_ts = streams.packets.get_timestamp();
+        let base_ts = streams.packets.get_base_timestamp();
 
         for packet in streams.packets.values() {
             let rtcp = match &packet.contents {

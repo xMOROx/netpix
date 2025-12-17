@@ -68,7 +68,7 @@ impl Packets {
         }
     }
 
-    pub fn get_timestamp(&self) -> Duration {
+    pub fn get_base_timestamp(&self) -> Duration {
         self.base_timestamp.unwrap_or(Duration::from_secs(0))
     }
 }

@@ -69,9 +69,8 @@ impl Parser {
 
         let mut meta_packets: Vec<Packet> = self
             .stream_meta
-            .keys()
-            .into_iter()
-            .map(|k| self.stream_meta.get(k).unwrap().clone())
+            .values()
+            .cloned()
             .map(Into::into)
             .collect();
 
