@@ -4,12 +4,14 @@ use std::collections::{
     BTreeMap,
     btree_map::{Keys, Values},
 };
+use std::time::Duration;
 
 const MAX_PACKETS: usize = 10_000;
 
 #[derive(Debug, Default)]
 pub struct Packets {
     packets: BTreeMap<usize, Packet>,
+    base_timestamp: Option<Duration>,
 }
 
 impl Packets {
@@ -56,10 +58,17 @@ impl Packets {
     }
 
     pub fn add_packet(&mut self, packet: Packet) {
+        if self.base_timestamp.is_none() && !packet.timestamp.is_zero() {
+            self.base_timestamp = Some(packet.timestamp);
+        }
         self.packets.insert(packet.id, packet);
 
         if self.packets.len() > MAX_PACKETS {
             self.packets.pop_first();
         }
+    }
+
+    pub fn get_base_timestamp(&self) -> Duration {
+        self.base_timestamp.unwrap_or(Duration::from_secs(0))
     }
 }

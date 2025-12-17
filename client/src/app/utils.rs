@@ -24,7 +24,7 @@ pub fn get_initial_state(cc: &eframe::CreationContext<'_>) -> (Tab, Option<Sourc
     }
 }
 
-pub fn side_button(text: &str) -> egui::Button {
+pub fn side_button(text: &str) -> egui::Button<'_> {
     egui::Button::new(text)
         .min_size((30.0, 30.0).into())
         .rounding(egui::Rounding::same(9.0))

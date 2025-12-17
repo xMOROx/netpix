@@ -1,14 +1,6 @@
 use super::{MpegtsPacket, RtcpPacket, RtpPacket, StunPacket};
 use bincode::{Decode, Encode};
 
-use std::net::SocketAddr;
-use std::str::FromStr;
-use std::time::Duration;
-use std::{fmt, time::SystemTime};
-
-#[cfg(not(target_arch = "wasm32"))]
-use std::io::Write;
-
 #[cfg(not(target_arch = "wasm32"))]
 use pnet_packet::{
     Packet as _,
@@ -19,6 +11,13 @@ use pnet_packet::{
     tcp::TcpPacket,
     udp::UdpPacket,
 };
+use std::fmt::{Display, Formatter};
+#[cfg(not(target_arch = "wasm32"))]
+use std::io::Write;
+use std::net::SocketAddr;
+use std::str::FromStr;
+use std::time::Duration;
+use std::{fmt, time::SystemTime};
 
 #[derive(Encode, Decode, PartialEq, Debug, Copy, Clone)]
 pub enum SessionProtocol {
@@ -27,6 +26,7 @@ pub enum SessionProtocol {
     Rtcp,
     Mpegts,
     Stun,
+    Meta,
 }
 
 impl FromStr for SessionProtocol {
@@ -38,6 +38,7 @@ impl FromStr for SessionProtocol {
             "rtcp" => Ok(Self::Rtcp),
             "mpeg-ts" => Ok(Self::Mpegts),
             "stun" => Ok(Self::Stun),
+            "meta" => Ok(Self::Meta),
             _ => Err(()),
         }
     }
@@ -51,6 +52,7 @@ impl SessionProtocol {
             Self::Rtcp,
             Self::Mpegts,
             Self::Stun,
+            Self::Meta,
         ]
     }
 }
@@ -63,6 +65,7 @@ impl fmt::Display for SessionProtocol {
             Self::Rtcp => "RTCP",
             Self::Mpegts => "MPEG-TS",
             Self::Stun => "STUN",
+            Self::Meta => "META",
         };
 
         write!(f, "{}", res)
@@ -93,6 +96,91 @@ pub enum SessionPacket {
     Rtcp(Vec<RtcpPacket>),
     Mpegts(MpegtsPacket),
     Stun(StunPacket),
+    Meta(StreamMetaData),
+}
+
+#[derive(Encode, Decode, Debug, Clone)]
+pub enum StreamType {
+    Video,
+    VideoControl,
+    Audio,
+    AudioControl,
+    RTX,
+}
+
+impl Display for StreamType {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        let res = match self {
+            StreamType::Video => "Video",
+            StreamType::VideoControl => "Video Control",
+            StreamType::Audio => "Audio",
+            StreamType::AudioControl => "Audio Control",
+            StreamType::RTX => "RTX",
+        };
+
+        write!(f, "{}", res)
+    }
+}
+
+#[derive(Encode, Decode, Debug, Clone)]
+pub struct StreamMetaData {
+    pub ssrc: u32,
+    pub stream_type: StreamType,
+}
+
+impl From<StreamMetaData> for Packet {
+    fn from(value: StreamMetaData) -> Self {
+        let metadata = PacketMetadata {
+            is_synthetic_addr: true,
+            direction: PacketDirection::Unknown,
+        };
+
+        Packet {
+            payload: None,
+            id: 0,
+            timestamp: Default::default(),
+            length: 0,
+            source_addr: SocketAddr::new("0.0.0.0".parse().unwrap(), 0),
+            destination_addr: SocketAddr::new("0.0.0.0".parse().unwrap(), 0),
+            transport_protocol: TransportProtocol::Tcp,
+            session_protocol: SessionProtocol::Meta,
+            contents: SessionPacket::Meta(value),
+            creation_time: SystemTime::now(),
+            metadata,
+        }
+    }
+}
+
+#[derive(Encode, Decode, Debug, Clone)]
+pub enum PacketDirection {
+    Incoming,
+    Outgoing,
+    Unknown,
+}
+
+impl fmt::Display for PacketDirection {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let direction_str = match self {
+            PacketDirection::Incoming => "incoming",
+            PacketDirection::Outgoing => "outgoing",
+            PacketDirection::Unknown => "unknown",
+        };
+        write!(f, "{}", direction_str)
+    }
+}
+#[derive(Encode, Decode, Debug, Clone)]
+pub struct PacketMetadata {
+    pub is_synthetic_addr: bool,
+    pub direction: PacketDirection,
+}
+
+impl Default for PacketMetadata {
+    fn default() -> Self {
+        Self {
+            is_synthetic_addr: false,
+            direction: PacketDirection::Unknown,
+        }
+    }
 }
 
 #[derive(Encode, Decode, Debug, Clone)]
@@ -107,6 +195,7 @@ pub struct Packet {
     pub session_protocol: SessionProtocol,
     pub contents: SessionPacket,
     pub creation_time: SystemTime,
+    pub metadata: PacketMetadata,
 }
 
 #[cfg(not(target_arch = "wasm32"))]
@@ -250,6 +339,7 @@ impl Packet {
             session_protocol: SessionProtocol::Unknown,
             contents: SessionPacket::Unknown,
             creation_time: SystemTime::now(),
+            metadata: Default::default(),
         })
     }
 
@@ -325,6 +415,7 @@ impl Packet {
                 self.session_protocol = packet_type;
                 self.contents = SessionPacket::Unknown;
             }
+            SessionProtocol::Meta => {}
         }
     }
 

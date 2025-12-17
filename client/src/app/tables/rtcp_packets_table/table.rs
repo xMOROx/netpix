@@ -1,5 +1,7 @@
 use super::filters::parse_filter;
+use crate::app::types::build_alias_row;
 use crate::filter_system::FilterExpression;
+use crate::streams::StreamAliasHelper;
 use crate::{
     app::{
         FilterHelpContent, FilterInput, TABLE_HEADER_TEXT_SIZE, common::*,
@@ -9,12 +11,14 @@ use crate::{
     streams::RefStreams,
     utils::ntp_to_string,
 };
-use egui::{RichText, Ui};
+use egui::ecolor::Hsva;
+use egui::{Color32, RichText, Ui};
 use egui_extras::{Column, TableBody, TableBuilder, TableRow};
 use ewebsock::WsSender;
-use netpix_common::rtcp::ExtendedReport;
+use netpix_common::packet::PacketDirection;
 use netpix_common::rtcp::extended_reports::BlockType;
 use netpix_common::rtcp::payload_feedbacks::PayloadFeedback;
+use netpix_common::rtcp::{ExtendedReport, TransportFeedback};
 use netpix_common::{
     packet::SessionPacket,
     rtcp::{
@@ -26,6 +30,8 @@ use netpix_common::{
     },
 };
 use std::any::Any;
+use std::cell::RefCell;
+use std::collections::HashMap;
 
 declare_table_struct!(RtcpPacketsTable);
 
@@ -35,6 +41,9 @@ impl_table_base!(
         .filter("source", "Filter by source IP address")
         .filter("dest", "Filter by destination IP address")
         .filter("type", "Filter by RTCP packet type")
+        .filter("ssrc", "Filter by SSRC of packet")
+        .filter("dir", "Filter by direction")
+        .filter("alias", "Filter by alias")
         .example("source:192.168 AND type:sender")
         .example("dest:10.0.0 OR type:receiver")
         .build(),
@@ -47,6 +56,7 @@ impl_table_base!(
             ("Source", "Source IP address and port"),
             ("Destination", "Destination IP address and port"),
             ("Type", "Type of the RTCP packet"),
+            ("Alias", "Alias for SSRC"),
             ("Data", "Data specific to RTCP packet's type"),
         ];
 
@@ -60,9 +70,10 @@ impl_table_base!(
     ;
     build_table_body: |self, body| {
         let streams = &self.streams.borrow();
+        let alias_helper = streams.alias_helper.borrow();
         let mut rtcp_packets = Vec::new();
+        let base_ts = streams.packets.get_base_timestamp();
 
-        // Collect RTCP packets with metadata
         for packet in streams.packets.values() {
             let rtcp = match &packet.contents {
                 SessionPacket::Rtcp(rtcp) => rtcp,
@@ -70,10 +81,14 @@ impl_table_base!(
             };
 
             for (idx, rtcp_packet) in rtcp.iter().enumerate() {
+                let alias = alias_helper.get_alias(rtcp_packet.get_ssrc().unwrap_or(0));
                 let ctx = RtcpFilterContext {
                     packet: rtcp_packet,
                     source_addr: &packet.source_addr.to_string(),
                     destination_addr: &packet.destination_addr.to_string(),
+                    direction: &packet.metadata.direction.to_string(),
+                    ssrc: &rtcp_packet.get_ssrc_merged(),
+                    alias: &alias,
                 };
 
                 if !self.packet_matches_filter(&ctx) {
@@ -94,29 +109,58 @@ impl_table_base!(
         }
 
         let heights = rtcp_packets.iter().map(|info| get_row_height(info.rtcp_packet));
-        let first_ts = streams.packets.first().unwrap().timestamp;
 
         body.heterogeneous_rows(heights, |mut row| {
             let info = &rtcp_packets[row.index()];
+
+            let meta = &info.packet.metadata;
+            let is_synthetic = meta.is_synthetic_addr;
+
+
+            let ssrc = info.rtcp_packet.get_ssrc().unwrap_or(0);
+            let row_color = alias_helper.get_color(ssrc);
+            let alias = alias_helper.get_alias(ssrc);
+            let src_desc = alias_helper.get_meta(ssrc).unwrap_or("Unknown".to_string());
+
+
 
             row.col(|ui| {
                 ui.label(format!("{} ({})", info.id, info.compound_index));
             });
             row.col(|ui| {
-                let timestamp = info.packet.timestamp - first_ts;
+                let timestamp = info.packet.timestamp - base_ts;
                 ui.label(format!("{:.4}", timestamp.as_secs_f64()));
             });
-            row.col(|ui| {
-                ui.label(info.packet.source_addr.to_string());
+           row.col(|ui| {
+                if is_synthetic {
+                    match meta.direction {
+                        PacketDirection::Incoming => ui.label("Remote"),
+                        PacketDirection::Outgoing => ui.label("Local"),
+                        _ => ui.label("?"),
+                    };
+                } else {
+                    ui.label(info.packet.source_addr.to_string());
+                }
             });
             row.col(|ui| {
-                ui.label(info.packet.destination_addr.to_string());
+                if is_synthetic {
+                    match meta.direction {
+                        PacketDirection::Incoming => ui.label("Local"),
+                        PacketDirection::Outgoing => ui.label("Remote"),
+                        _ => ui.label("?"),
+                    };
+                } else {
+                    ui.label(info.packet.destination_addr.to_string());
+                }
             });
             row.col(|ui| {
                 ui.label(info.rtcp_packet.get_type_name().to_string());
             });
             row.col(|ui| {
-                build_packet(ui, info.rtcp_packet);
+                build_alias_row(ui,&alias,row_color,ssrc ,meta.direction.clone() ,&src_desc);
+            });
+            row.col(|ui| {
+                build_packet(ui, info.rtcp_packet,&alias_helper);
             });
         });
     }
@@ -133,6 +177,7 @@ declare_table!(RtcpPacketsTable, FilterType, {
         column(Some(150.0), 150.0, None, false, true),
         column(Some(150.0), 150.0, None, false, true),
         column(Some(250.0), 250.0, None, false, true),
+        column(Some(50.0), 50.0, None, false, true),
         column(None, 200.0, None, false, true),
     )
 });
@@ -194,29 +239,36 @@ fn get_row_height(packet: &RtcpPacket) -> f32 {
                 }
             }
         },
+        RtcpPacket::TransportSpecificFeedback(_) => 3.0,
         _ => 1.0,
     };
 
     length * 20.0
 }
 
-fn build_packet(ui: &mut Ui, packet: &RtcpPacket) {
+pub fn build_packet(ui: &mut Ui, packet: &RtcpPacket, alias_helper: &StreamAliasHelper) {
     match packet {
-        RtcpPacket::SenderReport(report) => build_sender_report(ui, report),
-        RtcpPacket::ReceiverReport(report) => build_receiver_report(ui, report),
-        RtcpPacket::SourceDescription(desc) => build_source_description(ui, desc),
-        RtcpPacket::Goodbye(bye) => build_goodbye(ui, bye),
+        RtcpPacket::SenderReport(report) => build_sender_report(ui, report, alias_helper),
+        RtcpPacket::ReceiverReport(report) => build_receiver_report(ui, report, alias_helper),
+        RtcpPacket::SourceDescription(desc) => build_source_description(ui, desc, alias_helper),
+        RtcpPacket::Goodbye(bye) => build_goodbye(ui, bye, alias_helper),
         RtcpPacket::PayloadSpecificFeedback(pf) => match pf {
-            PayloadFeedback::PictureLossIndication(pli) => build_picture_loss_indication(ui, pli),
-            PayloadFeedback::ReceiverEstimatedMaximumBitrate(remb) => {
-                build_receiver_estimated_maximum_bitrate(ui, remb)
+            PayloadFeedback::PictureLossIndication(pli) => {
+                build_picture_loss_indication(ui, pli, alias_helper)
             }
-            PayloadFeedback::SliceLossIndication(sli) => build_slice_loss_indication(ui, sli),
-            PayloadFeedback::FullIntraRequest(fir) => build_full_intra_request(ui, fir),
+            PayloadFeedback::ReceiverEstimatedMaximumBitrate(remb) => {
+                build_receiver_estimated_maximum_bitrate(ui, remb, alias_helper)
+            }
+            PayloadFeedback::SliceLossIndication(sli) => {
+                build_slice_loss_indication(ui, sli, alias_helper)
+            }
+            PayloadFeedback::FullIntraRequest(fir) => {
+                build_full_intra_request(ui, fir, alias_helper)
+            }
         },
-        RtcpPacket::ExtendedReport(xr) => build_extended_report(ui, xr),
+        RtcpPacket::ExtendedReport(xr) => build_extended_report(ui, xr, alias_helper),
         RtcpPacket::TransportSpecificFeedback(tf) => {
-            ui.label(tf.get_type_name());
+            build_transport_feedback(ui, tf, alias_helper);
         }
         RtcpPacket::Other(packet_type) => {
             ui.label(format!("Packet type: {:?}", packet_type));
@@ -227,8 +279,8 @@ fn build_packet(ui: &mut Ui, packet: &RtcpPacket) {
     };
 }
 
-fn build_sender_report(ui: &mut Ui, report: &SenderReport) {
-    build_label(ui, "Source:", format!("{:x}", report.ssrc));
+fn build_sender_report(ui: &mut Ui, report: &SenderReport, alias_helper: &StreamAliasHelper) {
+    build_ssrc_row(ui, "Source:", report.ssrc, alias_helper);
     ui.horizontal(|ui| {
         ui.vertical(|ui| {
             let datetime = ntp_to_string(report.ntp_time);
@@ -241,16 +293,20 @@ fn build_sender_report(ui: &mut Ui, report: &SenderReport) {
         });
     });
     ui.separator();
-    build_reception_reports(ui, &report.reports);
+    build_reception_reports(ui, &report.reports, alias_helper);
 }
 
-fn build_receiver_report(ui: &mut Ui, report: &ReceiverReport) {
-    build_label(ui, "Source:", format!("{:x}", report.ssrc));
+fn build_receiver_report(ui: &mut Ui, report: &ReceiverReport, alias_helper: &StreamAliasHelper) {
+    build_ssrc_row(ui, "Source:", report.ssrc, alias_helper);
     ui.separator();
-    build_reception_reports(ui, &report.reports);
+    build_reception_reports(ui, &report.reports, alias_helper);
 }
 
-fn build_reception_reports(ui: &mut Ui, reports: &Vec<ReceptionReport>) {
+fn build_reception_reports(
+    ui: &mut Ui,
+    reports: &Vec<ReceptionReport>,
+    alias_helper: &StreamAliasHelper,
+) {
     if reports.is_empty() {
         let text = RichText::new("No reception reports").strong();
         ui.label(text);
@@ -268,7 +324,7 @@ fn build_reception_reports(ui: &mut Ui, reports: &Vec<ReceptionReport>) {
             let fraction_lost = (report.fraction_lost as f64 / u8::MAX as f64) * 100.0;
             let delay = report.delay as f64 / u16::MAX as f64 * 1000.0;
             ui.vertical(|ui| {
-                build_label(ui, "SSRC:", format!("{:x}", report.ssrc));
+                build_ssrc_row(ui, "SSRC:", report.ssrc, alias_helper);
                 build_label(ui, "Fraction lost:", format!("{}%", fraction_lost));
                 build_label(ui, "Cumulative lost:", report.total_lost.to_string());
                 build_label(
@@ -292,7 +348,11 @@ fn build_reception_reports(ui: &mut Ui, reports: &Vec<ReceptionReport>) {
     });
 }
 
-fn build_source_description(ui: &mut Ui, desc: &SourceDescription) {
+fn build_source_description(
+    ui: &mut Ui,
+    desc: &SourceDescription,
+    alias_helper: &StreamAliasHelper,
+) {
     let mut first = true;
     ui.horizontal(|ui| {
         for chunk in &desc.chunks {
@@ -302,7 +362,7 @@ fn build_source_description(ui: &mut Ui, desc: &SourceDescription) {
                 first = false;
             }
             ui.vertical(|ui| {
-                build_label(ui, "Source:", format!("{:x}", chunk.source));
+                build_ssrc_row(ui, "Source:", chunk.source, alias_helper);
                 for item in &chunk.items {
                     build_label(ui, item.sdes_type.to_string(), item.text.clone());
                 }
@@ -311,41 +371,60 @@ fn build_source_description(ui: &mut Ui, desc: &SourceDescription) {
     });
 }
 
-fn build_goodbye(ui: &mut Ui, bye: &Goodbye) {
-    let ssrcs = bye
-        .sources
-        .iter()
-        .map(|ssrc| format!("{:x}", ssrc))
-        .collect::<Vec<_>>()
-        .join(", ");
+fn build_goodbye(ui: &mut Ui, bye: &Goodbye, alias_helper: &StreamAliasHelper) {
+    ui.horizontal(|ui| {
+        ui.label(RichText::new("Sources:").strong());
+        for (i, ssrc) in bye.sources.iter().enumerate() {
+            if i > 0 {
+                ui.label(", ");
+            }
+            ui.label(format!("{:x}", ssrc))
+                .on_hover_text(format!("Alias: {}", alias_helper.get_alias(*ssrc)));
+        }
+    });
 
-    build_label(ui, "Sources:", ssrcs);
     build_label(ui, "Reason:", bye.reason.clone());
 }
 
-fn build_picture_loss_indication(ui: &mut Ui, pli: &PictureLossIndication) {
-    build_label(ui, "Sender SSRC:", format!("{:x}", pli.sender_ssrc));
-    build_label(ui, "Media SSRC:", format!("{:x}", pli.media_ssrc));
+fn build_picture_loss_indication(
+    ui: &mut Ui,
+    pli: &PictureLossIndication,
+    alias_helper: &StreamAliasHelper,
+) {
+    build_ssrc_row(ui, "Sender SSRC:", pli.sender_ssrc, alias_helper);
+    build_ssrc_row(ui, "Media SSRC:", pli.media_ssrc, alias_helper);
 }
 
-fn build_receiver_estimated_maximum_bitrate(ui: &mut Ui, remb: &ReceiverEstimatedMaximumBitrate) {
-    build_label(ui, "Sender SSRC:", format!("{:x}", remb.sender_ssrc));
+fn build_receiver_estimated_maximum_bitrate(
+    ui: &mut Ui,
+    remb: &ReceiverEstimatedMaximumBitrate,
+    alias_helper: &StreamAliasHelper,
+) {
+    build_ssrc_row(ui, "Sender SSRC:", remb.sender_ssrc, alias_helper);
     let kbps = remb.bitrate / 1000.0;
     build_label(ui, "Bitrate:", format!("{:.2} kbps", kbps));
-    let ssrcs = remb
-        .ssrcs
-        .iter()
-        .map(|s| format!("{:x}", s))
-        .collect::<Vec<_>>()
-        .join(", ");
-    if !ssrcs.is_empty() {
-        build_label(ui, "SSRCs:", ssrcs);
+
+    if !remb.ssrcs.is_empty() {
+        ui.horizontal(|ui| {
+            ui.label(RichText::new("SSRCs:").strong());
+            for (i, ssrc) in remb.ssrcs.iter().enumerate() {
+                if i > 0 {
+                    ui.label(", ");
+                }
+                ui.label(format!("{:x}", ssrc))
+                    .on_hover_text(format!("Alias: {}", alias_helper.get_alias(*ssrc)));
+            }
+        });
     }
 }
 
-fn build_slice_loss_indication(ui: &mut Ui, sli: &SliceLossIndication) {
-    build_label(ui, "Sender SSRC:", format!("{:x}", sli.sender_ssrc));
-    build_label(ui, "Media SSRC:", format!("{:x}", sli.media_ssrc));
+fn build_slice_loss_indication(
+    ui: &mut Ui,
+    sli: &SliceLossIndication,
+    alias_helper: &StreamAliasHelper,
+) {
+    build_ssrc_row(ui, "Sender SSRC:", sli.sender_ssrc, alias_helper);
+    build_ssrc_row(ui, "Media SSRC:", sli.media_ssrc, alias_helper);
 
     if sli.sli_entries.is_empty() {
         ui.label(RichText::new("No SLI entries").strong());
@@ -369,9 +448,9 @@ fn build_slice_loss_indication(ui: &mut Ui, sli: &SliceLossIndication) {
     }
 }
 
-fn build_full_intra_request(ui: &mut Ui, fir: &FullIntraRequest) {
-    build_label(ui, "Sender SSRC:", format!("{:x}", fir.sender_ssrc));
-    build_label(ui, "Media SSRC:", format!("{:x}", fir.media_ssrc));
+fn build_full_intra_request(ui: &mut Ui, fir: &FullIntraRequest, alias_helper: &StreamAliasHelper) {
+    build_ssrc_row(ui, "Sender SSRC:", fir.sender_ssrc, alias_helper);
+    build_ssrc_row(ui, "Media SSRC:", fir.media_ssrc, alias_helper);
 
     if fir.fir.is_empty() {
         ui.label(RichText::new("No FIR entries").strong());
@@ -386,7 +465,7 @@ fn build_full_intra_request(ui: &mut Ui, fir: &FullIntraRequest) {
                     first = false;
                 }
                 ui.vertical(|ui| {
-                    build_label(ui, "SSRC:", format!("{:x}", entry.ssrc));
+                    build_ssrc_row(ui, "SSRC:", entry.ssrc, alias_helper);
                     build_label(ui, "Sequence number:", entry.sequence_number.to_string());
                 });
             }
@@ -394,8 +473,8 @@ fn build_full_intra_request(ui: &mut Ui, fir: &FullIntraRequest) {
     }
 }
 
-fn build_extended_report(ui: &mut Ui, xr: &ExtendedReport) {
-    build_label(ui, "Sender SSRC:", format!("{:x}", xr.sender_ssrc));
+fn build_extended_report(ui: &mut Ui, xr: &ExtendedReport, alias_helper: &StreamAliasHelper) {
+    build_ssrc_row(ui, "Sender SSRC:", xr.sender_ssrc, alias_helper);
 
     if xr.reports.is_empty() {
         ui.separator();
@@ -433,7 +512,7 @@ fn build_extended_report(ui: &mut Ui, xr: &ExtendedReport) {
                                 first = false;
                             }
                             ui.vertical(|ui| {
-                                build_label(ui, "SSRC:", format!("{:x}", dlrr_report.ssrc));
+                                build_ssrc_row(ui, "SSRC:", dlrr_report.ssrc, alias_helper);
                                 build_label(ui, "Last RR:", dlrr_report.last_rr.to_string());
                                 build_label(ui, "DLRR:", dlrr_report.dlrr.to_string());
                             });
@@ -445,6 +524,22 @@ fn build_extended_report(ui: &mut Ui, xr: &ExtendedReport) {
         }
     }
 }
+
+fn build_transport_feedback(ui: &mut Ui, tf: &TransportFeedback, alias_helper: &StreamAliasHelper) {
+    ui.vertical(|ui| {
+        build_label(ui, "Type:", tf.get_type_name());
+        build_ssrc_row(ui, "Sender SSRC:", tf.sender_ssrc, alias_helper);
+        build_ssrc_row(ui, "Media SSRC:", tf.media_ssrc, alias_helper);
+    });
+}
+
+fn build_ssrc_row(ui: &mut Ui, label: &str, ssrc: u32, helper: &StreamAliasHelper) {
+    ui.horizontal(|ui| {
+        ui.label(RichText::new(label).strong());
+        ui.label(format!("{} | {:x}", helper.get_alias(ssrc), ssrc));
+    });
+}
+
 fn build_label(ui: &mut Ui, bold: impl Into<String>, normal: impl Into<String>) {
     let source_label = RichText::new(bold.into()).strong();
     ui.horizontal(|ui| {

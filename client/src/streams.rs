@@ -1,6 +1,8 @@
 #![allow(dead_code)]
 use crate::streams::rtcp_stream::RtcpStream;
+use eframe::epaint::{Color32, Hsva};
 use mpegts_stream::MpegTsStream;
+use netpix_common::packet::StreamMetaData;
 use netpix_common::rtcp::ReceptionReport;
 use netpix_common::rtcp::payload_feedbacks::PayloadFeedback;
 use netpix_common::{
@@ -9,6 +11,7 @@ use netpix_common::{
 };
 use packets::Packets;
 use rtpStream::RtpStream;
+use std::cell::RefMut;
 use std::{cell::RefCell, collections::HashMap, net::SocketAddr, rc::Rc};
 
 pub mod mpegts_stream;
@@ -26,6 +29,7 @@ pub struct Streams {
     pub rtp_streams: HashMap<RtpStreamKey, RtpStream>,
     pub mpeg_ts_streams: HashMap<MpegtsStreamKey, MpegTsStream>,
     pub rtcp_streams: HashMap<RtpStreamKey, RtcpStream>,
+    pub alias_helper: Rc<RefCell<StreamAliasHelper>>,
 }
 
 impl Streams {
@@ -44,6 +48,7 @@ impl Streams {
                 &mut self.rtp_streams,
                 &mut self.mpeg_ts_streams,
                 &mut self.rtcp_streams,
+                self.alias_helper.borrow_mut(),
                 &packet,
             );
             self.packets.add_packet(packet);
@@ -67,6 +72,7 @@ impl Streams {
                 &mut new_rtp_streams,
                 &mut new_mpegts_streams,
                 &mut new_rtcp_streams,
+                self.alias_helper.borrow_mut(),
                 packet,
             )
         });
@@ -83,6 +89,7 @@ fn handle_packet(
     rtp_streams: &mut HashMap<RtpStreamKey, RtpStream>,
     mpegts_streams: &mut HashMap<MpegtsStreamKey, MpegTsStream>,
     rtcp_streams: &mut HashMap<RtpStreamKey, RtcpStream>,
+    stream_helper: RefMut<StreamAliasHelper>,
     packet: &Packet,
 ) {
     match packet.contents {
@@ -152,6 +159,9 @@ fn handle_packet(
                 }
             }
         }
+        SessionPacket::Meta(ref meta) => {
+            stream_helper.put_meta(meta.clone());
+        }
         _ => {}
     };
 }
@@ -172,7 +182,8 @@ fn insert_or_update_rtcp_stream(
     if let Some(stream) = rtcp_streams.get_mut(&key_same_port) {
         stream.update(pack, packet.timestamp);
     } else {
-        let mut new_stream = RtcpStream::new(ssrc, packet);
+        let direction = packet.metadata.direction.clone();
+        let mut new_stream = RtcpStream::new(ssrc, packet, direction);
         new_stream.update(pack, packet.timestamp);
         rtcp_streams.insert(key_same_port, new_stream);
     }
@@ -228,4 +239,75 @@ fn int_to_letter(unique_id: usize) -> String {
     }
 
     result
+}
+
+#[derive(Default, Clone, Debug)]
+pub struct StreamAliasHelper {
+    cache: RefCell<std::collections::HashMap<u32, String>>,
+    meta: RefCell<HashMap<u32, String>>,
+}
+
+impl StreamAliasHelper {
+    pub fn get_alias(&self, ssrc: u32) -> String {
+        let mut cache = self.cache.borrow_mut();
+
+        if let Some(alias) = cache.get(&ssrc) {
+            return alias.clone();
+        }
+
+        let index = cache.len() as u32;
+        let alias = self.index_to_letter(index);
+
+        cache.insert(ssrc, alias.clone());
+        alias
+    }
+
+    pub fn put_meta(&self, meta_data: StreamMetaData) {
+        let mut meta = self.meta.borrow_mut();
+
+        meta.insert(meta_data.ssrc, meta_data.stream_type.to_string());
+    }
+
+    pub fn get_meta(&self, ssrc: u32) -> Option<String> {
+        let meta = self.meta.borrow();
+        if let Some(meta_data) = meta.get(&ssrc) {
+            return Some(meta_data.clone());
+        }
+
+        None
+    }
+
+    fn index_to_letter(&self, mut index: u32) -> String {
+        let mut result = Vec::with_capacity(4);
+        loop {
+            let remainder = index % 26;
+            result.push((b'A' + remainder as u8) as char);
+            if index < 26 {
+                break;
+            }
+            index = (index / 26) - 1;
+        }
+        result.into_iter().rev().collect()
+    }
+
+    pub fn get_color(&self, ssrc: u32) -> Color32 {
+        let mut cache = self.cache.borrow_mut();
+
+        if !cache.contains_key(&ssrc) {
+            let index = cache.len() as u32;
+            let alias = self.index_to_letter(index);
+            cache.insert(ssrc, alias);
+        };
+
+        let hash = (ssrc as u64).wrapping_mul(11400714819323198485);
+        let hue = (hash as f32) / (u64::MAX as f32); // 0.0 - 1.0
+
+        // High saturation and value for visibility against dark backgrounds
+        // Maybe different logic for light mode?
+        Color32::from(Hsva::new(hue, 0.7, 0.9, 1.0))
+    }
+
+    pub fn print_ssrc(&self, ssrc: u32) -> String {
+        format!("{:x} | alias: {}", ssrc, self.get_alias(ssrc))
+    }
 }

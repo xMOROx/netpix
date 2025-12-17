@@ -1,8 +1,15 @@
 use crate::bitstream::{BlobDecoder, FixedLengthDeltaDecoder};
 use crate::types::{LogRtcpPacket, RtcpPacketType};
-use crate::webrtc::rtclog2::EventStream;
-use netpix_common::packet::{Packet, SessionPacket, SessionProtocol, TransportProtocol};
+use crate::webrtc::rtclog2::{
+    AudioRecvStreamConfig, AudioSendStreamConfig, EventStream, VideoRecvStreamConfig,
+    VideoSendStreamConfig,
+};
+use netpix_common::packet::{
+    Packet, PacketDirection, PacketMetadata, SessionPacket, SessionProtocol, StreamMetaData,
+    StreamType, TransportProtocol,
+};
 use prost::{DecodeError, Message};
+use std::collections::HashMap;
 use std::io::SeekFrom;
 use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 use std::time::SystemTime;
@@ -17,19 +24,27 @@ const POLL_INTERVAL_MS: u64 = 200;
 
 pub struct Parser {
     pub packets: Vec<Packet>,
+    stream_meta: HashMap<u32, StreamMetaData>,
     pack_num: usize,
 }
 
 impl Parser {
-    pub fn new(packets: Vec<Packet>) -> Parser {
+    pub fn new() -> Parser {
         Parser {
-            packets,
+            packets: vec![],
+            stream_meta: HashMap::new(),
             pack_num: 0,
         }
     }
 
     fn decode(&mut self, buf: &[u8]) -> Result<(), DecodeError> {
         let event_stream: EventStream = Message::decode(buf)?;
+
+        self.parse_video_send_stream_config(&event_stream.video_send_stream_configs);
+        self.parse_video_recv_stream_config(&event_stream.video_recv_stream_configs);
+        self.parse_audio_send_stream_config(&event_stream.audio_send_stream_configs);
+        self.parse_audio_recv_stream_config(&event_stream.audio_recv_stream_configs);
+
         let inc_packets: Vec<LogRtcpPacket> = event_stream
             .incoming_rtcp_packets
             .into_iter()
@@ -52,6 +67,14 @@ impl Parser {
             Err(e) => return Err(e),
         };
 
+        let mut meta_packets: Vec<Packet> = self
+            .stream_meta
+            .values()
+            .cloned()
+            .map(Into::into)
+            .collect();
+
+        self.packets.append(&mut meta_packets);
         self.packets.sort_by_key(|p| p.timestamp);
 
         for (i, packet) in self.packets.iter_mut().enumerate() {
@@ -68,7 +91,7 @@ impl Parser {
         let mut file = File::open(file_path).await?;
         file.seek(SeekFrom::Start(0)).await?;
 
-        let mut parser = Parser::new(Vec::new());
+        let mut parser = Parser::new();
 
         let mut buf = vec![0u8; READ_BUFFER_SIZE];
 
@@ -166,9 +189,23 @@ impl Parser {
                 let payload = packets.raw_packet.unwrap();
                 let length = payload.len();
 
-                let (source_addr, destination_addr) = match packets.type_ {
-                    RtcpPacketType::Outgoing => (out_addr, inc_addr),
-                    _ => (inc_addr, out_addr),
+                let (source_addr, destination_addr, metadata) = match packets.type_ {
+                    RtcpPacketType::Outgoing => (
+                        out_addr,
+                        inc_addr,
+                        PacketMetadata {
+                            direction: PacketDirection::Outgoing,
+                            is_synthetic_addr: true,
+                        },
+                    ),
+                    _ => (
+                        inc_addr,
+                        out_addr,
+                        PacketMetadata {
+                            direction: PacketDirection::Incoming,
+                            is_synthetic_addr: true,
+                        },
+                    ),
                 };
 
                 self.packets.push(Packet {
@@ -182,6 +219,7 @@ impl Parser {
                     session_protocol: SessionProtocol::Rtcp,
                     contents: SessionPacket::Unknown,
                     creation_time: SystemTime::now(),
+                    metadata: metadata.clone(),
                 });
 
                 for (i, blob) in blobs.iter().enumerate() {
@@ -195,7 +233,7 @@ impl Parser {
 
                     self.packets.push(Packet {
                         payload: Some(payload),
-                        id: 0, // Assign the unique, incrementing ID.
+                        id: 0,
                         timestamp: Duration::from_millis(timestamp_ms),
                         length,
                         source_addr,
@@ -204,10 +242,46 @@ impl Parser {
                         session_protocol: SessionProtocol::Rtcp,
                         contents: SessionPacket::Unknown,
                         creation_time: SystemTime::now(),
+                        metadata: metadata.clone(),
                     });
                 }
             }
         }
         Ok(())
+    }
+
+    fn register_stream(&mut self, ssrc_opt: Option<u32>, stream_type: StreamType) {
+        if let Some(ssrc) = ssrc_opt {
+            self.stream_meta
+                .insert(ssrc, StreamMetaData { ssrc, stream_type });
+        }
+    }
+
+    pub fn parse_video_send_stream_config(&mut self, configs: &[VideoSendStreamConfig]) {
+        for config in configs {
+            self.register_stream(config.ssrc, StreamType::Video);
+            self.register_stream(config.rtx_ssrc, StreamType::RTX);
+        }
+    }
+
+    pub fn parse_video_recv_stream_config(&mut self, configs: &[VideoRecvStreamConfig]) {
+        for config in configs {
+            self.register_stream(config.remote_ssrc, StreamType::Video);
+            self.register_stream(config.local_ssrc, StreamType::VideoControl);
+            self.register_stream(config.rtx_ssrc, StreamType::RTX);
+        }
+    }
+
+    pub fn parse_audio_send_stream_config(&mut self, configs: &[AudioSendStreamConfig]) {
+        for config in configs {
+            self.register_stream(config.ssrc, StreamType::Audio);
+        }
+    }
+
+    pub fn parse_audio_recv_stream_config(&mut self, configs: &[AudioRecvStreamConfig]) {
+        for config in configs {
+            self.register_stream(config.remote_ssrc, StreamType::Audio);
+            self.register_stream(config.local_ssrc, StreamType::AudioControl);
+        }
     }
 }
