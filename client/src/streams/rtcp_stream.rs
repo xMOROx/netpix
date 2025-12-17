@@ -87,20 +87,34 @@ impl RtcpStream {
         if let (Some(last_event_time_duration), Some(last_octets)) =
             (self.last_sr_timestamp, self.last_sr_octet_count)
             && let Some(delta_duration) =
-                current_event_time_duration.checked_sub(&last_event_time_duration)
+            current_event_time_duration.checked_sub(&last_event_time_duration)
         {
             let delta_time_secs =
                 delta_duration.num_microseconds().unwrap_or(0) as f64 / 1_000_000.0;
 
-            if delta_time_secs > 0.0 {
+            // FIX 1: Filter out tiny time deltas to prevent "Infinity" spikes
+            if delta_time_secs > 0.05 {
                 let delta_octets = report.octet_count.wrapping_sub(last_octets);
 
-                let bitrate_bps = (delta_octets as f64 * 8.0) / delta_time_secs;
-                self.current_avg_bitrate_bps = bitrate_bps;
+                // Calculate Raw Instant Bitrate
+                let raw_bitrate = (delta_octets as f64 * 8.0) / delta_time_secs;
+
+                // FIX 2: Apply Exponential Moving Average (EMA)
+                // Alpha of 0.3 means the new value has 30% weight, history has 70%.
+                // Lower alpha = smoother graph, slower reaction. Higher alpha = jagged graph, fast reaction.
+                let alpha = 0.3;
+
+                if self.current_avg_bitrate_bps == 0.0 {
+                    // First data point, just accept the raw value
+                    self.current_avg_bitrate_bps = raw_bitrate;
+                } else {
+                    self.current_avg_bitrate_bps =
+                        (raw_bitrate * alpha) + (self.current_avg_bitrate_bps * (1.0 - alpha));
+                }
 
                 self.bitrate_history.push(PlotPoint::new(
                     self.get_ntp_time_from_timestamp(&timestamp),
-                    bitrate_bps,
+                    self.current_avg_bitrate_bps, // Plot the smoothed value
                 ));
             }
         }
