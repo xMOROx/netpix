@@ -90,12 +90,35 @@ impl IceCandidatesTable {
         };
 
         for (packet, stun) in stun_packets {
-            let a = packet.source_addr.to_string();
-            let b = packet.destination_addr.to_string();
-            let (left, right) = if a <= b { (a, b) } else { (b, a) };
+            let source = packet.source_addr.to_string();
+            let dest = packet.destination_addr.to_string();
+
+            let (local, remote) = match packet.metadata.direction {
+                netpix_common::packet::PacketDirection::Outgoing => (source.clone(), dest.clone()),
+                netpix_common::packet::PacketDirection::Incoming => (dest.clone(), source.clone()),
+                netpix_common::packet::PacketDirection::Unknown => {
+                    let key1 = CandidatePairKey {
+                        local_candidate: source.clone(),
+                        remote_candidate: dest.clone(),
+                    };
+                    let key2 = CandidatePairKey {
+                        local_candidate: dest.clone(),
+                        remote_candidate: source.clone(),
+                    };
+
+                    if data.candidate_pairs.contains_key(&key1) {
+                        (source.clone(), dest.clone())
+                    } else if data.candidate_pairs.contains_key(&key2) {
+                        (dest.clone(), source.clone())
+                    } else {
+                        (source.clone(), dest.clone())
+                    }
+                }
+            };
+
             let key = CandidatePairKey {
-                local_candidate: left.clone(),
-                remote_candidate: right.clone(),
+                local_candidate: local,
+                remote_candidate: remote,
             };
 
             let entry =
@@ -133,21 +156,35 @@ impl IceCandidatesTable {
             );
 
             if is_media {
-                let a = packet.source_addr.to_string();
-                let b = packet.destination_addr.to_string();
-                let (left, right) = if a <= b { (a, b) } else { (b, a) };
-                let key = CandidatePairKey {
-                    local_candidate: left,
-                    remote_candidate: right,
+                let source = packet.source_addr.to_string();
+                let dest = packet.destination_addr.to_string();
+
+                let key1 = CandidatePairKey {
+                    local_candidate: source.clone(),
+                    remote_candidate: dest.clone(),
+                };
+                let key2 = CandidatePairKey {
+                    local_candidate: dest,
+                    remote_candidate: source,
                 };
 
-                if let Some(stats) = data.candidate_pairs.get_mut(&key) {
-                    stats.media_packets_count += 1;
-                    if stats.state == CandidatePairState::Nominated {
-                        stats.state = CandidatePairState::SendingMedia;
-                    }
-                    if packet.timestamp > stats.last_seen {
-                        stats.last_seen = packet.timestamp;
+                let key = if data.candidate_pairs.contains_key(&key1) {
+                    Some(key1)
+                } else if data.candidate_pairs.contains_key(&key2) {
+                    Some(key2)
+                } else {
+                    None
+                };
+
+                if let Some(key) = key {
+                    if let Some(stats) = data.candidate_pairs.get_mut(&key) {
+                        stats.media_packets_count += 1;
+                        if stats.state == CandidatePairState::Nominated {
+                            stats.state = CandidatePairState::SendingMedia;
+                        }
+                        if packet.timestamp > stats.last_seen {
+                            stats.last_seen = packet.timestamp;
+                        }
                     }
                 }
             }
