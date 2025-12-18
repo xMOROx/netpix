@@ -112,6 +112,7 @@ impl IceCandidatesTable {
                         avg_rtt_ms: 0.0,
                         first_seen: packet.timestamp,
                         last_seen: packet.timestamp,
+                        media_packets_count: 0,
                     });
 
             let involves_server = is_stun_server(&packet.source_addr.to_string())
@@ -120,6 +121,35 @@ impl IceCandidatesTable {
 
             if packet.timestamp > entry.last_seen {
                 entry.last_seen = packet.timestamp;
+            }
+        }
+
+        // Check for RTP/RTCP packets on existing candidate pairs to detect media flow
+        for packet in streams.packets.values() {
+            let is_media = matches!(
+                &packet.contents,
+                netpix_common::packet::SessionPacket::Rtp(_)
+                    | netpix_common::packet::SessionPacket::Rtcp(_)
+            );
+
+            if is_media {
+                let a = packet.source_addr.to_string();
+                let b = packet.destination_addr.to_string();
+                let (left, right) = if a <= b { (a, b) } else { (b, a) };
+                let key = CandidatePairKey {
+                    local_candidate: left,
+                    remote_candidate: right,
+                };
+
+                if let Some(stats) = data.candidate_pairs.get_mut(&key) {
+                    stats.media_packets_count += 1;
+                    if stats.state == CandidatePairState::Nominated {
+                        stats.state = CandidatePairState::SendingMedia;
+                    }
+                    if packet.timestamp > stats.last_seen {
+                        stats.last_seen = packet.timestamp;
+                    }
+                }
             }
         }
 
@@ -139,8 +169,9 @@ impl IceCandidatesTable {
                 CandidatePairState::Gathered => 2,
                 CandidatePairState::InProgress => 3,
                 CandidatePairState::Nominated => 4,
-                CandidatePairState::Failed => 5,
-                CandidatePairState::Disconnected => 6,
+                CandidatePairState::SendingMedia => 5,
+                CandidatePairState::Failed => 6,
+                CandidatePairState::Disconnected => 7,
             }
         }
         let has_username = stun

@@ -46,6 +46,11 @@ impl IceCandidatesVisualization {
                 .values()
                 .filter(|p| p.state == CandidatePairState::Nominated)
                 .count();
+            let sending_media_count = data
+                .candidate_pairs
+                .values()
+                .filter(|p| p.state == CandidatePairState::SendingMedia)
+                .count();
 
             ui.colored_label(
                 Color32::LIGHT_BLUE,
@@ -57,6 +62,11 @@ impl IceCandidatesVisualization {
             ui.colored_label(Color32::YELLOW, format!("~ Checking: {}", checking_count));
             ui.separator();
             ui.colored_label(Color32::GREEN, format!("+ Nominated: {}", nominated_count));
+            ui.separator();
+            ui.colored_label(
+                Color32::from_rgb(0, 200, 255),
+                format!("▶ Sending Media: {}", sending_media_count),
+            );
         });
 
         ui.horizontal(|ui| {
@@ -73,6 +83,7 @@ impl IceCandidatesVisualization {
                 CandidatePairState::Gathered,
                 CandidatePairState::InProgress,
                 CandidatePairState::Nominated,
+                CandidatePairState::SendingMedia,
                 CandidatePairState::Failed,
             ] {
                 if ui
@@ -364,6 +375,12 @@ impl IceCandidatesVisualization {
                             ui.label(format!("Checks Received: {}", pair.checks_received));
                             ui.label(format!("Responses Received: {}", pair.responses_received));
                             ui.label(format!("Responses Sent: {}", pair.responses_sent));
+                            if pair.media_packets_count > 0 {
+                                ui.colored_label(
+                                    Color32::from_rgb(0, 200, 255),
+                                    format!("Media Packets: {}", pair.media_packets_count),
+                                );
+                            }
                         });
 
                         ui.separator();
