@@ -19,6 +19,7 @@ pub struct CandidatePairStats {
     pub avg_rtt_ms: f64,
     pub first_seen: Duration,
     pub last_seen: Duration,
+    pub media_packets_count: u32,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -27,6 +28,7 @@ pub enum CandidatePairState {
     Gathered,
     InProgress,
     Nominated,
+    SendingMedia,
     Failed,
     Frozen,
     Disconnected,
@@ -37,6 +39,7 @@ impl CandidatePairState {
         match self {
             CandidatePairState::Gathering => egui::Color32::GRAY,
             CandidatePairState::Nominated => egui::Color32::GREEN,
+            CandidatePairState::SendingMedia => egui::Color32::from_rgb(0, 200, 255),
             CandidatePairState::InProgress => egui::Color32::YELLOW,
             CandidatePairState::Failed => egui::Color32::RED,
             CandidatePairState::Gathered => egui::Color32::LIGHT_BLUE,
@@ -49,6 +52,7 @@ impl CandidatePairState {
         match self {
             CandidatePairState::Gathering => "> Gathering",
             CandidatePairState::Nominated => "+ Nominated",
+            CandidatePairState::SendingMedia => "▶ Sending Media",
             CandidatePairState::InProgress => "~ Checking",
             CandidatePairState::Failed => "X Failed",
             CandidatePairState::Gathered => "* Gathered",
@@ -63,6 +67,7 @@ impl CandidatePairState {
             CandidatePairState::Gathered => "Gathered server reflexive address",
             CandidatePairState::InProgress => "Performing peer-to-peer connectivity checks",
             CandidatePairState::Nominated => "Pair nominated for communication",
+            CandidatePairState::SendingMedia => "Actively sending RTP/RTCP media",
             CandidatePairState::Failed => "Connectivity check failed",
             CandidatePairState::Frozen => "No information yet",
             CandidatePairState::Disconnected => "Connection lost",

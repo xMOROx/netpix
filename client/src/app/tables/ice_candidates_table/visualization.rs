@@ -46,6 +46,11 @@ impl IceCandidatesVisualization {
                 .values()
                 .filter(|p| p.state == CandidatePairState::Nominated)
                 .count();
+            let sending_media_count = data
+                .candidate_pairs
+                .values()
+                .filter(|p| p.state == CandidatePairState::SendingMedia)
+                .count();
 
             ui.colored_label(
                 Color32::LIGHT_BLUE,
@@ -57,6 +62,11 @@ impl IceCandidatesVisualization {
             ui.colored_label(Color32::YELLOW, format!("~ Checking: {}", checking_count));
             ui.separator();
             ui.colored_label(Color32::GREEN, format!("+ Nominated: {}", nominated_count));
+            ui.separator();
+            ui.colored_label(
+                Color32::from_rgb(0, 200, 255),
+                format!("▶ Sending Media: {}", sending_media_count),
+            );
         });
 
         ui.horizontal(|ui| {
@@ -73,6 +83,7 @@ impl IceCandidatesVisualization {
                 CandidatePairState::Gathered,
                 CandidatePairState::InProgress,
                 CandidatePairState::Nominated,
+                CandidatePairState::SendingMedia,
                 CandidatePairState::Failed,
             ] {
                 if ui
@@ -99,11 +110,13 @@ impl IceCandidatesVisualization {
             return;
         }
 
-        let filtered_pairs: Vec<_> = data
+        let mut filtered_pairs: Vec<_> = data
             .candidate_pairs
             .values()
             .filter(|pair| self.filter_state.is_none() || self.filter_state == Some(pair.state))
             .collect();
+
+        filtered_pairs.sort_by_key(|pair| pair.first_seen);
 
         if filtered_pairs.is_empty() {
             ui.vertical_centered(|ui| {
@@ -194,7 +207,9 @@ impl IceCandidatesVisualization {
                 ui.allocate_painter(Vec2::new(available_width, total_height), Sense::click());
             let rect = response.rect;
 
-            painter.rect_filled(rect, Rounding::same(4.0), Color32::from_rgb(30, 30, 30));
+            let bg_color = ui.visuals().extreme_bg_color;
+            let text_color = ui.visuals().text_color();
+            painter.rect_filled(rect, Rounding::same(4.0), bg_color);
 
             for (idx, pair) in pairs.iter().enumerate() {
                 let y = rect.min.y + (idx as f32 * pair_height) + pair_height / 2.0;
@@ -221,7 +236,7 @@ impl IceCandidatesVisualization {
                     Align2::LEFT_CENTER,
                     &pair.key.local_candidate,
                     FontId::monospace(10.0),
-                    Color32::WHITE,
+                    text_color,
                 );
 
                 // Calculate text width for local candidate
@@ -229,7 +244,7 @@ impl IceCandidatesVisualization {
                     f.layout_no_wrap(
                         pair.key.local_candidate.clone(),
                         FontId::monospace(10.0),
-                        Color32::WHITE,
+                        text_color,
                     )
                     .size()
                     .x
@@ -252,7 +267,7 @@ impl IceCandidatesVisualization {
                     Align2::RIGHT_CENTER,
                     &pair.key.remote_candidate,
                     FontId::monospace(10.0),
-                    Color32::WHITE,
+                    text_color,
                 );
 
                 // Calculate text width for remote candidate
@@ -260,7 +275,7 @@ impl IceCandidatesVisualization {
                     f.layout_no_wrap(
                         pair.key.remote_candidate.clone(),
                         FontId::monospace(10.0),
-                        Color32::WHITE,
+                        text_color,
                     )
                     .size()
                     .x
@@ -362,6 +377,12 @@ impl IceCandidatesVisualization {
                             ui.label(format!("Checks Received: {}", pair.checks_received));
                             ui.label(format!("Responses Received: {}", pair.responses_received));
                             ui.label(format!("Responses Sent: {}", pair.responses_sent));
+                            if pair.media_packets_count > 0 {
+                                ui.colored_label(
+                                    Color32::from_rgb(0, 200, 255),
+                                    format!("Media Packets: {}", pair.media_packets_count),
+                                );
+                            }
                         });
 
                         ui.separator();

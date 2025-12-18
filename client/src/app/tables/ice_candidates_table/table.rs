@@ -90,12 +90,35 @@ impl IceCandidatesTable {
         };
 
         for (packet, stun) in stun_packets {
-            let a = packet.source_addr.to_string();
-            let b = packet.destination_addr.to_string();
-            let (left, right) = if a <= b { (a, b) } else { (b, a) };
+            let source = packet.source_addr.to_string();
+            let dest = packet.destination_addr.to_string();
+
+            let (local, remote) = match packet.metadata.direction {
+                netpix_common::packet::PacketDirection::Outgoing => (source.clone(), dest.clone()),
+                netpix_common::packet::PacketDirection::Incoming => (dest.clone(), source.clone()),
+                netpix_common::packet::PacketDirection::Unknown => {
+                    let key1 = CandidatePairKey {
+                        local_candidate: source.clone(),
+                        remote_candidate: dest.clone(),
+                    };
+                    let key2 = CandidatePairKey {
+                        local_candidate: dest.clone(),
+                        remote_candidate: source.clone(),
+                    };
+
+                    if data.candidate_pairs.contains_key(&key1) {
+                        (source.clone(), dest.clone())
+                    } else if data.candidate_pairs.contains_key(&key2) {
+                        (dest.clone(), source.clone())
+                    } else {
+                        (source.clone(), dest.clone())
+                    }
+                }
+            };
+
             let key = CandidatePairKey {
-                local_candidate: left.clone(),
-                remote_candidate: right.clone(),
+                local_candidate: local,
+                remote_candidate: remote,
             };
 
             let entry =
@@ -112,6 +135,7 @@ impl IceCandidatesTable {
                         avg_rtt_ms: 0.0,
                         first_seen: packet.timestamp,
                         last_seen: packet.timestamp,
+                        media_packets_count: 0,
                     });
 
             let involves_server = is_stun_server(&packet.source_addr.to_string())
@@ -120,6 +144,49 @@ impl IceCandidatesTable {
 
             if packet.timestamp > entry.last_seen {
                 entry.last_seen = packet.timestamp;
+            }
+        }
+
+        // Check for RTP/RTCP packets on existing candidate pairs to detect media flow
+        for packet in streams.packets.values() {
+            let is_media = matches!(
+                &packet.contents,
+                netpix_common::packet::SessionPacket::Rtp(_)
+                    | netpix_common::packet::SessionPacket::Rtcp(_)
+            );
+
+            if is_media {
+                let source = packet.source_addr.to_string();
+                let dest = packet.destination_addr.to_string();
+
+                let key1 = CandidatePairKey {
+                    local_candidate: source.clone(),
+                    remote_candidate: dest.clone(),
+                };
+                let key2 = CandidatePairKey {
+                    local_candidate: dest,
+                    remote_candidate: source,
+                };
+
+                let key = if data.candidate_pairs.contains_key(&key1) {
+                    Some(key1)
+                } else if data.candidate_pairs.contains_key(&key2) {
+                    Some(key2)
+                } else {
+                    None
+                };
+
+                if let Some(key) = key {
+                    if let Some(stats) = data.candidate_pairs.get_mut(&key) {
+                        stats.media_packets_count += 1;
+                        if stats.state == CandidatePairState::Nominated {
+                            stats.state = CandidatePairState::SendingMedia;
+                        }
+                        if packet.timestamp > stats.last_seen {
+                            stats.last_seen = packet.timestamp;
+                        }
+                    }
+                }
             }
         }
 
@@ -139,8 +206,9 @@ impl IceCandidatesTable {
                 CandidatePairState::Gathered => 2,
                 CandidatePairState::InProgress => 3,
                 CandidatePairState::Nominated => 4,
-                CandidatePairState::Failed => 5,
-                CandidatePairState::Disconnected => 6,
+                CandidatePairState::SendingMedia => 5,
+                CandidatePairState::Failed => 6,
+                CandidatePairState::Disconnected => 7,
             }
         }
         let has_username = stun
