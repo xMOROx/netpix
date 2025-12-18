@@ -99,11 +99,13 @@ impl IceCandidatesVisualization {
             return;
         }
 
-        let filtered_pairs: Vec<_> = data
+        let mut filtered_pairs: Vec<_> = data
             .candidate_pairs
             .values()
             .filter(|pair| self.filter_state.is_none() || self.filter_state == Some(pair.state))
             .collect();
+
+        filtered_pairs.sort_by_key(|pair| pair.first_seen);
 
         if filtered_pairs.is_empty() {
             ui.vertical_centered(|ui| {
