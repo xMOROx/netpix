@@ -81,7 +81,7 @@ pub fn spawn_message_sender(_input: TokenStream) -> TokenStream {
                     ticker.tick().await;
                     let mut clients = clients_for_sender.write().await;
                     for client in clients.values_mut() {
-                        if let Some(msg) = client.queue.pop_front() {
+                        for msg in client.queue.drain(..) {
                             let _ = client.sender.send(msg);
                         }
                     }

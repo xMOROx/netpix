@@ -22,11 +22,15 @@ use netpix_common::{
     rtp::payload_type::MediaType,
 };
 use std::any::Any;
+use std::time::Duration;
 use std::{
     cell::Ref,
     collections::HashMap,
     fmt::{Display, Error, Formatter},
 };
+use web_time::Instant;
+
+const PLOT_REFRESH_INTERVAL: Duration = Duration::from_secs(1);
 
 fn find_first_available_rtp<'a>(
     rtp_packets: &'a [RtpInfo],
@@ -99,6 +103,7 @@ pub struct RtpStreamsPlot {
     requires_reset: bool,
     streams_visibility: HashMap<RtpStreamKey, bool>,
     last_rtp_packets_len: usize,
+    last_refresh: Option<Instant>,
     set_plot_bounds: bool,
     slider_max: i64,
     slider_start: i64,
@@ -122,6 +127,7 @@ impl PlotBase for RtpStreamsPlot {
             requires_reset: false,
             streams_visibility: HashMap::default(),
             last_rtp_packets_len: 0,
+            last_refresh: None,
             set_plot_bounds: false,
             slider_max: 10000,
             slider_start: 0,
@@ -294,8 +300,17 @@ impl RtpStreamsPlot {
 
     fn plot_ui(&mut self, ui: &mut Ui) {
         let number_of_rtp_packets = self.number_of_rtp_packets();
-        if self.last_rtp_packets_len != number_of_rtp_packets || self.requires_reset {
+        let data_changed = self.last_rtp_packets_len != number_of_rtp_packets;
+        let data_cleared = number_of_rtp_packets < self.last_rtp_packets_len;
+        let refresh_due = self
+            .last_refresh
+            .is_none_or(|last| last.elapsed() >= PLOT_REFRESH_INTERVAL);
+        if self.requires_reset || data_cleared || (data_changed && refresh_due) {
             self.refresh_points();
+            self.last_refresh = Some(Instant::now());
+            self.last_rtp_packets_len = number_of_rtp_packets;
+        } else if data_changed {
+            ui.ctx().request_repaint_after(PLOT_REFRESH_INTERVAL);
         }
 
         let plot = Plot::new("rtp-plot")
@@ -313,7 +328,6 @@ impl RtpStreamsPlot {
             });
         }
         self.requires_reset = false;
-        self.last_rtp_packets_len = number_of_rtp_packets;
     }
 
     fn number_of_rtp_packets(&mut self) -> usize {
