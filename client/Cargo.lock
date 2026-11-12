@@ -1549,7 +1549,7 @@ dependencies = [
 
 [[package]]
 name = "netpix_client"
-version = "0.5.2"
+version = "0.6.1"
 dependencies = [
  "chrono",
  "eframe",
@@ -1567,9 +1567,10 @@ dependencies = [
 
 [[package]]
 name = "netpix_common"
-version = "0.5.0"
+version = "0.6.1"
 dependencies = [
  "bincode",
+ "bincode_derive",
  "flate2",
  "log",
  "pcap",

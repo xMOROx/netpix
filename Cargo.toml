@@ -1,6 +1,6 @@
 [package]
 name = "netpix"
-version = "0.5.2"
+version = "0.6.1"
 edition = "2024"
 license = "MIT"
 description = "Multicast streams analysis and visualization tool"
@@ -12,8 +12,8 @@ categories = ["development-tools", "multimedia", "visualization"]
 include = ["/src/", "/dist/"]
 
 [dependencies]
-netpix_common = { path = "./common", version = "0.5.0" }
-netpix_macros = { path = "./macros", version = "0.1.0" }
+netpix_common = { path = "./common", version = "0.6.1" }
+netpix_macros = { path = "./macros", version = "0.1.1" }
 netpix_log_parser ={path = "./log_parser", version = "0.1.0"}
 log = "0.4.22"
 pretty_env_logger = "0.5"
@@ -26,6 +26,7 @@ rust-embed = "8.0.0"
 mime_guess = "2.0.4"
 ringbuf = "0.4.7"
 bincode = "=2.0.0-rc.3"
+bincode_derive = "=2.0.0-rc.3"
 bon = "3.3.0"
 flate2 = "1.0.35"
 

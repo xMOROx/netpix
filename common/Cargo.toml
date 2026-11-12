@@ -1,6 +1,6 @@
 [package]
 name = "netpix_common"
-version = "0.5.0"
+version = "0.6.1"
 edition = "2024"
 license = "MIT"
 description = "Crate with common utilities for netpix"
@@ -11,6 +11,7 @@ readme = false
 [dependencies]
 serde = { version = "1.0", features = ["derive"] }
 bincode = "=2.0.0-rc.3"
+bincode_derive = "=2.0.0-rc.3"
 log = "0.4.20"
 flate2 = "1.0.35"
 
