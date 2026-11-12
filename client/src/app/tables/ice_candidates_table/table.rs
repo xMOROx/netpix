@@ -3,7 +3,16 @@ use crate::app::common::TableBase;
 use crate::streams::RefStreams;
 use egui::*;
 use ewebsock::WsSender;
+use netpix_common::packet::{Packet, PacketDirection, SessionPacket};
 use std::any::Any;
+use std::collections::{HashMap, HashSet};
+use std::net::{IpAddr, SocketAddr};
+
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
+struct IcePacketCounts {
+    stun: usize,
+    media: usize,
+}
 
 pub struct IceCandidatesTable {
     streams: RefStreams,
@@ -11,7 +20,7 @@ pub struct IceCandidatesTable {
     ws_sender: WsSender,
     visualization: IceCandidatesVisualization,
     cached_data: Option<IceCandidatesData>,
-    last_stun_packet_count: usize,
+    last_packet_counts: IcePacketCounts,
 }
 
 impl TableBase for IceCandidatesTable {
@@ -21,23 +30,17 @@ impl TableBase for IceCandidatesTable {
             ws_sender,
             visualization: IceCandidatesVisualization::default(),
             cached_data: None,
-            last_stun_packet_count: 0,
+            last_packet_counts: IcePacketCounts::default(),
         }
     }
 
     fn ui(&mut self, ctx: &Context) {
         CentralPanel::default().show(ctx, |ui| {
-            let current_stun_count = self
-                .streams
-                .borrow()
-                .packets
-                .values()
-                .filter(|p| matches!(&p.contents, netpix_common::packet::SessionPacket::Stun(_)))
-                .count();
+            let packet_counts = self.count_ice_packets();
 
-            if self.cached_data.is_none() || current_stun_count != self.last_stun_packet_count {
+            if self.cached_data.is_none() || packet_counts != self.last_packet_counts {
                 self.cached_data = Some(self.build_ice_data());
-                self.last_stun_packet_count = current_stun_count;
+                self.last_packet_counts = packet_counts;
             }
 
             if let Some(ref data) = self.cached_data {
@@ -63,7 +66,55 @@ impl TableBase for IceCandidatesTable {
     }
 }
 
+fn is_media(packet: &Packet) -> bool {
+    matches!(
+        packet.contents,
+        SessionPacket::Rtp(_) | SessionPacket::Rtcp(_)
+    )
+}
+
+fn is_stun_server(addr: &SocketAddr) -> bool {
+    let ip = addr.ip().to_string();
+    matches!(addr.port(), 3478 | 19302)
+        || ip.starts_with("74.125.")
+        || ip.starts_with("2001:4860:4864:")
+}
+
+fn pair_key(packet: &Packet, local_ips: &HashSet<IpAddr>) -> CandidatePairKey {
+    let (source, destination) = (packet.source_addr, packet.destination_addr);
+    let source_is_local = match packet.metadata.direction {
+        PacketDirection::Outgoing => true,
+        PacketDirection::Incoming => false,
+        PacketDirection::Unknown => {
+            local_ips.contains(&source.ip()) || !local_ips.contains(&destination.ip())
+        }
+    };
+    let (local, remote) = if source_is_local {
+        (source, destination)
+    } else {
+        (destination, source)
+    };
+
+    CandidatePairKey {
+        local_candidate: local.to_string(),
+        remote_candidate: remote.to_string(),
+    }
+}
+
 impl IceCandidatesTable {
+    fn count_ice_packets(&self) -> IcePacketCounts {
+        let streams = self.streams.borrow();
+        let mut counts = IcePacketCounts::default();
+        for packet in streams.packets.values() {
+            match packet.contents {
+                SessionPacket::Stun(_) => counts.stun += 1,
+                _ if is_media(packet) => counts.media += 1,
+                _ => {}
+            }
+        }
+        counts
+    }
+
     fn build_ice_data(&self) -> IceCandidatesData {
         let streams = self.streams.borrow();
         let mut data = IceCandidatesData::default();
@@ -82,44 +133,30 @@ impl IceCandidatesTable {
 
         stun_packets.sort_by_key(|(p, _)| p.timestamp);
 
-        let is_stun_server = |addr: &str| -> bool {
-            // Check for common STUN server ports (3478, 19302)
-            addr.ends_with(":3478") || addr.ends_with(":19302") ||
-            // Check for Google STUN servers
-            addr.contains("74.125.") || addr.contains("2001:4860:4864:")
-        };
+        let local_ips: HashSet<IpAddr> = stun_packets
+            .iter()
+            .filter_map(|(packet, _)| {
+                if is_stun_server(&packet.destination_addr) {
+                    Some(packet.source_addr.ip())
+                } else if is_stun_server(&packet.source_addr) {
+                    Some(packet.destination_addr.ip())
+                } else {
+                    None
+                }
+            })
+            .collect();
+
+        let mut pair_keys: HashMap<(SocketAddr, SocketAddr), CandidatePairKey> = HashMap::new();
 
         for (packet, stun) in stun_packets {
-            let source = packet.source_addr.to_string();
-            let dest = packet.destination_addr.to_string();
-
-            let (local, remote) = match packet.metadata.direction {
-                netpix_common::packet::PacketDirection::Outgoing => (source.clone(), dest.clone()),
-                netpix_common::packet::PacketDirection::Incoming => (dest.clone(), source.clone()),
-                netpix_common::packet::PacketDirection::Unknown => {
-                    let key1 = CandidatePairKey {
-                        local_candidate: source.clone(),
-                        remote_candidate: dest.clone(),
-                    };
-                    let key2 = CandidatePairKey {
-                        local_candidate: dest.clone(),
-                        remote_candidate: source.clone(),
-                    };
-
-                    if data.candidate_pairs.contains_key(&key1) {
-                        (source.clone(), dest.clone())
-                    } else if data.candidate_pairs.contains_key(&key2) {
-                        (dest.clone(), source.clone())
-                    } else {
-                        (source.clone(), dest.clone())
-                    }
-                }
-            };
-
-            let key = CandidatePairKey {
-                local_candidate: local,
-                remote_candidate: remote,
-            };
+            let addrs = (packet.source_addr, packet.destination_addr);
+            let key = pair_keys
+                .entry(addrs)
+                .or_insert_with(|| pair_key(packet, &local_ips))
+                .clone();
+            pair_keys
+                .entry((addrs.1, addrs.0))
+                .or_insert_with(|| key.clone());
 
             let entry =
                 data.candidate_pairs
@@ -138,8 +175,8 @@ impl IceCandidatesTable {
                         media_packets_count: 0,
                     });
 
-            let involves_server = is_stun_server(&packet.source_addr.to_string())
-                || is_stun_server(&packet.destination_addr.to_string());
+            let involves_server =
+                is_stun_server(&packet.source_addr) || is_stun_server(&packet.destination_addr);
             self.update_pair_stats(entry, stun, involves_server);
 
             if packet.timestamp > entry.last_seen {
@@ -147,46 +184,13 @@ impl IceCandidatesTable {
             }
         }
 
-        // Check for RTP/RTCP packets on existing candidate pairs to detect media flow
-        for packet in streams.packets.values() {
-            let is_media = matches!(
-                &packet.contents,
-                netpix_common::packet::SessionPacket::Rtp(_)
-                    | netpix_common::packet::SessionPacket::Rtcp(_)
-            );
-
-            if is_media {
-                let source = packet.source_addr.to_string();
-                let dest = packet.destination_addr.to_string();
-
-                let key1 = CandidatePairKey {
-                    local_candidate: source.clone(),
-                    remote_candidate: dest.clone(),
-                };
-                let key2 = CandidatePairKey {
-                    local_candidate: dest,
-                    remote_candidate: source,
-                };
-
-                let key = if data.candidate_pairs.contains_key(&key1) {
-                    Some(key1)
-                } else if data.candidate_pairs.contains_key(&key2) {
-                    Some(key2)
-                } else {
-                    None
-                };
-
-                if let Some(key) = key {
-                    if let Some(stats) = data.candidate_pairs.get_mut(&key) {
-                        stats.media_packets_count += 1;
-                        if stats.state == CandidatePairState::Nominated {
-                            stats.state = CandidatePairState::SendingMedia;
-                        }
-                        if packet.timestamp > stats.last_seen {
-                            stats.last_seen = packet.timestamp;
-                        }
-                    }
-                }
+        for packet in streams.packets.values().filter(|packet| is_media(packet)) {
+            let addrs = (packet.source_addr, packet.destination_addr);
+            if let Some(stats) = pair_keys
+                .get(&addrs)
+                .and_then(|key| data.candidate_pairs.get_mut(key))
+            {
+                stats.record_media_packet(packet.timestamp);
             }
         }
 

@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 use std::time::Duration;
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct CandidatePairKey {
     pub local_candidate: String,
     pub remote_candidate: String,
@@ -20,6 +20,16 @@ pub struct CandidatePairStats {
     pub first_seen: Duration,
     pub last_seen: Duration,
     pub media_packets_count: u32,
+}
+
+impl CandidatePairStats {
+    pub fn record_media_packet(&mut self, timestamp: Duration) {
+        self.media_packets_count += 1;
+        if self.state != CandidatePairState::Failed {
+            self.state = CandidatePairState::SendingMedia;
+        }
+        self.last_seen = self.last_seen.max(timestamp);
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

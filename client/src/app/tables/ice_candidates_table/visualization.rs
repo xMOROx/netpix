@@ -64,7 +64,7 @@ impl IceCandidatesVisualization {
             ui.colored_label(Color32::GREEN, format!("+ Nominated: {}", nominated_count));
             ui.separator();
             ui.colored_label(
-                Color32::from_rgb(0, 200, 255),
+                CandidatePairState::SendingMedia.color(),
                 format!("▶ Sending Media: {}", sending_media_count),
             );
         });
@@ -116,7 +116,11 @@ impl IceCandidatesVisualization {
             .filter(|pair| self.filter_state.is_none() || self.filter_state == Some(pair.state))
             .collect();
 
-        filtered_pairs.sort_by_key(|pair| pair.first_seen);
+        filtered_pairs.sort_by(|a, b| {
+            a.first_seen
+                .cmp(&b.first_seen)
+                .then_with(|| a.key.cmp(&b.key))
+        });
 
         if filtered_pairs.is_empty() {
             ui.vertical_centered(|ui| {
@@ -379,7 +383,7 @@ impl IceCandidatesVisualization {
                             ui.label(format!("Responses Sent: {}", pair.responses_sent));
                             if pair.media_packets_count > 0 {
                                 ui.colored_label(
-                                    Color32::from_rgb(0, 200, 255),
+                                    CandidatePairState::SendingMedia.color(),
                                     format!("Media Packets: {}", pair.media_packets_count),
                                 );
                             }
