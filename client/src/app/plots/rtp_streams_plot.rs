@@ -301,10 +301,11 @@ impl RtpStreamsPlot {
     fn plot_ui(&mut self, ui: &mut Ui) {
         let number_of_rtp_packets = self.number_of_rtp_packets();
         let data_changed = self.last_rtp_packets_len != number_of_rtp_packets;
+        let data_cleared = number_of_rtp_packets < self.last_rtp_packets_len;
         let refresh_due = self
             .last_refresh
             .is_none_or(|last| last.elapsed() >= PLOT_REFRESH_INTERVAL);
-        if self.requires_reset || (data_changed && refresh_due) {
+        if self.requires_reset || data_cleared || (data_changed && refresh_due) {
             self.refresh_points();
             self.last_refresh = Some(Instant::now());
             self.last_rtp_packets_len = number_of_rtp_packets;
