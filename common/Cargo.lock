@@ -1330,11 +1330,3 @@ dependencies = [
  "quote",
  "syn",
 ]
-
-[[patch.unused]]
-name = "netpix_log_parser"
-version = "0.1.0"
-
-[[patch.unused]]
-name = "netpix_macros"
-version = "0.1.1"

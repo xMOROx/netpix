@@ -1497,7 +1497,3 @@ dependencies = [
  "quote",
  "syn",
 ]
-
-[[patch.unused]]
-name = "netpix_macros"
-version = "0.1.1"
